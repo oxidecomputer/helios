@@ -1,0 +1,32 @@
+[package]
+name = "helios-build"
+version = "0.1.0"
+authors = ["Oxide Computer Company"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[features]
+default = ["vendored-openssl"]
+vendored-openssl = ['openssl/vendored']
+
+[dependencies]
+getopts = "0.2"
+anyhow = "1"
+serde = { version = "1", features = [ "derive" ] }
+serde_json = "1"
+slog = "2.5"
+slog-term = "2.5"
+atty = "0.2"
+libc = "0.2"
+reqwest = { version = "0.10", features = [ "blocking" ] }
+digest = "0.8"
+md-5 = "0.8"
+sha-1 = "0.8"
+toml = "0.5"
+#
+# I believe it is necessary to pull this in here, so that we can demand the
+# static linking of the vendored OpenSSL.  We don't use it directly, but the
+# same version will then be used by reqwest.
+#
+openssl = { version = "0.10", optional = true }

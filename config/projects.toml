@@ -1,0 +1,6 @@
+[project.illumos]
+github = "oxidecomputer/illumos-gate"
+
+[project.userland]
+github = "oxidecomputer/helios-userland"
+use_ssh = true
