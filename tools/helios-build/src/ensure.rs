@@ -602,11 +602,17 @@ where
     }))
 }
 
-pub fn run<S: AsRef<OsStr>>(log: &Logger, args: &[S]) -> Result<()> {
+fn run_common<S: AsRef<OsStr>>(log: &Logger, args: &[S], utf8: bool)
+    -> Result<()>
+{
     let args: Vec<&OsStr> = args.iter().map(|s| s.as_ref()).collect();
 
     let mut cmd = Command::new(&args[0]);
-    cmd.env_remove("LANG");
+    if utf8 {
+        cmd.env("LANG", "en_US.UTF-8");
+    } else {
+        cmd.env_remove("LANG");
+    }
     cmd.env_remove("LC_CTYPE");
     cmd.env_remove("LC_NUMERIC");
     cmd.env_remove("LC_TIME");
@@ -647,4 +653,12 @@ pub fn run<S: AsRef<OsStr>>(log: &Logger, args: &[S]) -> Result<()> {
             }
         }
     }
+}
+
+pub fn run<S: AsRef<OsStr>>(log: &Logger, args: &[S]) -> Result<()> {
+    run_common(log, args, false)
+}
+
+pub fn run_utf8<S: AsRef<OsStr>>(log: &Logger, args: &[S]) -> Result<()> {
+    run_common(log, args, true)
 }

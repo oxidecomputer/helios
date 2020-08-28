@@ -188,7 +188,7 @@ fn cmd_build(log: &Logger, args: &[&str]) -> Result<()> {
      */
     let targetdir = top_path(&["projects", "userland", "components",
         &target])?;
-    ensure::run(log, &["/usr/bin/gmake", "-s",
+    ensure::run_utf8(log, &["/usr/bin/gmake", "-s",
         "-C", targetdir.to_str().unwrap(),
         "update-metadata"])?;
     let mut mdf = targetdir.clone();
