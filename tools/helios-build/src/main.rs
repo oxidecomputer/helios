@@ -547,10 +547,21 @@ fn repo_contains(log: &Logger, fmri: &str) -> Result<bool> {
 
 #[derive(Debug)]
 struct ActionDepend {
-    fmri: String,
+    fmri: Vec<String>,
     type_: String,
     predicate: Vec<String>,
     variant_zone: Option<String>,
+}
+
+impl ActionDepend {
+    fn fmri(&self) -> &str {
+        if self.fmri.len() > 1 {
+            panic!("this {} dependency has {} FMRIs", self.type_,
+                self.fmri.len());
+        }
+
+        self.fmri[0].as_str()
+    }
 }
 
 #[derive(Debug)]
@@ -747,7 +758,7 @@ fn parse_manifest(log: &Logger, input: &str) -> Result<Vec<Action>> {
 
         match a.as_str() {
             "depend" => {
-                let fmri = vals.single("fmri")?;
+                let fmri = vals.list("fmri")?;
                 let type_ = vals.single("type")?;
                 let predicate = vals.maybe_list("predicate")?;
                 let variant_zone = vals.maybe_single(
@@ -830,13 +841,19 @@ fn cmd_userland_plan(log: &Logger, args: &[&str]) -> Result<()> {
     }
 
     while let Some(pkg) = q.pop_front() {
-        if seen.contains(&pkg) {
+        /*
+         * Remove the pkg:/ prefix if present.
+         */
+        let pkg = pkg.trim_start_matches("pkg:/");
+
+        if seen.contains(pkg) {
             continue;
         }
+        seen.insert(pkg.to_string());
 
         info!(log, "planning: {}", pkg);
 
-        let mats: Vec<_> = um.iter().filter(|m| &m.fmri == &pkg).collect();
+        let mats: Vec<_> = um.iter().filter(|m| &m.fmri == pkg).collect();
 
         if mats.is_empty() {
             bail!("no match for FMRI {}", pkg);
@@ -857,7 +874,7 @@ fn cmd_userland_plan(log: &Logger, args: &[&str]) -> Result<()> {
         /*
          * Check for this package in the build repository...
          */
-        if !repo_contains(log, &format!("pkg:/{}", &pkg))? {
+        if !repo_contains(log, &format!("pkg:/{}", pkg))? {
             let p = &mats[0].path;
 
             build(log, p)
@@ -867,7 +884,7 @@ fn cmd_userland_plan(log: &Logger, args: &[&str]) -> Result<()> {
         /*
          * Get the dependencies for this package and put them in the queue...
          */
-        let contents = repo_contents(log, &format!("pkg:/{}", &pkg))?;
+        let contents = repo_contents(log, &format!("pkg:/{}", pkg))?;
 
         for a in contents.iter() {
             match &a {
@@ -876,9 +893,10 @@ fn cmd_userland_plan(log: &Logger, args: &[&str]) -> Result<()> {
                         || ad.type_ == "conditional"
                         || ad.type_ == "group"
                         || ad.type_ == "group-any"
+                        || ad.type_ == "require-any"
                     {
                         /*
-                         * Just do required packages for now...
+                         * Just do basic "require" packages for now...
                          */
                         continue;
                     }
@@ -887,12 +905,19 @@ fn cmd_userland_plan(log: &Logger, args: &[&str]) -> Result<()> {
                         bail!("unexpected depend type: {:?}", ad);
                     }
 
-                    if seen.contains(&ad.fmri) {
+                    let dep = ad.fmri().trim_start_matches("pkg:/");
+                    let dep = if let Some(idx) = dep.find('@') {
+                        &dep[0..idx]
+                    } else {
+                        dep
+                    };
+
+                    if seen.contains(dep) {
                         continue;
                     }
 
-                    info!(log, "adding: {} -> {}", pkg, ad.fmri);
-                    q.push_back(ad.fmri.clone());
+                    info!(log, "adding: {} -> {}", pkg, dep);
+                    q.push_back(dep.to_string());
                 }
                 _ => {}
             }
