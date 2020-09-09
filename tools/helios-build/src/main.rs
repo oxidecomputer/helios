@@ -4,7 +4,7 @@ use common::*;
 pub mod illumos;
 pub mod ensure;
 
-use anyhow::{Result, bail, anyhow};
+use anyhow::{Result, Context, bail, anyhow};
 use serde::{Serialize, Deserialize};
 use std::collections::{BTreeMap, HashMap, VecDeque, BTreeSet};
 use std::process::Command;
@@ -141,6 +141,13 @@ fn cmd_build(log: &Logger, args: &[&str]) -> Result<()> {
     }
     let target = &res.free[0];
 
+    build(log, target)?;
+    Ok(())
+}
+
+fn build(log: &Logger, target: &str) -> Result<()> {
+    info!(log, "BUILD: {}", target);
+
     let zones = illumos::zone_list()?;
     if !zones.exists("helios-template") {
         bail!("create helios-template zone first");
@@ -184,6 +191,19 @@ fn cmd_build(log: &Logger, args: &[&str]) -> Result<()> {
             illumos::zone_delete(&z.name)?;
         }
     }
+
+    /*
+     * Download any required components for this build.
+     */
+    let archive = top_path(&["cache", "userland-archive"])?;
+    let targetdir = top_path(&["projects", "userland", "components",
+        &target])?;
+
+    ensure::run_env(log, &[
+        "gmake", "-s", "-C", &targetdir.to_str().unwrap(), "download"
+    ], vec![
+        ("USERLAND_ARCHIVES", format!("{}/", archive.to_str().unwrap()))
+    ])?;
 
     /*
      * Make sure the metadata is up-to-date for this component.
@@ -286,9 +306,6 @@ fn cmd_build(log: &Logger, args: &[&str]) -> Result<()> {
     illumos::zone_milestone_wait(log, bzn,
         "svc:/milestone/multi-user-server:default")?;
 
-    let archive = top_path(&["cache", "userland-archive"])?;
-    let targetdir = top_path(&["projects", "userland", "components",
-        &target])?;
     let buildscript = format!("#!/bin/bash\n\
         set -o errexit\n\
         set -o pipefail\n\
@@ -532,12 +549,14 @@ fn repo_contains(log: &Logger, fmri: &str) -> Result<bool> {
 struct ActionDepend {
     fmri: String,
     type_: String,
+    predicate: Vec<String>,
+    variant_zone: Option<String>,
 }
 
 #[derive(Debug)]
 enum Action {
     Depend(ActionDepend),
-    Unknown(String, Vec<String>, HashMap<String, String>),
+    Unknown(String, Vec<String>, Vals),
 }
 
 #[derive(Debug)]
@@ -551,6 +570,83 @@ enum ParseState {
     ValueUnquoted,
 }
 
+#[derive(Debug)]
+struct Vals {
+    vals: Vec<(String, String)>,
+    extra: BTreeSet<String>,
+}
+
+impl Vals {
+    fn new() -> Vals {
+        Vals {
+            vals: Vec::new(),
+            extra: BTreeSet::new(),
+        }
+    }
+
+    fn insert(&mut self, key: &str, value: &str) {
+        self.vals.push((key.to_string(), value.to_string()));
+        self.extra.insert(key.to_string());
+    }
+
+    fn maybe_single(&mut self, name: &str) -> Result<Option<String>> {
+        let mut out: Option<String> = None;
+
+        for (k, v) in self.vals.iter() {
+            if k == name {
+                if out.is_some() {
+                    bail!("more than one value for {}, wanted a single value",
+                        name);
+                }
+                out = Some(v.to_string());
+            }
+        }
+
+        self.extra.remove(name);
+        Ok(out)
+    }
+
+    fn single(&mut self, name: &str) -> Result<String> {
+        let out = self.maybe_single(name)?;
+
+        if let Some(out) = out {
+            Ok(out)
+        } else {
+            bail!("no values for {} found", name);
+        }
+    }
+
+    fn maybe_list(&mut self, name: &str) -> Result<Vec<String>> {
+        let mut out: Vec<String> = Vec::new();
+
+        for (k, v) in self.vals.iter() {
+            if k == name {
+                out.push(v.to_string());
+            }
+        }
+
+        self.extra.remove(name);
+        Ok(out)
+    }
+
+    fn list(&mut self, name: &str) -> Result<Vec<String>> {
+        let out = self.maybe_list(name)?;
+        if out.is_empty() {
+            bail!("wanted at least one value for {}, found none", name);
+        }
+        Ok(out)
+    }
+
+    fn check_for_extra(&self) -> Result<()> {
+        if !self.extra.is_empty() {
+            bail!("some properties present but not consumed: {:?}, {:?}",
+                self.extra, self.vals);
+        }
+
+        Ok(())
+    }
+}
+
 fn parse_manifest(log: &Logger, input: &str) -> Result<Vec<Action>> {
     let mut out = Vec::new();
 
@@ -559,7 +655,7 @@ fn parse_manifest(log: &Logger, input: &str) -> Result<Vec<Action>> {
         let mut a = String::new();
         let mut k = String::new();
         let mut v = String::new();
-        let mut vals: HashMap<String, String> = HashMap::new();
+        let mut vals = Vals::new();
         let mut free: Vec<String> = Vec::new();
 
         for c in l.chars() {
@@ -620,7 +716,7 @@ fn parse_manifest(log: &Logger, input: &str) -> Result<Vec<Action>> {
                 }
                 ParseState::ValueQuotedSpace => {
                     if c == ' ' {
-                        vals.insert(k.to_string(), v.to_string());
+                        vals.insert(&k, &v);
                         s = ParseState::Key;
                         k.clear();
                     } else {
@@ -631,7 +727,7 @@ fn parse_manifest(log: &Logger, input: &str) -> Result<Vec<Action>> {
                     if c == '"' {
                         bail!("invalid line (errant quote...): {}", l);
                     } else if c == ' ' {
-                        vals.insert(k.to_string(), v.to_string());
+                        vals.insert(&k, &v);
                         s = ParseState::Key;
                         k.clear();
                     } else {
@@ -643,7 +739,7 @@ fn parse_manifest(log: &Logger, input: &str) -> Result<Vec<Action>> {
 
         match s {
             ParseState::ValueQuotedSpace | ParseState::ValueUnquoted => {
-                vals.insert(k.to_string(), v.to_string());
+                vals.insert(&k, &v);
             }
             ParseState::Type => {},
             _ => bail!("invalid line (terminal state {:?}: {}", s, l),
@@ -651,18 +747,19 @@ fn parse_manifest(log: &Logger, input: &str) -> Result<Vec<Action>> {
 
         match a.as_str() {
             "depend" => {
-                let fmri = vals.remove("fmri").ok_or(anyhow!("missing fmri"))?
-                    .clone();
-                let type_ = vals.remove("type").ok_or(anyhow!("missing type"))?
-                    .clone();
+                let fmri = vals.single("fmri")?;
+                let type_ = vals.single("type")?;
+                let predicate = vals.maybe_list("predicate")?;
+                let variant_zone = vals.maybe_single(
+                    "variant.opensolaris.zone")?;
 
-                if !vals.is_empty() {
-                    bail!("{} line had extra properties: {:?}", a, vals);
-                }
+                vals.check_for_extra()?;
 
                 out.push(Action::Depend(ActionDepend {
                     fmri,
                     type_,
+                    predicate,
+                    variant_zone,
                 }))
             }
             _ => out.push(Action::Unknown(a.to_string(), free, vals)),
@@ -751,7 +848,8 @@ fn cmd_userland_plan(log: &Logger, args: &[&str]) -> Result<()> {
 
         if mats[0].name == "illumos-gate" {
             /*
-             * XXX
+             * XXX Skip for now.  The OS must actually be updated on the build
+             * machine before any new packages are generated using it anyway.
              */
             continue;
         }
@@ -760,7 +858,10 @@ fn cmd_userland_plan(log: &Logger, args: &[&str]) -> Result<()> {
          * Check for this package in the build repository...
          */
         if !repo_contains(log, &format!("pkg:/{}", &pkg))? {
-            bail!("this package ({}) is not yet in the repo", pkg);
+            let p = &mats[0].path;
+
+            build(log, p)
+                .with_context(|| anyhow!("building {} in {} failed", pkg, p))?;
         }
 
         /*
@@ -771,6 +872,17 @@ fn cmd_userland_plan(log: &Logger, args: &[&str]) -> Result<()> {
         for a in contents.iter() {
             match &a {
                 Action::Depend(ad) => {
+                    if ad.type_ == "optional"
+                        || ad.type_ == "conditional"
+                        || ad.type_ == "group"
+                        || ad.type_ == "group-any"
+                    {
+                        /*
+                         * Just do required packages for now...
+                         */
+                        continue;
+                    }
+
                     if ad.type_ != "require" {
                         bail!("unexpected depend type: {:?}", ad);
                     }

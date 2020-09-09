@@ -602,34 +602,12 @@ where
     }))
 }
 
-fn run_common<S: AsRef<OsStr>>(log: &Logger, args: &[S], utf8: bool)
-    -> Result<()>
-{
-    let args: Vec<&OsStr> = args.iter().map(|s| s.as_ref()).collect();
-
-    let mut cmd = Command::new(&args[0]);
-    if utf8 {
-        cmd.env("LANG", "en_US.UTF-8");
-    } else {
-        cmd.env_remove("LANG");
-    }
-    cmd.env_remove("LC_CTYPE");
-    cmd.env_remove("LC_NUMERIC");
-    cmd.env_remove("LC_TIME");
-    cmd.env_remove("LC_COLLATE");
-    cmd.env_remove("LC_MONETARY");
-    cmd.env_remove("LC_MESSAGES");
-    cmd.env_remove("LC_ALL");
-
-    if args.len() > 1 {
-        cmd.args(&args[1..]);
-    }
+fn run_common(log: &Logger, cmd: &mut Command, args: &[&OsStr]) -> Result<()> {
+    info!(log, "exec: {:?}", &args);
 
     cmd.stdin(Stdio::null());
     cmd.stdout(Stdio::piped());
     cmd.stderr(Stdio::piped());
-
-    info!(log, "exec: {:?}", &args);
 
     let mut child = cmd.spawn()?;
 
@@ -655,10 +633,65 @@ fn run_common<S: AsRef<OsStr>>(log: &Logger, args: &[S], utf8: bool)
     }
 }
 
+pub fn scrub_env(cmd: &mut Command, utf8: bool) {
+    if utf8 {
+        cmd.env("LANG", "en_US.UTF-8");
+    } else {
+        cmd.env_remove("LANG");
+    }
+    cmd.env_remove("LC_CTYPE");
+    cmd.env_remove("LC_NUMERIC");
+    cmd.env_remove("LC_TIME");
+    cmd.env_remove("LC_COLLATE");
+    cmd.env_remove("LC_MONETARY");
+    cmd.env_remove("LC_MESSAGES");
+    cmd.env_remove("LC_ALL");
+}
+
 pub fn run<S: AsRef<OsStr>>(log: &Logger, args: &[S]) -> Result<()> {
-    run_common(log, args, false)
+    let args: Vec<&OsStr> = args.iter().map(|s| s.as_ref()).collect();
+
+    let mut cmd = Command::new(&args[0]);
+
+    scrub_env(&mut cmd, false);
+
+    if args.len() > 1 {
+        cmd.args(&args[1..]);
+    }
+
+    run_common(log, &mut cmd, args.as_slice())
 }
 
 pub fn run_utf8<S: AsRef<OsStr>>(log: &Logger, args: &[S]) -> Result<()> {
-    run_common(log, args, true)
+    let args: Vec<&OsStr> = args.iter().map(|s| s.as_ref()).collect();
+
+    let mut cmd = Command::new(&args[0]);
+
+    scrub_env(&mut cmd, true);
+
+    if args.len() > 1 {
+        cmd.args(&args[1..]);
+    }
+
+    run_common(log, &mut cmd, args.as_slice())
+}
+
+pub fn run_env<S, K, V, I>(log: &Logger, args: &[S], env: I) -> Result<()>
+    where S: AsRef<OsStr>,
+          I: IntoIterator<Item = (K, V)>,
+          K: AsRef<OsStr>,
+          V: AsRef<OsStr>,
+{
+    let args: Vec<&OsStr> = args.iter().map(|s| s.as_ref()).collect();
+
+    let mut cmd = Command::new(&args[0]);
+
+    cmd.env_clear();
+    cmd.envs(env);
+
+    if args.len() > 1 {
+        cmd.args(&args[1..]);
+    }
+
+    run_common(log, &mut cmd, args.as_slice())
 }
