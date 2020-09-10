@@ -12,6 +12,7 @@ use std::io::{BufWriter, BufReader, Write};
 use std::fs::File;
 use slog::Logger;
 use illumos::ZonesExt;
+use std::path::Path;
 
 fn baseopts() -> getopts::Options {
     let mut opts = getopts::Options::new();
@@ -145,6 +146,21 @@ fn cmd_build(log: &Logger, args: &[&str]) -> Result<()> {
     Ok(())
 }
 
+fn userland_gmake<P: AsRef<Path>>(log: &Logger, targetdir: P, target: &str)
+    -> Result<()>
+{
+    let targetdir = targetdir.as_ref();
+    let archive = top_path(&["cache", "userland-archive"])?;
+
+    ensure::run_env(log, &[
+        "gmake", "-s", "-C", &targetdir.to_str().unwrap(), target
+    ], vec![
+        ("USERLAND_ARCHIVES", format!("{}/", archive.to_str().unwrap()))
+    ])?;
+
+    Ok(())
+}
+
 fn build(log: &Logger, target: &str) -> Result<()> {
     info!(log, "BUILD: {}", target);
 
@@ -195,15 +211,9 @@ fn build(log: &Logger, target: &str) -> Result<()> {
     /*
      * Download any required components for this build.
      */
-    let archive = top_path(&["cache", "userland-archive"])?;
     let targetdir = top_path(&["projects", "userland", "components",
         &target])?;
-
-    ensure::run_env(log, &[
-        "gmake", "-s", "-C", &targetdir.to_str().unwrap(), "download"
-    ], vec![
-        ("USERLAND_ARCHIVES", format!("{}/", archive.to_str().unwrap()))
-    ])?;
+    userland_gmake(log, &targetdir, "download")?;
 
     /*
      * Make sure the metadata is up-to-date for this component.
@@ -306,6 +316,7 @@ fn build(log: &Logger, target: &str) -> Result<()> {
     illumos::zone_milestone_wait(log, bzn,
         "svc:/milestone/multi-user-server:default")?;
 
+    let archive = top_path(&["cache", "userland-archive"])?;
     let buildscript = format!("#!/bin/bash\n\
         set -o errexit\n\
         set -o pipefail\n\
@@ -830,6 +841,9 @@ fn cmd_userland_plan(log: &Logger, args: &[&str]) -> Result<()> {
      */
     let mdf = top_path(&["projects", "userland", "components",
         "mapping.json"])?;
+    ensure::removed(log, &mdf.to_str().unwrap())?;
+    let compdir = top_path(&["projects", "userland", "components"])?;
+    userland_gmake(log, &compdir, "mapping.json")?;
     let f = File::open(&mdf)?;
     let um: Vec<UserlandMapping> = serde_json::from_reader(&f)?;
 
@@ -894,6 +908,7 @@ fn cmd_userland_plan(log: &Logger, args: &[&str]) -> Result<()> {
                         || ad.type_ == "group"
                         || ad.type_ == "group-any"
                         || ad.type_ == "require-any"
+                        || ad.type_ == "incorporate"
                     {
                         /*
                          * Just do basic "require" packages for now...
