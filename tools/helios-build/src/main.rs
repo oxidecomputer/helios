@@ -240,16 +240,17 @@ fn build(log: &Logger, target: &str) -> Result<()> {
      * are preferring packages we may have rebuilt locally.
      */
     let repodir = top_path(&["projects", "userland", "i386", "repo"])?;
-    ensure::run(log, &["pfexec", "/usr/bin/pkg", "-R", &bzr,
-        "set-publisher",
-        "-g", &format!("file://{}", repodir.to_str().unwrap()),
-        "--sticky",
-        "--search-first",
-        "userland"])?;
-    ensure::run(log, &["pfexec", "/usr/bin/pkg", "-R", &bzr,
-        "set-publisher",
-        "--non-sticky",
-        "openindiana.org"])?;
+/* XXX ugh */
+//      ensure::run(log, &["pfexec", "/usr/bin/pkg", "-R", &bzr,
+//        "set-publisher",
+//        "-g", &format!("file://{}", repodir.to_str().unwrap()),
+//        "--sticky",
+//        "--search-first",
+//        "userland"])?;
+//    ensure::run(log, &["pfexec", "/usr/bin/pkg", "-R", &bzr,
+//        "set-publisher",
+//        "--non-sticky",
+//        "openindiana.org"])?;
     ensure::run(log, &["pfexec", "/usr/bin/pkg", "-R", &bzr,
         "uninstall",
         "userland-incorporation",
@@ -566,7 +567,12 @@ struct ActionDepend {
 
 impl ActionDepend {
     fn fmri(&self) -> &str {
-        if self.fmri.len() > 1 {
+        /*
+         * XXX For "require-any" dependencies, we will return the first
+         * dependency FMRI as I believe that is what IPS would currently install
+         * on its own if you don't specify something.
+         */
+        if self.fmri.len() > 1 && self.type_ != "require-any" {
             panic!("this {} dependency has {} FMRIs", self.type_,
                 self.fmri.len());
         }
@@ -607,6 +613,13 @@ impl Vals {
     }
 
     fn insert(&mut self, key: &str, value: &str) {
+        /*
+         * XXX Ignore "facet.*" properties for now...
+         */
+        if key.starts_with("facet.") {
+            return;
+        }
+
         self.vals.push((key.to_string(), value.to_string()));
         self.extra.insert(key.to_string());
     }
@@ -705,7 +718,7 @@ fn parse_manifest(log: &Logger, input: &str) -> Result<Vec<Action>> {
                 }
                 ParseState::Key => {
                     if c.is_ascii_alphanumeric()
-                        || c == '.' || c == '-' || c == '_'
+                        || c == '.' || c == '-' || c == '_' || c == '/'
                     {
                         k.push(c);
                     } else if c == ' ' {
@@ -814,6 +827,70 @@ fn repo_contents(log: &Logger, fmri: &str) -> Result<Vec<Action>> {
     Ok(parse_manifest(log, &String::from_utf8(out.stdout)?)?)
 }
 
+fn cmd_userland_promote(log: &Logger, args: &[&str]) -> Result<()> {
+    let opts = baseopts();
+
+    let usage = || {
+        println!("{}", opts.usage("Usage: helios [OPTIONS] \
+            userland-promote [OPTIONS]"));
+    };
+
+    let res = opts.parse(args)?;
+
+    if res.opt_present("help") {
+        usage();
+        return Ok(());
+    }
+
+    if !res.free.is_empty() {
+        bail!("unexpected arguments");
+    }
+
+    let top = top()?;
+    println!("helios repository root is: {}", top.display());
+
+    /*
+     * Rebuild the IPS repository:
+     */
+    let repo = top_path(&["projects", "userland", "i386", "repo"])?;
+    ensure::run(log, &["/usr/bin/pkgrepo", "rebuild", "-s",
+        &repo.to_str().unwrap()])?;
+
+    /*
+     * Generate the userland-incorporation:
+     *
+     * XXX It seems like this should really be generated as part of a final
+     * publish of new packages, as it depends on the full repository contents
+     * being available -- but we will really only have the packages we are
+     * rebuilding.
+     */
+    let compdir = top_path(&["projects", "userland", "components"])?;
+    userland_gmake(log, &compdir, "incorporation")?;
+
+    ensure::run(log, &["/usr/bin/pkgrepo", "refresh", "-s",
+        &repo.to_str().unwrap()])?;
+
+    /*
+     * Promote the latest version of each package in the userland dock,
+     * transforming the publisher as we go:
+     */
+    let dock = top_path(&["packages", "repo"])?;
+    let transforms = top_path(&["packages", "publisher.mogrify"])?;
+    ensure::run(log, &["/usr/bin/pkgrecv",
+        "-s", &repo.to_str().unwrap(),
+        "-d", &dock.to_str().unwrap(),
+        "--mog-file", &transforms.to_str().unwrap(),
+        "-m", "latest",
+        "-r",
+        "-v",
+        "*"])?;
+
+    ensure::run(log, &["/usr/bin/pkgrepo", "refresh", "-s",
+        &dock.to_str().unwrap()])?;
+
+    Ok(())
+}
+
 fn cmd_userland_plan(log: &Logger, args: &[&str]) -> Result<()> {
     let opts = baseopts();
 
@@ -877,18 +954,21 @@ fn cmd_userland_plan(log: &Logger, args: &[&str]) -> Result<()> {
 
         info!(log, "match: {:?}", mats[0]);
 
-        if mats[0].name == "illumos-gate" {
-            /*
-             * XXX Skip for now.  The OS must actually be updated on the build
-             * machine before any new packages are generated using it anyway.
-             */
-            continue;
-        }
+//        if mats[0].name == "illumos-gate" {
+//            /*
+//             * XXX Skip for now.  The OS must actually be updated on the build
+//             * machine before any new packages are generated using it anyway.
+//             */
+//            continue;
+//        }
 
         /*
          * Check for this package in the build repository...
+         * XXX Do not build gate packages this way for now...
          */
-        if !repo_contains(log, &format!("pkg:/{}", pkg))? {
+        if mats[0].name != "illumos-gate" &&
+            !repo_contains(log, &format!("pkg:/{}", pkg))?
+        {
             let p = &mats[0].path;
 
             build(log, p)
@@ -907,7 +987,6 @@ fn cmd_userland_plan(log: &Logger, args: &[&str]) -> Result<()> {
                         || ad.type_ == "conditional"
                         || ad.type_ == "group"
                         || ad.type_ == "group-any"
-                        || ad.type_ == "require-any"
                         || ad.type_ == "incorporate"
                     {
                         /*
@@ -916,7 +995,7 @@ fn cmd_userland_plan(log: &Logger, args: &[&str]) -> Result<()> {
                         continue;
                     }
 
-                    if ad.type_ != "require" {
+                    if ad.type_ != "require" && ad.type_ != "require-any" {
                         bail!("unexpected depend type: {:?}", ad);
                     }
 
@@ -1079,6 +1158,12 @@ fn main() -> Result<()> {
         name: "userland-plan".into(),
         desc: "userland-plan".into(),
         func: cmd_userland_plan,
+        hide: true,
+    });
+    handlers.push(CommandInfo {
+        name: "userland-promote".into(),
+        desc: "userland-promote".into(),
+        func: cmd_userland_promote,
         hide: true,
     });
 
