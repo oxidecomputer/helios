@@ -277,8 +277,19 @@ fn build(log: &Logger, target: &str) -> Result<()> {
     if !install.is_empty() {
         info!(log, "installing packages in zone: {:?}", install);
         let mut args = vec!["pfexec", "/usr/bin/pkg", "-R", &bzr, "install"];
+        let mut argstorage = Vec::new();
         for i in install.iter() {
-            args.push(i);
+            if i.starts_with("pkg:") {
+                bail!("not expecting full FMRI: {}", i);
+            }
+            if i.starts_with("/") {
+                argstorage.push(i.to_string());
+            } else {
+                argstorage.push(format!("/{}", i));
+            }
+        }
+        for arg in argstorage.iter() {
+            args.push(arg.as_str());
         }
         ensure::run(log, &args)?;
     }
