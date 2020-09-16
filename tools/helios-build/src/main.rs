@@ -730,6 +730,7 @@ fn parse_manifest(log: &Logger, input: &str) -> Result<Vec<Action>> {
                 ParseState::Key => {
                     if c.is_ascii_alphanumeric()
                         || c == '.' || c == '-' || c == '_' || c == '/'
+                        || c == '@'
                     {
                         k.push(c);
                     } else if c == ' ' {
