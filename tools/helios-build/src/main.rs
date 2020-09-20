@@ -577,18 +577,8 @@ struct ActionDepend {
 }
 
 impl ActionDepend {
-    fn fmri(&self) -> &str {
-        /*
-         * XXX For "require-any" dependencies, we will return the first
-         * dependency FMRI as I believe that is what IPS would currently install
-         * on its own if you don't specify something.
-         */
-        if self.fmri.len() > 1 && self.type_ != "require-any" {
-            panic!("this {} dependency has {} FMRIs", self.type_,
-                self.fmri.len());
-        }
-
-        self.fmri[0].as_str()
+    fn fmris(&self) -> Vec<&str> {
+        self.fmri.iter().map(|x| x.as_str()).collect()
     }
 }
 
@@ -936,14 +926,14 @@ fn cmd_userland_plan(log: &Logger, args: &[&str]) -> Result<()> {
     let f = File::open(&mdf)?;
     let um: Vec<UserlandMapping> = serde_json::from_reader(&f)?;
 
-    let mut q: VecDeque<String> = VecDeque::new();
+    let mut q: VecDeque<(String, bool)> = VecDeque::new();
     let mut seen: BTreeSet<String> = BTreeSet::new();
 
     for pkg in res.free.iter() {
-        q.push_back(pkg.clone());
+        q.push_back((pkg.clone(), false));
     }
 
-    while let Some(pkg) = q.pop_front() {
+    while let Some((pkg, optional)) = q.pop_front() {
         /*
          * Remove the pkg:/ prefix if present.
          */
@@ -954,25 +944,22 @@ fn cmd_userland_plan(log: &Logger, args: &[&str]) -> Result<()> {
         }
         seen.insert(pkg.to_string());
 
-        info!(log, "planning: {}", pkg);
+        info!(log, "planning: {} (optional? {:?}", pkg, optional);
 
         let mats: Vec<_> = um.iter().filter(|m| &m.fmri == pkg).collect();
 
         if mats.is_empty() {
+            if optional {
+                warn!(log, "no match for optional FMRI {} (skipping)", pkg);
+                continue;
+            }
+
             bail!("no match for FMRI {}", pkg);
         } else if mats.len() > 1 {
             bail!("{} matches for FMRI {}: {:?}", mats.len(), pkg, mats);
         }
 
         info!(log, "match: {:?}", mats[0]);
-
-//        if mats[0].name == "illumos-gate" {
-//            /*
-//             * XXX Skip for now.  The OS must actually be updated on the build
-//             * machine before any new packages are generated using it anyway.
-//             */
-//            continue;
-//        }
 
         /*
          * Check for this package in the build repository...
@@ -995,35 +982,40 @@ fn cmd_userland_plan(log: &Logger, args: &[&str]) -> Result<()> {
         for a in contents.iter() {
             match &a {
                 Action::Depend(ad) => {
-                    if ad.type_ == "optional"
-                        || ad.type_ == "conditional"
-                        || ad.type_ == "group"
-                        || ad.type_ == "group-any"
-                        || ad.type_ == "incorporate"
-                    {
+                    if ad.type_ == "incorporate" {
                         /*
-                         * Just do basic "require" packages for now...
+                         * Incorporated dependencies constrain versions, but do
+                         * not themselves require installation.
                          */
                         continue;
                     }
 
-                    if ad.type_ != "require" && ad.type_ != "require-any" {
+                    if ad.type_ != "require" &&
+                        ad.type_ != "require-any" &&
+                        ad.type_ != "group" &&
+                        ad.type_ != "group-any" &&
+                        ad.type_ != "optional" &&
+                        ad.type_ != "conditional"
+                    {
                         bail!("unexpected depend type: {:?}", ad);
                     }
 
-                    let dep = ad.fmri().trim_start_matches("pkg:/");
-                    let dep = if let Some(idx) = dep.find('@') {
-                        &dep[0..idx]
-                    } else {
-                        dep
-                    };
+                    for dep in ad.fmris().iter() {
+                        let dep = dep.trim_start_matches("pkg:/");
+                        let dep = if let Some(idx) = dep.find('@') {
+                            &dep[0..idx]
+                        } else {
+                            dep
+                        };
 
-                    if seen.contains(dep) {
-                        continue;
+                        if seen.contains(dep) {
+                            continue;
+                        }
+
+                        info!(log, "adding ({}): {} -> {}", ad.type_, pkg, dep);
+                        let depopt = ad.type_ == "optional";
+                        q.push_back((dep.to_string(), depopt));
                     }
-
-                    info!(log, "adding: {} -> {}", pkg, dep);
-                    q.push_back(dep.to_string());
                 }
                 _ => {}
             }
