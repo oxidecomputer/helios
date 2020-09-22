@@ -893,8 +893,45 @@ fn cmd_userland_promote(log: &Logger, args: &[&str]) -> Result<()> {
     Ok(())
 }
 
+#[derive(Serialize, Deserialize)]
+struct MemoQueueEntry {
+    fmri: String,
+    optional: bool,
+}
+
+#[derive(Serialize, Deserialize)]
+struct Memo {
+    seen: BTreeSet<String>,
+    q: VecDeque<MemoQueueEntry>,
+}
+
+fn memo_load<T>(log: &Logger, mdf: &str) -> Result<Option<T>>
+    where for<'de> T: Deserialize<'de>,
+{
+    let f = match File::open(&mdf) {
+        Ok(f) => f,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(e) => bail!("could not load memo file: {:?}", e),
+    };
+    Ok(serde_json::from_reader(&f)?)
+}
+
+fn memo_store<T>(log: &Logger, mdf: &str, t: T) -> Result<()>
+    where T: Serialize,
+{
+    let mut f = std::fs::OpenOptions::new()
+        .write(true)
+        .truncate(true)
+        .create(true)
+        .open(&mdf)?;
+    serde_json::to_writer_pretty(&mut f, &t)?;
+    Ok(())
+}
+
 fn cmd_userland_plan(log: &Logger, args: &[&str]) -> Result<()> {
-    let opts = baseopts();
+    let mut opts = baseopts();
+
+    opts.optopt("m", "", "memo file for build progress", "MEMOFILE");
 
     let usage = || {
         println!("{}", opts.usage("Usage: helios [OPTIONS] \
@@ -907,6 +944,12 @@ fn cmd_userland_plan(log: &Logger, args: &[&str]) -> Result<()> {
         usage();
         return Ok(());
     }
+
+    let memo: Option<Memo> = if let Some(mf) = res.opt_str("m") {
+        memo_load(log, &mf)?
+    } else {
+        None
+    };
 
     if res.free.is_empty() {
         bail!("provide package names");
@@ -926,30 +969,51 @@ fn cmd_userland_plan(log: &Logger, args: &[&str]) -> Result<()> {
     let f = File::open(&mdf)?;
     let um: Vec<UserlandMapping> = serde_json::from_reader(&f)?;
 
-    let mut q: VecDeque<(String, bool)> = VecDeque::new();
-    let mut seen: BTreeSet<String> = BTreeSet::new();
+    let mut memo = if let Some(memo) = memo {
+        memo
+    } else {
+        let mut q: VecDeque<MemoQueueEntry> = VecDeque::new();
 
-    for pkg in res.free.iter() {
-        q.push_back((pkg.clone(), false));
-    }
+        for pkg in res.free.iter() {
+            q.push_back(MemoQueueEntry {
+                fmri: pkg.clone(),
+                optional: false
+            });
+        }
 
-    while let Some((pkg, optional)) = q.pop_front() {
+        Memo {
+            q,
+            seen: BTreeSet::new(),
+        }
+    };
+
+    loop {
+        if let Some(mf) = res.opt_str("m") {
+            memo_store(log, &mf, &memo)?;
+        }
+
+        let mqe = if let Some(mqe) = memo.q.pop_front() {
+            mqe
+        } else {
+            break;
+        };
+
         /*
          * Remove the pkg:/ prefix if present.
          */
-        let pkg = pkg.trim_start_matches("pkg:/");
+        let pkg = mqe.fmri.trim_start_matches("pkg:/");
 
-        if seen.contains(pkg) {
+        if memo.seen.contains(pkg) {
             continue;
         }
-        seen.insert(pkg.to_string());
+        memo.seen.insert(pkg.to_string());
 
-        info!(log, "planning: {} (optional? {:?}", pkg, optional);
+        info!(log, "planning: {} (optional? {:?}", pkg, mqe.optional);
 
         let mats: Vec<_> = um.iter().filter(|m| &m.fmri == pkg).collect();
 
         if mats.is_empty() {
-            if optional {
+            if mqe.optional {
                 warn!(log, "no match for optional FMRI {} (skipping)", pkg);
                 continue;
             }
@@ -1008,13 +1072,16 @@ fn cmd_userland_plan(log: &Logger, args: &[&str]) -> Result<()> {
                             dep
                         };
 
-                        if seen.contains(dep) {
+                        if memo.seen.contains(dep) {
                             continue;
                         }
 
                         info!(log, "adding ({}): {} -> {}", ad.type_, pkg, dep);
                         let depopt = ad.type_ == "optional";
-                        q.push_back((dep.to_string(), depopt));
+                        memo.q.push_back(MemoQueueEntry {
+                            fmri: dep.to_string(),
+                            optional: depopt
+                        });
                     }
                 }
                 _ => {}
