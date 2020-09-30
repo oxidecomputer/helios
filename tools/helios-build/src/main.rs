@@ -506,6 +506,7 @@ struct UserlandMapping {
     fmri: String,
     name: String,
     path: String,
+    repo: Option<String>,
 }
 
 fn read_metadata(log: &Logger, target: &str) -> Result<UserlandMetadata> {
@@ -1010,7 +1011,12 @@ fn cmd_userland_plan(log: &Logger, args: &[&str]) -> Result<()> {
 
         info!(log, "planning: {} (optional? {:?}", pkg, mqe.optional);
 
-        let mats: Vec<_> = um.iter().filter(|m| &m.fmri == pkg).collect();
+        let mats: Vec<_> = um.iter()
+            .filter(|m| &m.fmri == pkg)
+            .filter(|m| m.repo.as_deref()
+                .map(|repo| !repo.contains("encumbered"))
+                .unwrap_or(true))
+            .collect();
 
         if mats.is_empty() {
             if mqe.optional {
