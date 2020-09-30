@@ -577,9 +577,14 @@ where
         let mut r = BufReader::new(stream);
 
         loop {
-            let mut buf = String::new();
+            let mut buf: Vec<u8> = Vec::new();
 
-            match r.read_line(&mut buf) {
+            /*
+             * We have no particular control over the output from the child
+             * processes we run, so we read until a newline character without
+             * relying on totally valid UTF-8 output.
+             */
+            match r.read_until(b'\n', &mut buf) {
                 Ok(0) => {
                     /*
                      * EOF.
@@ -587,7 +592,8 @@ where
                     return;
                 }
                 Ok(_) => {
-                    let s = buf.trim();
+                    let s = String::from_utf8_lossy(&buf);
+                    let s = s.trim();
 
                     if !s.is_empty() {
                         info!(log, "{}| {}", name, s);
