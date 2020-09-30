@@ -694,6 +694,7 @@ fn parse_manifest(log: &Logger, input: &str) -> Result<Vec<Action>> {
         let mut v = String::new();
         let mut vals = Vals::new();
         let mut free: Vec<String> = Vec::new();
+        let mut quote = '"';
 
         for c in l.chars() {
             match s {
@@ -734,8 +735,18 @@ fn parse_manifest(log: &Logger, input: &str) -> Result<Vec<Action>> {
                     }
                 }
                 ParseState::Value => {
+                    /*
+                     * This state represents the start of a new value, which
+                     * will either be quoted or unquoted.
+                     */
                     v.clear();
-                    if c == '"' {
+                    if c == '"' || c == '\'' {
+                        /*
+                         * Record the type of quote used at the start of the
+                         * string so that we can match it with the same type
+                         * of quote at the end.
+                         */
+                        quote = c;
                         s = ParseState::ValueQuoted;
                     } else {
                         s = ParseState::ValueUnquoted;
@@ -748,21 +759,27 @@ fn parse_manifest(log: &Logger, input: &str) -> Result<Vec<Action>> {
                          * XXX handle escaped quotes...
                          */
                         bail!("invalid line (backslash...): {}", l);
-                    } else if c == '"' {
+                    } else if c == quote {
                         s = ParseState::ValueQuotedSpace;
+                    } else {
+                        v.push(c);
                     }
                 }
                 ParseState::ValueQuotedSpace => {
+                    /*
+                     * We expect at least one space after a quoted string before
+                     * the next key.
+                     */
                     if c == ' ' {
                         vals.insert(&k, &v);
                         s = ParseState::Key;
                         k.clear();
                     } else {
-                        bail!("invalid line ({:?}): {}", s, l);
+                        bail!("invalid after quote ({:?}, {}): {}", s, k, l);
                     }
                 }
                 ParseState::ValueUnquoted => {
-                    if c == '"' {
+                    if c == '"' || c == '\'' {
                         bail!("invalid line (errant quote...): {}", l);
                     } else if c == ' ' {
                         vals.insert(&k, &v);
