@@ -921,6 +921,8 @@ struct MemoQueueEntry {
 struct Memo {
     seen: BTreeSet<String>,
     q: VecDeque<MemoQueueEntry>,
+    #[serde(default)]
+    fails: VecDeque<MemoQueueEntry>,
 }
 
 fn memo_load<T>(log: &Logger, mdf: &str) -> Result<Option<T>>
@@ -950,6 +952,7 @@ fn cmd_userland_plan(log: &Logger, args: &[&str]) -> Result<()> {
     let mut opts = baseopts();
 
     opts.optopt("m", "", "memo file for build progress", "MEMOFILE");
+    opts.optflag("F", "", "skip failures");
 
     let usage = || {
         println!("{}", opts.usage("Usage: helios [OPTIONS] \
@@ -962,6 +965,8 @@ fn cmd_userland_plan(log: &Logger, args: &[&str]) -> Result<()> {
         usage();
         return Ok(());
     }
+
+    let skip_failures = res.opt_present("F");
 
     let memo: Option<Memo> = if let Some(mf) = res.opt_str("m") {
         memo_load(log, &mf)?
@@ -1001,6 +1006,7 @@ fn cmd_userland_plan(log: &Logger, args: &[&str]) -> Result<()> {
 
         Memo {
             q,
+            fails: VecDeque::new(),
             seen: BTreeSet::new(),
         }
     };
@@ -1057,8 +1063,15 @@ fn cmd_userland_plan(log: &Logger, args: &[&str]) -> Result<()> {
         {
             let p = &mats[0].path;
 
-            build(log, p)
-                .with_context(|| anyhow!("building {} in {} failed", pkg, p))?;
+            if let Err(e) = build(log, p) {
+                if skip_failures {
+                    error!(log, "building {} in {} failed", pkg, p);
+                    memo.fails.push_back(mqe);
+                    continue;
+                }
+
+                bail!("building {} in {} failed", pkg, p);
+            }
         }
 
         /*
