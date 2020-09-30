@@ -334,7 +334,7 @@ fn build(log: &Logger, target: &str) -> Result<()> {
         set -o pipefail\n\
         set -o xtrace\n\
         export USERLAND_ARCHIVES='{}/'\n\
-        export COMPONENT_BUILD_ARGS='-j4'\n\
+        export COMPONENT_BUILD_ARGS='-j10'\n\
         cd '{}'\n\
         /usr/bin/gmake publish\n
         /usr/bin/gmake sample-manifest\n",
