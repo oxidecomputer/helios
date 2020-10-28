@@ -8,11 +8,16 @@ use anyhow::{Result, Context, bail, anyhow};
 use serde::{Serialize, Deserialize};
 use std::collections::{BTreeMap, HashMap, VecDeque, BTreeSet};
 use std::process::Command;
-use std::io::{BufWriter, BufReader, Write};
+use std::io::{BufWriter, BufReader, Write, Read};
 use std::fs::File;
 use slog::Logger;
 use illumos::ZonesExt;
 use std::path::Path;
+use walkdir::{WalkDir, DirEntry};
+use regex::Regex;
+
+const RELVER: u32 = 1;
+const DASHREV: u32 = 0;
 
 fn baseopts() -> getopts::Options {
     let mut opts = getopts::Options::new();
@@ -87,6 +92,12 @@ struct Project {
      */
     #[serde(default)]
     use_ssh: bool,
+
+    /*
+     * Set up an OmniOS-style lib/site.sh for this project:
+     */
+    #[serde(default)]
+    site_sh: bool,
 }
 
 impl Project {
@@ -119,6 +130,263 @@ struct UserlandMetadata {
     dependencies: Vec<String>,
     fmris: Vec<String>,
     name: String,
+}
+
+fn cmd_promote_illumos(log: &Logger, args: &[&str]) -> Result<()> {
+    let opts = baseopts();
+
+    let usage = || {
+        println!("{}", opts.usage("Usage: helios [OPTIONS] promote-illumos [OPTIONS]"));
+    };
+
+    let res = opts.parse(args)?;
+
+    if res.opt_present("help") {
+        usage();
+        return Ok(());
+    }
+
+    if !res.free.is_empty() {
+        bail!("unexpected arguments");
+    }
+
+    let publisher = "on-nightly";
+    let staging = top_path(&["projects", "illumos", "packages", "i386",
+        "merged"])?;
+    let repo_d = top_path(&["projects", "illumos", "packages", "i386",
+        "nightly", "repo.redist"])?;
+    let repo_nd = top_path(&["projects", "illumos", "packages", "i386",
+        "nightly-nd", "repo.redist"])?;
+
+    /*
+     * Merge the packages from the DEBUG and non-DEBUG builds into a single
+     * staging repository using the IPS variant feature.
+     */
+    info!(log, "recreating staging repository at {:?}", &staging);
+    if exists_dir(&staging)? {
+        std::fs::remove_dir_all(&staging)?;
+    }
+    ensure::run(log, &["/usr/bin/pkgrepo", "create",
+        &staging.to_str().unwrap()])?;
+    ensure::run(log, &["/usr/bin/pkgrepo", "add-publisher", "-s",
+        &staging.to_str().unwrap(), &publisher])?;
+
+    ensure::run(log, &["/usr/bin/pkgmerge", "-d", &staging.to_str().unwrap(),
+        "-s", &format!("debug.illumos=false,{}/", repo_nd.to_str().unwrap()),
+        "-s", &format!("debug.illumos=true,{}/", repo_d.to_str().unwrap())])?;
+
+    Ok(())
+}
+
+fn cmd_build_illumos(log: &Logger, args: &[&str]) -> Result<()> {
+    let opts = baseopts();
+
+    let usage = || {
+        println!("{}", opts.usage("Usage: helios [OPTIONS] build-illumos [OPTIONS]"));
+    };
+
+    let res = opts.parse(args)?;
+
+    if res.opt_present("help") {
+        usage();
+        return Ok(());
+    }
+
+    if !res.free.is_empty() {
+        bail!("unexpected arguments");
+    }
+
+    let gate = top_path(&["projects", "illumos"])?;
+    let path_env = top_path(&["projects", "illumos", "illumos.sh"])?;
+
+    let maxjobs = 10; // XXX
+
+    /*
+     * Construct an environment file to build illumos-gate.
+     */
+    let mut env = String::new();
+    env += "export NIGHTLY_OPTIONS='-nCDAmprt'\n";
+    env += &format!("export CODEMGR_WS='{}'\n", gate.to_str().unwrap());
+    env += "export GNUC_ROOT=/opt/gcc-7\n";
+    env += "export PRIMARY_CC=gcc7,$GNUC_ROOT/bin/gcc,gnu\n";
+    env += "export PRIMARY_CCC=gcc7,$GNUC_ROOT/bin/g++,gnu\n";
+    //env += "export SHADOW_CCS=gcc4,$GNUC_ROOT/bin/gcc,gnu\n";
+    //env += "export SHADOW_CCS=gcc4,$GNUC_ROOT/bin/g++,gnu\n";
+    //env += "export ENABLE_SMB_PRINTING=
+    env += "export BUILDVERSION_EXEC=\"git describe --all --long --dirty\"\n";
+    env += &format!("export DMAKE_MAX_JOBS={}\n", maxjobs);
+    env += "export ENABLE_SMB_PRINTING='#'\n";
+    env += "export PERL_VERSION=5.32\n";
+    env += "export PERL_PKGVERS=\n";
+    env += "export PERL_VARIANT=-thread-multi\n";
+    env += "export BUILDPERL32='#'\n";
+    env += "export JAVA_ROOT=/usr/jdk/openjdk11.0\n";
+    env += "export JAVA_HOME=$JAVA_ROOT\n";
+    env += "export BLD_JAVA_11=\n";
+    env += "export BUILDPY2=\n";
+    env += "export BUILDPY3=\n";
+    env += "export BUILDPY2TOOLS=\n";
+    env += "export BUILDPY3TOOLS=\n";
+    env += "export PYTHON3_VERSION=3.7\n";
+    env += "export PYTHON3_PKGVERS=-37\n";
+    env += "export TOOLS_PYTHON=/usr/bin/python$PYTHON3_VERSION\n";
+    env += "export STAFFER=\"$LOGNAME\"\n";
+    env += "export MAILTO=\"${MAILTO:-$STAFFER}\"\n";
+    env += "export BUILD_PROJECT=''\n";
+    env += "export ATLOG=\"$CODEMGR_WS/log\"\n";
+    env += "export LOGFILE=\"$ATLOG/nightly.log\"\n";
+    env += "export MACH=\"$(uname -p)\"\n";
+    env += "export BUILD_TOOLS='/opt'\n";
+    env += "export MAKEFLAGS='k'\n";
+    env += "export PARENT_WS=''\n";
+    env += "export REF_PROTO_LIST=\"$PARENT_WS/usr/src/proto_list_${MACH}\"\n";
+    env += "export PARENT_ROOT=\"$PARENT_WS/proto/root_$MACH\"\n";
+    env += "export PARENT_TOOLS_ROOT=\
+        \"$PARENT_WS/usr/src/tools/proto/root_$MACH-nd\"\n";
+    env += "export PKGARCHIVE=\"${CODEMGR_WS}/packages/${MACH}/nightly\"\n";
+    env += "export VERSION=\"`git describe --long --all HEAD \
+        | cut -d/ -f2-`\"\n";
+    env += "export ROOT=\"$CODEMGR_WS/proto/root_${MACH}\"\n";
+    env += "export SRC=\"$CODEMGR_WS/usr/src\"\n";
+    env += "export MULTI_PROTO=\"yes\"\n";
+    env += "export ONBLD_BIN=/opt/onbld/bin\n";
+    env += "export ON_CLOSED_BINS=/opt/onbld/closed\n";
+    env += &format!("export PKGVERS_BRANCH={}.{}\n", RELVER, DASHREV);
+
+    ensure::file_str(log, &env, &path_env, 0o644, ensure::Create::Always)?;
+
+    let script = format!("cd {} && ./usr/src/tools/scripts/nightly illumos.sh",
+        gate.to_str().unwrap());
+
+    ensure::run(log, &["/sbin/sh", "-c", &script])?;
+
+    Ok(())
+}
+
+#[derive(Debug)]
+enum BuildFile {
+    Script(PathBuf),
+    Manifest(PathBuf),
+}
+
+struct BuildPackage {
+    name: String,
+    file: BuildFile,
+}
+
+fn read_string(path: &Path) -> Result<String> {
+    let f = File::open(path)?;
+    let mut buf = String::new();
+    let mut br = BufReader::new(&f);
+    br.read_to_string(&mut buf)?;
+    Ok(buf)
+}
+
+fn extract_pkgs(log: &Logger, dir: &Path) -> Result<Vec<BuildPackage>> {
+    /*
+     * First, find all the build.sh scripts.
+     */
+    fn is_build_sh(ent: &DirEntry) -> bool {
+        ent.file_type().is_file() &&
+            ent.file_name().to_str()
+            .map(|s| s.starts_with("build") && s.ends_with(".sh"))
+            .unwrap_or(false)
+    }
+
+    fn is_p5m(ent: &DirEntry) -> bool {
+        ent.file_type().is_file() &&
+            ent.file_name().to_str()
+            .map(|s| s.ends_with(".p5m"))
+            .unwrap_or(false)
+    }
+
+    let mut out = Vec::new();
+    let re = Regex::new(r"\bPKG=([^[:space:]]+)[[:space:]]*(#.*)?$").unwrap();
+    let re2 = Regex::new(r"^set name=pkg.fmri value=([^[:space:]]+).*")
+        .unwrap();
+    let re3 = Regex::new("^(?:.*//[^/]*/)?(.+?)(?:@.*)$").unwrap();
+
+    for ent in WalkDir::new(&dir).into_iter() {
+        let ent = ent?;
+
+        if is_p5m(&ent) {
+            for l in read_string(&ent.path())?.lines() {
+                if let Some(cap) = re2.captures(&l) {
+                    let pkg = cap.get(1).unwrap().as_str();
+                    if let Some(cap) = re3.captures(&pkg) {
+                        let pkg = cap.get(1).unwrap().as_str();
+                        out.push(BuildPackage {
+                            name: pkg.to_string(),
+                            file: BuildFile::Manifest(ent.path().to_path_buf()),
+                        });
+                    } else {
+                        bail!("weird package? {}", l);
+                    }
+                }
+            }
+            continue;
+        }
+
+        if !is_build_sh(&ent) {
+            continue;
+        }
+
+        /*
+         * Inspect the contents of each build script and look for packages.
+         */
+        for l in read_string(&ent.path())?.lines() {
+            if l.contains("##IGNORE##") {
+                continue;
+            }
+
+            if let Some(cap) = re.captures(&l) {
+                if let Some(pkg) = cap.get(1) {
+                    let pkg = pkg.as_str().trim();
+                    if !pkg.is_empty() {
+                        out.push(BuildPackage {
+                            name: pkg.to_string(),
+                            file: BuildFile::Script(ent.path().to_path_buf()),
+                        });
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(out)
+}
+
+fn cmd_build_omnios(log: &Logger, args: &[&str]) -> Result<()> {
+    let opts = baseopts();
+
+    let usage = || {
+        println!("{}", opts.usage("Usage: helios [OPTIONS] build-omnios \
+            [OPTIONS]"));
+    };
+
+    let res = opts.parse(args)?;
+
+    if res.opt_present("help") {
+        usage();
+        return Ok(());
+    }
+
+    // if res.free.is_empty() {
+    //     bail!("which package should I build?");
+    // }
+
+    let dir = top_path(&["projects", "omnios-build", "build"])?;
+
+    let mut pkgs = extract_pkgs(log, &dir)?;
+
+    pkgs.sort_by(|a, b| a.name.cmp(&b.name));
+
+    for pkg in pkgs.iter() {
+        println!(" * {}", pkg.name);
+        println!("   {:?}", pkg.file);
+    }
+
+    Ok(())
 }
 
 fn cmd_build(log: &Logger, args: &[&str]) -> Result<()> {
@@ -1176,6 +1444,25 @@ fn cmd_setup(log: &Logger, args: &[&str]) -> Result<()> {
 
             println!("clone ok!");
         }
+
+        if project.site_sh {
+            let mut ssp = path.clone();
+            ssp.push("lib");
+            ssp.push("site.sh");
+            info!(log, "creating config file at {}", ssp.display());
+
+            let mut site_sh = String::new();
+            site_sh += "PFEXEC=/usr/bin/pfexec\n";
+            site_sh += "PKGPUBLISHER=helios-dev\n";
+            site_sh += "PUBLISHER_EMAIL=jmc@oxide.computer\n";
+            site_sh += &format!("RELVER={}\n", RELVER);
+            site_sh += &format!("DASHREV={}\n", DASHREV);
+            site_sh += "PVER=$RELVER.$DASHREV\n";
+            site_sh += "IPS_REPO=https://pkg.oxide.computer/helios-dev-2\n";
+
+            ensure::file_str(log, &site_sh, &ssp, 0o644,
+                ensure::Create::Always)?;
+        }
     }
 
     /*
@@ -1184,16 +1471,18 @@ fn cmd_setup(log: &Logger, args: &[&str]) -> Result<()> {
      */
     let publisher = "helios-dev";
     ensure_dir(&["packages"])?;
-    let repo_path = top_path(&["packages", "repo"])?;
-    if !exists_dir(&repo_path)? {
-        let path = repo_path.to_str().unwrap(); /* XXX */
+    for repo in &["os", "other", "combined"] {
+        let repo_path = top_path(&["packages", repo])?;
+        if !exists_dir(&repo_path)? {
+            let path = repo_path.to_str().unwrap(); /* XXX */
 
-        /*
-         * XXX make this more idempotent...
-         */
-        ensure::run(log, &["/usr/bin/pkgrepo", "create", &path])?;
-        ensure::run(log, &["/usr/bin/pkgrepo", "add-publisher", "-s",
-            &path, &publisher])?;
+            /*
+             * XXX make this more idempotent...
+             */
+            ensure::run(log, &["/usr/bin/pkgrepo", "create", &path])?;
+            ensure::run(log, &["/usr/bin/pkgrepo", "add-publisher", "-s",
+                &path, &publisher])?;
+        }
     }
 
     /*
@@ -1202,19 +1491,27 @@ fn cmd_setup(log: &Logger, args: &[&str]) -> Result<()> {
      * central repository.
      */
     let mog = format!("<transform set name=pkg.fmri -> \
-        edit value pkg://[^/]+/ pkg://{}/>", publisher);
+        edit value pkg://[^/]+/ pkg://{}/>\n", publisher);
     let mogpath = top_path(&["packages", "publisher.mogrify"])?;
     ensure::file_str(log, &mog, &mogpath, 0o644, ensure::Create::Always)?;
+
+    let mog = format!("<transform depend fmri=.*-151035.0$ -> \
+        edit fmri 151035.0$ {}.{}>\n", RELVER, DASHREV);
+    let mogpath = top_path(&["packages", "osver.mogrify"])?;
+    ensure::file_str(log, &mog, &mogpath, 0o644, ensure::Create::Always)?;
+
+    let mogpath = top_path(&["packages", "os-conflicts.mogrify"])?;
+    ensure::symlink(log, &mogpath, "../tools/packages/os-conflicts.mogrify")?;
 
     /*
      * Perform setup in userland repository.
      */
-    let userland_path = top_path(&["projects", "userland"])?;
-    if exists_dir(&userland_path)? {
-        let p = userland_path.to_str().unwrap(); /* XXX */
+    // let userland_path = top_path(&["projects", "userland"])?;
+    // if exists_dir(&userland_path)? {
+    //     let p = userland_path.to_str().unwrap(); /* XXX */
 
-        ensure::run(log, &["/usr/bin/gmake", "-C", &p, "setup"])?;
-    }
+    //     ensure::run(log, &["/usr/bin/gmake", "-C", &p, "setup"])?;
+    // }
 
     Ok(())
 }
@@ -1244,9 +1541,27 @@ fn main() -> Result<()> {
         hide: false,
     });
     handlers.push(CommandInfo {
+        name: "build-illumos".into(),
+        desc: "build-illumos".into(),
+        func: cmd_build_illumos,
+        hide: false,
+    });
+    handlers.push(CommandInfo {
+        name: "promote-illumos".into(),
+        desc: "promote-illumos".into(),
+        func: cmd_promote_illumos,
+        hide: false,
+    });
+    handlers.push(CommandInfo {
         name: "build".into(),
         desc: "build".into(),
         func: cmd_build,
+        hide: false,
+    });
+    handlers.push(CommandInfo {
+        name: "build-omnios".into(),
+        desc: "build-omnios".into(),
+        func: cmd_build_omnios,
         hide: false,
     });
     handlers.push(CommandInfo {

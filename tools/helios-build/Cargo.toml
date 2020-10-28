@@ -24,6 +24,8 @@ digest = "0.8"
 md-5 = "0.8"
 sha-1 = "0.8"
 toml = "0.5"
+walkdir = "2.3"
+regex = "1.4"
 #
 # I believe it is necessary to pull this in here, so that we can demand the
 # static linking of the vendored OpenSSL.  We don't use it directly, but the

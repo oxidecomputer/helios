@@ -23,6 +23,10 @@ gmakecheck:
 		exit 1; \
 	fi
 
+.PHONY: illumos
+illumos: gmakecheck $(HELIOS_BUILD)
+	$(HELIOS_BUILD) build-illumos
+
 .PHONY: setup
 setup: gmakecheck $(HELIOS_BUILD)
 	@$(HELIOS_BUILD) setup
