@@ -116,12 +116,12 @@ impl Project {
     }
 }
 
-fn ensure_dir(components: &[&str]) -> Result<()> {
+fn ensure_dir(components: &[&str]) -> Result<PathBuf> {
     let dir = top_path(components)?;
     if !exists_dir(&dir)? {
         std::fs::create_dir(&dir)?;
     }
-    Ok(())
+    Ok(dir)
 }
 
 
@@ -1421,10 +1421,12 @@ fn cmd_setup(log: &Logger, args: &[&str]) -> Result<()> {
     println!("{:#?}", p);
 
     ensure_dir(&["projects"])?;
+    ensure_dir(&["tmp"])?;
 
     for (name, project) in p.project.iter() {
         let path = top_path(&["projects", &name])?;
         let url = project.url(false)?;
+        let tmp = ensure_dir(&["tmp", &name])?;
 
         if exists_dir(&path)? {
             println!("clone {} exists already at {}", url, path.display());
@@ -1459,6 +1461,8 @@ fn cmd_setup(log: &Logger, args: &[&str]) -> Result<()> {
             site_sh += &format!("DASHREV={}\n", DASHREV);
             site_sh += "PVER=$RELVER.$DASHREV\n";
             site_sh += "IPS_REPO=https://pkg.oxide.computer/helios-dev-2\n";
+            site_sh += &format!("TMPDIR={}\n", &tmp.to_str().unwrap());
+            site_sh += "DTMPDIR=$TMPDIR\n";
 
             ensure::file_str(log, &site_sh, &ssp, 0o644,
                 ensure::Create::Always)?;
