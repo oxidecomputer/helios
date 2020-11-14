@@ -202,6 +202,14 @@ fn cmd_build_illumos(log: &Logger, args: &[&str]) -> Result<()> {
     let maxjobs = 10; // XXX
 
     /*
+     * Though git does not support an SVN- or Mercurial-like revision number,
+     * our history is sufficiently linear that we can approximate one anyway.
+     * Use that to set an additional version number component beyond the
+     * release version:
+     */
+    let rnum = git_commit_count(&gate)?;
+
+    /*
      * Construct an environment file to build illumos-gate.
      */
     let mut env = String::new();
@@ -251,7 +259,7 @@ fn cmd_build_illumos(log: &Logger, args: &[&str]) -> Result<()> {
     env += "export MULTI_PROTO=\"yes\"\n";
     env += "export ONBLD_BIN=/opt/onbld/bin\n";
     env += "export ON_CLOSED_BINS=/opt/onbld/closed\n";
-    env += &format!("export PKGVERS_BRANCH={}.{}\n", RELVER, DASHREV);
+    env += &format!("export PKGVERS_BRANCH={}.{}.{}\n", RELVER, DASHREV, rnum);
 
     ensure::file_str(log, &env, &path_env, 0o644, ensure::Create::Always)?;
 
@@ -801,6 +809,23 @@ struct PkgRepoList {
     version: String,
     #[serde(rename = "pkg.fmri")]
     fmri: String,
+}
+
+fn git_commit_count<P: AsRef<Path>>(path: P) -> Result<u32> {
+    let out = Command::new("git")
+        .env_clear()
+        .arg("rev-list")
+        .arg("--count")
+        .arg("HEAD")
+        .current_dir(path.as_ref())
+        .output()?;
+
+    if !out.status.success() {
+        bail!("git commit count failed: {}", out.info());
+    }
+
+    let res = String::from_utf8(out.stdout)?;
+    Ok(res.trim().parse()?)
 }
 
 fn repo_contains(log: &Logger, fmri: &str) -> Result<bool> {
