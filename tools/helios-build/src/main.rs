@@ -16,6 +16,8 @@ use std::path::Path;
 use walkdir::{WalkDir, DirEntry};
 use regex::Regex;
 
+const PKGREPO: &str = "/usr/bin/pkgrepo";
+
 const RELVER: u32 = 1;
 const DASHREV: u32 = 0;
 
@@ -132,6 +134,32 @@ struct UserlandMetadata {
     name: String,
 }
 
+fn create_ips_repo<P, S>(log: &Logger, path: P, publ: S, torch: bool)
+    -> Result<()>
+    where P: AsRef<Path>,
+          S: AsRef<str>,
+{
+    let publ: &str = publ.as_ref();
+    let path: &Path = path.as_ref();
+    let paths = path.to_str().unwrap();
+
+    if exists_dir(path)? {
+        if !torch {
+            info!(log, "repository {} exists, skipping creation", paths);
+            return Ok(());
+        }
+        info!(log, "repository {} exists, removing first", paths);
+        std::fs::remove_dir_all(&path)?;
+    }
+
+    ensure::run(log, &[PKGREPO, "create", paths])?;
+    ensure::run(log, &[PKGREPO, "add-publisher", "-s", paths, publ])?;
+
+    info!(log, "repository {} for publisher {} created", paths, publ);
+
+    Ok(())
+}
+
 fn cmd_promote_illumos(log: &Logger, args: &[&str]) -> Result<()> {
     let opts = baseopts();
 
@@ -163,13 +191,7 @@ fn cmd_promote_illumos(log: &Logger, args: &[&str]) -> Result<()> {
      * staging repository using the IPS variant feature.
      */
     info!(log, "recreating staging repository at {:?}", &staging);
-    if exists_dir(&staging)? {
-        std::fs::remove_dir_all(&staging)?;
-    }
-    ensure::run(log, &["/usr/bin/pkgrepo", "create",
-        &staging.to_str().unwrap()])?;
-    ensure::run(log, &["/usr/bin/pkgrepo", "add-publisher", "-s",
-        &staging.to_str().unwrap(), &publisher])?;
+    create_ips_repo(log, &staging, &publisher, true)?;
 
     ensure::run(log, &["/usr/bin/pkgmerge", "-d", &staging.to_str().unwrap(),
         "-s", &format!("debug.illumos=false,{}/", repo_nd.to_str().unwrap()),
@@ -1502,16 +1524,7 @@ fn cmd_setup(log: &Logger, args: &[&str]) -> Result<()> {
     ensure_dir(&["packages"])?;
     for repo in &["os", "other", "combined"] {
         let repo_path = top_path(&["packages", repo])?;
-        if !exists_dir(&repo_path)? {
-            let path = repo_path.to_str().unwrap(); /* XXX */
-
-            /*
-             * XXX make this more idempotent...
-             */
-            ensure::run(log, &["/usr/bin/pkgrepo", "create", &path])?;
-            ensure::run(log, &["/usr/bin/pkgrepo", "add-publisher", "-s",
-                &path, &publisher])?;
-        }
+        create_ips_repo(log, &repo_path, &publisher, false)?;
     }
 
     /*
