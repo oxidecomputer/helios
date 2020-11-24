@@ -2,11 +2,11 @@
 github = "illumos/illumos-gate"
 
 [project.omnios-build]
-github = "omniosorg/omnios-build"
-use_ssh = false
+github = "oxidecomputer/helios-omnios-build"
+use_ssh = true
 site_sh = true
 
 [project.omnios-extra]
-github = "omniosorg/omnios-extra"
-use_ssh = false
+github = "oxidecomputer/helios-omnios-extra"
+use_ssh = true
 site_sh = true
