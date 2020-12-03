@@ -616,7 +616,7 @@ pub fn zone_boot<S1>(name: S1)
     Ok(())
 }
 
-pub fn zone_milestone_wait<S1, S2>(log: &Logger, name: S1, fmri: S2)
+pub fn zone_milestone_wait<S1, S2>(_log: &Logger, name: S1, fmri: S2)
     -> Result<()>
     where
         S1: AsRef<str>,

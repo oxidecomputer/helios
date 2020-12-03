@@ -4,7 +4,7 @@ use common::*;
 pub mod illumos;
 pub mod ensure;
 
-use anyhow::{Result, Context, bail, anyhow};
+use anyhow::{Result, Context, bail};
 use serde::{Serialize, Deserialize};
 use std::collections::{BTreeMap, HashMap, VecDeque, BTreeSet};
 use std::process::Command;
@@ -161,14 +161,15 @@ fn create_ips_repo<P, S>(log: &Logger, path: P, publ: S, torch: bool)
     Ok(())
 }
 
-fn cmd_promote_illumos(log: &Logger, args: &[&str]) -> Result<()> {
+fn cmd_promote_illumos(ca: &CommandArg) -> Result<()> {
     let opts = baseopts();
 
     let usage = || {
         println!("{}", opts.usage("Usage: helios [OPTIONS] promote-illumos [OPTIONS]"));
     };
 
-    let res = opts.parse(args)?;
+    let log = ca.log;
+    let res = opts.parse(ca.args)?;
 
     if res.opt_present("help") {
         usage();
@@ -290,14 +291,15 @@ fn regen_illumos_sh(log: &Logger) -> Result<()> {
     Ok(())
 }
 
-fn cmd_build_illumos(log: &Logger, args: &[&str]) -> Result<()> {
+fn cmd_build_illumos(ca: &CommandArg) -> Result<()> {
     let opts = baseopts();
 
     let usage = || {
         println!("{}", opts.usage("Usage: helios [OPTIONS] build-illumos [OPTIONS]"));
     };
 
-    let res = opts.parse(args)?;
+    let log = ca.log;
+    let res = opts.parse(ca.args)?;
 
     if res.opt_present("help") {
         usage();
@@ -320,14 +322,14 @@ fn cmd_build_illumos(log: &Logger, args: &[&str]) -> Result<()> {
     Ok(())
 }
 
-fn cmd_illumos_bldenv(log: &Logger, args: &[&str]) -> Result<()> {
+fn cmd_illumos_bldenv(ca: &CommandArg) -> Result<()> {
     let opts = baseopts();
 
     let usage = || {
         println!("{}", opts.usage("Usage: helios [OPTIONS] bldenv [OPTIONS]"));
     };
 
-    let res = opts.parse(args)?;
+    let res = opts.parse(ca.args)?;
 
     if res.opt_present("help") {
         usage();
@@ -338,7 +340,7 @@ fn cmd_illumos_bldenv(log: &Logger, args: &[&str]) -> Result<()> {
         bail!("unexpected arguments");
     }
 
-    regen_illumos_sh(log)?;
+    regen_illumos_sh(ca.log)?;
 
     let env = top_path(&["projects", "illumos", "illumos.sh"])?;
     let src = top_path(&["projects", "illumos", "usr", "src"])?;
@@ -377,7 +379,7 @@ fn read_string(path: &Path) -> Result<String> {
     Ok(buf)
 }
 
-fn extract_pkgs(log: &Logger, dir: &Path) -> Result<Vec<BuildPackage>> {
+fn extract_pkgs(_log: &Logger, dir: &Path) -> Result<Vec<BuildPackage>> {
     /*
      * First, find all the build.sh scripts.
      */
@@ -451,7 +453,7 @@ fn extract_pkgs(log: &Logger, dir: &Path) -> Result<Vec<BuildPackage>> {
     Ok(out)
 }
 
-fn cmd_build_omnios(log: &Logger, args: &[&str]) -> Result<()> {
+fn cmd_build_omnios(ca: &CommandArg) -> Result<()> {
     let opts = baseopts();
 
     let usage = || {
@@ -459,7 +461,8 @@ fn cmd_build_omnios(log: &Logger, args: &[&str]) -> Result<()> {
             [OPTIONS]"));
     };
 
-    let res = opts.parse(args)?;
+    let log = ca.log;
+    let res = opts.parse(ca.args)?;
 
     if res.opt_present("help") {
         usage();
@@ -484,14 +487,15 @@ fn cmd_build_omnios(log: &Logger, args: &[&str]) -> Result<()> {
     Ok(())
 }
 
-fn cmd_build(log: &Logger, args: &[&str]) -> Result<()> {
+fn cmd_build(ca: &CommandArg) -> Result<()> {
     let opts = baseopts();
 
     let usage = || {
         println!("{}", opts.usage("Usage: helios [OPTIONS] build [OPTIONS]"));
     };
 
-    let res = opts.parse(args)?;
+    let log = ca.log;
+    let res = opts.parse(ca.args)?;
 
     if res.opt_present("help") {
         usage();
@@ -602,8 +606,8 @@ fn build(log: &Logger, target: &str) -> Result<()> {
      * First, add our local build repository to the ephemeral zone so that we
      * are preferring packages we may have rebuilt locally.
      */
-    let repodir = top_path(&["projects", "userland", "i386", "repo"])?;
 /* XXX ugh */
+//   let repodir = top_path(&["projects", "userland", "i386", "repo"])?;
 //      ensure::run(log, &["pfexec", "/usr/bin/pkg", "-R", &bzr,
 //        "set-publisher",
 //        "-g", &format!("file://{}", repodir.to_str().unwrap()),
@@ -710,14 +714,14 @@ fn build(log: &Logger, target: &str) -> Result<()> {
     Ok(())
 }
 
-fn cmd_zone(log: &Logger, args: &[&str]) -> Result<()> {
+fn cmd_zone(ca: &CommandArg) -> Result<()> {
     let opts = baseopts();
 
     let usage = || {
         println!("{}", opts.usage("Usage: helios [OPTIONS] zone [OPTIONS]"));
     };
 
-    let res = opts.parse(args)?;
+    let res = opts.parse(ca.args)?;
 
     if res.opt_present("help") {
         usage();
@@ -754,14 +758,14 @@ fn cmd_zone(log: &Logger, args: &[&str]) -> Result<()> {
     Ok(())
 }
 
-fn cmd_archive(log: &Logger, args: &[&str]) -> Result<()> {
-    let mut opts = baseopts();
+fn cmd_archive(ca: &CommandArg) -> Result<()> {
+    let opts = baseopts();
 
     let usage = || {
         println!("{}", opts.usage("Usage: helios [OPTIONS] setup [OPTIONS]"));
     };
 
-    let res = opts.parse(args)?;
+    let res = opts.parse(ca.args)?;
     if res.opt_present("help") {
         usage();
         return Ok(());
@@ -807,7 +811,7 @@ struct Asset {
     src_dir: String,
 }
 
-fn cmd_download_metadata(log: &Logger, args: &[&str]) -> Result<()> {
+fn cmd_download_metadata(ca: &CommandArg) -> Result<()> {
     let mut opts = baseopts();
 
     opts.reqopt("", "file", "", "");
@@ -820,7 +824,7 @@ fn cmd_download_metadata(log: &Logger, args: &[&str]) -> Result<()> {
         println!("{}", opts.usage("Usage: helios [OPTIONS] setup [OPTIONS]"));
     };
 
-    let res = opts.parse(args)?;
+    let res = opts.parse(ca.args)?;
     if res.opt_present("help") {
         usage();
         return Ok(());
@@ -1064,7 +1068,7 @@ impl Vals {
     }
 }
 
-fn parse_manifest(log: &Logger, input: &str) -> Result<Vec<Action>> {
+fn parse_manifest(_log: &Logger, input: &str) -> Result<Vec<Action>> {
     let mut out = Vec::new();
 
     for l in input.lines() {
@@ -1227,7 +1231,7 @@ fn repo_contents(log: &Logger, fmri: &str) -> Result<Vec<Action>> {
     Ok(parse_manifest(log, &String::from_utf8(out.stdout)?)?)
 }
 
-fn cmd_userland_promote(log: &Logger, args: &[&str]) -> Result<()> {
+fn cmd_userland_promote(ca: &CommandArg) -> Result<()> {
     let opts = baseopts();
 
     let usage = || {
@@ -1235,7 +1239,8 @@ fn cmd_userland_promote(log: &Logger, args: &[&str]) -> Result<()> {
             userland-promote [OPTIONS]"));
     };
 
-    let res = opts.parse(args)?;
+    let log = ca.log;
+    let res = opts.parse(ca.args)?;
 
     if res.opt_present("help") {
         usage();
@@ -1305,7 +1310,7 @@ struct Memo {
     fails: VecDeque<MemoQueueEntry>,
 }
 
-fn memo_load<T>(log: &Logger, mdf: &str) -> Result<Option<T>>
+fn memo_load<T>(_log: &Logger, mdf: &str) -> Result<Option<T>>
     where for<'de> T: Deserialize<'de>,
 {
     let f = match File::open(&mdf) {
@@ -1316,7 +1321,7 @@ fn memo_load<T>(log: &Logger, mdf: &str) -> Result<Option<T>>
     Ok(serde_json::from_reader(&f)?)
 }
 
-fn memo_store<T>(log: &Logger, mdf: &str, t: T) -> Result<()>
+fn memo_store<T>(_log: &Logger, mdf: &str, t: T) -> Result<()>
     where T: Serialize,
 {
     let mut f = std::fs::OpenOptions::new()
@@ -1328,7 +1333,7 @@ fn memo_store<T>(log: &Logger, mdf: &str, t: T) -> Result<()>
     Ok(())
 }
 
-fn cmd_userland_plan(log: &Logger, args: &[&str]) -> Result<()> {
+fn cmd_userland_plan(ca: &CommandArg) -> Result<()> {
     let mut opts = baseopts();
 
     opts.optopt("m", "", "memo file for build progress", "MEMOFILE");
@@ -1339,7 +1344,8 @@ fn cmd_userland_plan(log: &Logger, args: &[&str]) -> Result<()> {
             userland-plan [OPTIONS]"));
     };
 
-    let res = opts.parse(args)?;
+    let log = ca.log;
+    let res = opts.parse(ca.args)?;
 
     if res.opt_present("help") {
         usage();
@@ -1445,12 +1451,12 @@ fn cmd_userland_plan(log: &Logger, args: &[&str]) -> Result<()> {
 
             if let Err(e) = build(log, p) {
                 if skip_failures {
-                    error!(log, "building {} in {} failed", pkg, p);
+                    error!(log, "building {} in {} failed: {:?}", pkg, p, e);
                     memo.fails.push_back(mqe);
                     continue;
                 }
 
-                bail!("building {} in {} failed", pkg, p);
+                bail!("building {} in {} failed: {:?}", pkg, p, e);
             }
         }
 
@@ -1508,14 +1514,15 @@ fn cmd_userland_plan(log: &Logger, args: &[&str]) -> Result<()> {
     Ok(())
 }
 
-fn cmd_setup(log: &Logger, args: &[&str]) -> Result<()> {
+fn cmd_setup(ca: &CommandArg) -> Result<()> {
     let opts = baseopts();
 
     let usage = || {
         println!("{}", opts.usage("Usage: helios [OPTIONS] setup [OPTIONS]"));
     };
 
-    let res = opts.parse(args)?;
+    let log = ca.log;
+    let res = opts.parse(ca.args)?;
 
     if res.opt_present("help") {
         usage();
@@ -1623,11 +1630,17 @@ fn cmd_setup(log: &Logger, args: &[&str]) -> Result<()> {
     Ok(())
 }
 
+struct CommandArg<'a> {
+    log: &'a Logger,
+    args: &'a [&'a str],
+}
+
 struct CommandInfo {
     name: String,
     desc: String,
-    func: fn(&Logger, &[&str]) -> Result<()>,
+    func: fn(&CommandArg) -> Result<()>,
     hide: bool,
+    blank: bool,
 }
 
 fn main() -> Result<()> {
@@ -1640,66 +1653,77 @@ fn main() -> Result<()> {
         desc: "clone required repositories and run setup tasks".into(),
         func: cmd_setup,
         hide: false,
+        blank: false,
     });
     handlers.push(CommandInfo {
         name: "zone".into(),
         desc: "zone".into(),
         func: cmd_zone,
         hide: true,
+        blank: false,
     });
     handlers.push(CommandInfo {
         name: "bldenv".into(),
         desc: "enter a bldenv shell for illumos so you can run dmake".into(),
         func: cmd_illumos_bldenv,
         hide: false,
+        blank: true,
     });
     handlers.push(CommandInfo {
         name: "build-illumos".into(),
         desc: "run a full nightly(1) and produce packages".into(),
         func: cmd_build_illumos,
         hide: false,
+        blank: false,
     });
     handlers.push(CommandInfo {
         name: "merge-illumos".into(),
         desc: "merge DEBUG and non-DEBUG packages into one repository".into(),
         func: cmd_promote_illumos,
         hide: false,
+        blank: false,
     });
     handlers.push(CommandInfo {
         name: "build".into(),
         desc: "build".into(),
         func: cmd_build,
         hide: true,
+        blank: true,
     });
     handlers.push(CommandInfo {
         name: "build-omnios".into(),
         desc: "build-omnios".into(),
         func: cmd_build_omnios,
         hide: true,
+        blank: false,
     });
     handlers.push(CommandInfo {
         name: "download_metadata".into(),
         desc: "download_metadata".into(),
         func: cmd_download_metadata,
         hide: true,
+        blank: false,
     });
     handlers.push(CommandInfo {
         name: "archive".into(),
         desc: "archive".into(),
         func: cmd_archive,
         hide: true,
+        blank: false,
     });
     handlers.push(CommandInfo {
         name: "userland-plan".into(),
         desc: "userland-plan".into(),
         func: cmd_userland_plan,
         hide: true,
+        blank: false,
     });
     handlers.push(CommandInfo {
         name: "userland-promote".into(),
         desc: "userland-promote".into(),
         func: cmd_userland_promote,
         hide: true,
+        blank: false,
     });
 
     let usage = || {
@@ -1708,6 +1732,10 @@ fn main() -> Result<()> {
         for ci in handlers.iter() {
             if ci.hide {
                 continue;
+            }
+
+            if ci.blank {
+                out += "\n";
             }
 
             out += &format!("    {:<16} {}\n", ci.name, ci.desc);
@@ -1735,7 +1763,12 @@ fn main() -> Result<()> {
             continue;
         }
 
-        return (ci.func)(&log, args.as_slice());
+        let ca = CommandArg {
+            log: &log,
+            args: args.as_slice(),
+        };
+
+        return (ci.func)(&ca);
     }
 
     bail!("command \"{}\" not understood", res.free[0]);
