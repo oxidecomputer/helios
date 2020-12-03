@@ -27,6 +27,10 @@ gmakecheck:
 illumos: gmakecheck $(HELIOS_BUILD)
 	$(HELIOS_BUILD) build-illumos
 
+.PHONY: bldenv
+bldenv: gmakecheck $(HELIOS_BUILD)
+	$(HELIOS_BUILD) bldenv
+
 .PHONY: setup
 setup: gmakecheck $(HELIOS_BUILD)
 	@$(HELIOS_BUILD) setup

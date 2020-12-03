@@ -8,6 +8,7 @@ use anyhow::{Result, Context, bail, anyhow};
 use serde::{Serialize, Deserialize};
 use std::collections::{BTreeMap, HashMap, VecDeque, BTreeSet};
 use std::process::Command;
+use std::os::unix::process::CommandExt;
 use std::io::{BufWriter, BufReader, Write, Read};
 use std::fs::File;
 use slog::Logger;
@@ -200,28 +201,29 @@ fn cmd_promote_illumos(log: &Logger, args: &[&str]) -> Result<()> {
     Ok(())
 }
 
-fn cmd_build_illumos(log: &Logger, args: &[&str]) -> Result<()> {
-    let opts = baseopts();
+fn ncpus() -> Result<u32> {
+    /*
+     * XXX Replace with kstat check.
+     */
+    /* "psrinfo -t" */
+    let out = Command::new("/usr/sbin/psrinfo")
+        .env_clear()
+        .arg("-t")
+        .output()?;
 
-    let usage = || {
-        println!("{}", opts.usage("Usage: helios [OPTIONS] build-illumos [OPTIONS]"));
-    };
-
-    let res = opts.parse(args)?;
-
-    if res.opt_present("help") {
-        usage();
-        return Ok(());
+    if !out.status.success() {
+        bail!("could not count CPUs: {}", out.info());
     }
 
-    if !res.free.is_empty() {
-        bail!("unexpected arguments");
-    }
+    let stdout = String::from_utf8(out.stdout)?;
+    Ok(stdout.trim().parse().context("psrinfo parse failure")?)
+}
 
+fn regen_illumos_sh(log: &Logger) -> Result<()> {
     let gate = top_path(&["projects", "illumos"])?;
     let path_env = top_path(&["projects", "illumos", "illumos.sh"])?;
 
-    let maxjobs = 10; // XXX
+    let maxjobs = ncpus()?;
 
     /*
      * Though git does not support an SVN- or Mercurial-like revision number,
@@ -285,12 +287,75 @@ fn cmd_build_illumos(log: &Logger, args: &[&str]) -> Result<()> {
 
     ensure::file_str(log, &env, &path_env, 0o644, ensure::Create::Always)?;
 
+    Ok(())
+}
+
+fn cmd_build_illumos(log: &Logger, args: &[&str]) -> Result<()> {
+    let opts = baseopts();
+
+    let usage = || {
+        println!("{}", opts.usage("Usage: helios [OPTIONS] build-illumos [OPTIONS]"));
+    };
+
+    let res = opts.parse(args)?;
+
+    if res.opt_present("help") {
+        usage();
+        return Ok(());
+    }
+
+    if !res.free.is_empty() {
+        bail!("unexpected arguments");
+    }
+
+    regen_illumos_sh(log)?;
+
+    let gate = top_path(&["projects", "illumos"])?;
+
     let script = format!("cd {} && ./usr/src/tools/scripts/nightly illumos.sh",
         gate.to_str().unwrap());
 
     ensure::run(log, &["/sbin/sh", "-c", &script])?;
 
     Ok(())
+}
+
+fn cmd_illumos_bldenv(log: &Logger, args: &[&str]) -> Result<()> {
+    let opts = baseopts();
+
+    let usage = || {
+        println!("{}", opts.usage("Usage: helios [OPTIONS] bldenv [OPTIONS]"));
+    };
+
+    let res = opts.parse(args)?;
+
+    if res.opt_present("help") {
+        usage();
+        return Ok(());
+    }
+
+    if !res.free.is_empty() {
+        bail!("unexpected arguments");
+    }
+
+    regen_illumos_sh(log)?;
+
+    let env = top_path(&["projects", "illumos", "illumos.sh"])?;
+    let src = top_path(&["projects", "illumos", "usr", "src"])?;
+    let bldenv = top_path(&["projects", "illumos", "usr", "src",
+        "tools", "scripts", "bldenv"])?;
+
+    /*
+     * bldenv(1) starts an interactive build shell with the correct environment
+     * for running dmake(1) and other illumos build tools.  As such, we want to
+     * exec(2) and replace this process rather than run it as a logged child
+     * process.
+     */
+    let err = Command::new(&bldenv)
+        .arg(&env)
+        .current_dir(&src)
+        .exec();
+    bail!("exec failure: {:?}", err);
 }
 
 #[derive(Debug)]
@@ -1572,7 +1637,7 @@ fn main() -> Result<()> {
     let mut handlers: Vec<CommandInfo> = Vec::new();
     handlers.push(CommandInfo {
         name: "setup".into(),
-        desc: "setup".into(),
+        desc: "clone required repositories and run setup tasks".into(),
         func: cmd_setup,
         hide: false,
     });
@@ -1580,17 +1645,23 @@ fn main() -> Result<()> {
         name: "zone".into(),
         desc: "zone".into(),
         func: cmd_zone,
+        hide: true,
+    });
+    handlers.push(CommandInfo {
+        name: "bldenv".into(),
+        desc: "enter a bldenv shell for illumos so you can run dmake".into(),
+        func: cmd_illumos_bldenv,
         hide: false,
     });
     handlers.push(CommandInfo {
         name: "build-illumos".into(),
-        desc: "build-illumos".into(),
+        desc: "run a full nightly(1) and produce packages".into(),
         func: cmd_build_illumos,
         hide: false,
     });
     handlers.push(CommandInfo {
-        name: "promote-illumos".into(),
-        desc: "promote-illumos".into(),
+        name: "merge-illumos".into(),
+        desc: "merge DEBUG and non-DEBUG packages into one repository".into(),
         func: cmd_promote_illumos,
         hide: false,
     });
@@ -1598,13 +1669,13 @@ fn main() -> Result<()> {
         name: "build".into(),
         desc: "build".into(),
         func: cmd_build,
-        hide: false,
+        hide: true,
     });
     handlers.push(CommandInfo {
         name: "build-omnios".into(),
         desc: "build-omnios".into(),
         func: cmd_build_omnios,
-        hide: false,
+        hide: true,
     });
     handlers.push(CommandInfo {
         name: "download_metadata".into(),
