@@ -18,6 +18,7 @@ use walkdir::{WalkDir, DirEntry};
 use regex::Regex;
 
 const PKGREPO: &str = "/usr/bin/pkgrepo";
+const PKGRECV: &str = "/usr/bin/pkgrecv";
 
 const RELVER: u32 = 1;
 const DASHREV: u32 = 0;
@@ -220,32 +221,80 @@ fn ncpus() -> Result<u32> {
     Ok(stdout.trim().parse().context("psrinfo parse failure")?)
 }
 
-fn regen_illumos_sh(log: &Logger) -> Result<()> {
+enum BuildType {
+    Quick,
+    Full,
+}
+
+fn regen_illumos_sh(log: &Logger, bt: BuildType) -> Result<PathBuf> {
     let gate = top_path(&["projects", "illumos"])?;
-    let path_env = top_path(&["projects", "illumos", "illumos.sh"])?;
+
+    /*
+     * The build environment will be different, depending on the build type.
+     * Use a different file for each type to make that clear.
+     */
+    let env_name = match bt {
+        BuildType::Quick => "illumos-quick.sh",
+        BuildType::Full => "illumos.sh",
+    };
+    let path_env = top_path(&["projects", "illumos", env_name])?;
 
     let maxjobs = ncpus()?;
 
-    /*
-     * Though git does not support an SVN- or Mercurial-like revision number,
-     * our history is sufficiently linear that we can approximate one anyway.
-     * Use that to set an additional version number component beyond the
-     * release version:
-     */
-    let rnum = git_commit_count(&gate)?;
+    let rnum = match bt {
+        /*
+         * Though git does not support an SVN- or Mercurial-like revision
+         * number, our history is sufficiently linear that we can approximate
+         * one anyway.  Use that to set an additional version number component
+         * beyond the release version:
+         */
+        BuildType::Full => git_commit_count(&gate)?,
+        /*
+         * If this is a quick build that one intends to install on the local
+         * system and iterate on, set the revision number to an extremely high
+         * number that is obviously not related to the production package commit
+         * numbers:
+         */
+        BuildType::Quick => 999999,
+    };
 
     /*
      * Construct an environment file to build illumos-gate.
      */
     let mut env = String::new();
-    env += "export NIGHTLY_OPTIONS='-nCDAmprt'\n";
+    match bt {
+        BuildType::Full => env += "export NIGHTLY_OPTIONS='-nCDAmprt'\n",
+        BuildType::Quick => env += "export NIGHTLY_OPTIONS='-nCAmprt'\n",
+    }
     env += &format!("export CODEMGR_WS='{}'\n", gate.to_str().unwrap());
+    env += "export MACH=\"$(uname -p)\"\n";
     env += "export GNUC_ROOT=/opt/gcc-7\n";
     env += "export PRIMARY_CC=gcc7,$GNUC_ROOT/bin/gcc,gnu\n";
     env += "export PRIMARY_CCC=gcc7,$GNUC_ROOT/bin/g++,gnu\n";
-    //env += "export SHADOW_CCS=gcc4,$GNUC_ROOT/bin/gcc,gnu\n";
-    //env += "export SHADOW_CCS=gcc4,$GNUC_ROOT/bin/g++,gnu\n";
-    //env += "export ENABLE_SMB_PRINTING=
+    match bt {
+        BuildType::Quick => {
+            /*
+             * Skip the shadow compiler and smatch for quick builds:
+             */
+            env += "export SHADOW_CCS=\n";
+            env += "export SHADOW_CCCS=\n";
+        }
+        BuildType::Full => {
+            /*
+             * Enable the shadow compiler for full builds:
+             */
+            env += "export SHADOW_CCS=gcc4,/opt/gcc/4.4.4/bin/gcc,gnu\n";
+            env += "export SHADOW_CCCS=gcc4,/opt/gcc/4.4.4/bin/g++,gnu\n";
+
+            /*
+             * Enable smatch checks for full builds:
+             */
+            env += "export SMATCHBIN=$CODEMGR_WS/usr/src/tools/proto/\
+                root_$MACH-nd/opt/onbld/bin/$MACH/smatch\n";
+            env += "export SHADOW_CCS=\"$SHADOW_CCS \
+                smatch,$SMATCHBIN,smatch\"\n";
+        }
+    }
     env += "export BUILDVERSION_EXEC=\"git describe --all --long --dirty\"\n";
     env += &format!("export DMAKE_MAX_JOBS={}\n", maxjobs);
     env += "export ENABLE_SMB_PRINTING='#'\n";
@@ -268,7 +317,6 @@ fn regen_illumos_sh(log: &Logger) -> Result<()> {
     env += "export BUILD_PROJECT=''\n";
     env += "export ATLOG=\"$CODEMGR_WS/log\"\n";
     env += "export LOGFILE=\"$ATLOG/nightly.log\"\n";
-    env += "export MACH=\"$(uname -p)\"\n";
     env += "export BUILD_TOOLS='/opt'\n";
     env += "export MAKEFLAGS='k'\n";
     env += "export PARENT_WS=''\n";
@@ -288,11 +336,12 @@ fn regen_illumos_sh(log: &Logger) -> Result<()> {
 
     ensure::file_str(log, &env, &path_env, 0o644, ensure::Create::Always)?;
 
-    Ok(())
+    Ok(path_env)
 }
 
 fn cmd_build_illumos(ca: &CommandArg) -> Result<()> {
-    let opts = baseopts();
+    let mut opts = baseopts();
+    opts.optflag("q", "quick", "quick build (no shadows, no DEBUG)");
 
     let usage = || {
         println!("{}", opts.usage("Usage: helios [OPTIONS] build-illumos [OPTIONS]"));
@@ -310,15 +359,91 @@ fn cmd_build_illumos(ca: &CommandArg) -> Result<()> {
         bail!("unexpected arguments");
     }
 
-    regen_illumos_sh(log)?;
+    let bt = if res.opt_present("q") {
+        BuildType::Quick
+    } else {
+        BuildType::Full
+    };
+    let env_sh = regen_illumos_sh(log, bt)?;
 
     let gate = top_path(&["projects", "illumos"])?;
 
-    let script = format!("cd {} && ./usr/src/tools/scripts/nightly illumos.sh",
-        gate.to_str().unwrap());
+    let script = format!("cd {} && ./usr/src/tools/scripts/nightly {}",
+        gate.to_str().unwrap(),
+        env_sh.to_str().unwrap());
 
     ensure::run(log, &["/sbin/sh", "-c", &script])?;
 
+    Ok(())
+}
+
+fn cmd_illumos_onu(ca: &CommandArg) -> Result<()> {
+    let mut opts = baseopts();
+    opts.optopt("t", "", "boot environment name (required)", "NAME");
+
+    let usage = || {
+        println!("{}", opts.usage("Usage: helios [OPTIONS] onu [OPTIONS]"));
+    };
+
+    let log = ca.log;
+    let res = opts.parse(ca.args)?;
+
+    if res.opt_present("help") {
+        usage();
+        return Ok(());
+    }
+
+    if !res.free.is_empty() {
+        bail!("unexpected arguments");
+    }
+
+    let bename = if let Some(bename) = res.opt_str("t") {
+        bename
+    } else {
+        usage();
+        bail!("must specify a boot environment name (-t)");
+    };
+
+    /*
+     * In order to install development illumos bits, we first need to elide any
+     * files that would conflict with packages delivered from other
+     * consolidations.  To do this, we create an onu-specific repository:
+     */
+    info!(log, "creating temporary repository...");
+    ensure_dir(&["tmp", "onu"])?;
+    let repo = top_path(&["tmp", "onu", "repo.redist"])?;
+    create_ips_repo(log, &repo, "on-nightly", true)?;
+
+    /*
+     * This pkgmogrify(1) script will drop any conflicting files:
+     */
+    let transforms = top_path(&["packages", "os-conflicts.mogrify"])?;
+
+    info!(log, "transforming packages for installation...");
+    let repo_nd = top_path(&["projects", "illumos", "packages", "i386",
+        "nightly-nd", "repo.redist"])?;
+    ensure::run(log, &[PKGRECV,
+        "-s", &repo_nd.to_str().unwrap(),
+        "-d", &repo.to_str().unwrap(),
+        "--mog-file", &transforms.to_str().unwrap(),
+        "-m", "latest",
+        "*"])?;
+    ensure::run(log, &[PKGREPO, "refresh", "-s", &repo.to_str().unwrap()])?;
+
+    /*
+     * onu(1) will create a new boot environment, adjusting it to accept nightly
+     * packages, and then install the packages.  It must be run with root
+     * privileges as it modifies the system.
+     */
+    info!(log, "installing packages...");
+    let onu = top_path(&["projects", "illumos", "usr", "src",
+        "tools", "proto", "root_i386-nd", "opt", "onbld", "bin", "onu"])?;
+    let onu_dir = top_path(&["tmp", "onu"])?;
+    ensure::run(log, &["pfexec", &onu.to_str().unwrap(), "-v",
+        "-d", &onu_dir.to_str().unwrap(),
+        "-t", &bename])?;
+
+    info!(log, "onu complete!  you must now reboot");
     Ok(())
 }
 
@@ -340,7 +465,7 @@ fn cmd_illumos_bldenv(ca: &CommandArg) -> Result<()> {
         bail!("unexpected arguments");
     }
 
-    regen_illumos_sh(ca.log)?;
+    regen_illumos_sh(ca.log, BuildType::Full)?;
 
     let env = top_path(&["projects", "illumos", "illumos.sh"])?;
     let src = top_path(&["projects", "illumos", "usr", "src"])?;
@@ -1281,7 +1406,7 @@ fn cmd_userland_promote(ca: &CommandArg) -> Result<()> {
      */
     let dock = top_path(&["packages", "repo"])?;
     let transforms = top_path(&["packages", "publisher.mogrify"])?;
-    ensure::run(log, &["/usr/bin/pkgrecv",
+    ensure::run(log, &[PKGRECV,
         "-s", &repo.to_str().unwrap(),
         "-d", &dock.to_str().unwrap(),
         "--mog-file", &transforms.to_str().unwrap(),
@@ -1668,6 +1793,13 @@ fn main() -> Result<()> {
         func: cmd_illumos_bldenv,
         hide: false,
         blank: true,
+    });
+    handlers.push(CommandInfo {
+        name: "onu".into(),
+        desc: "install your non-DEBUG build of illumos on this system".into(),
+        func: cmd_illumos_onu,
+        hide: false,
+        blank: false,
     });
     handlers.push(CommandInfo {
         name: "build-illumos".into(),
