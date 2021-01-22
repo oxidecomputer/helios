@@ -1772,6 +1772,10 @@ fn main() -> Result<()> {
     let mut opts = baseopts();
     opts.parsing_style(getopts::ParsingStyle::StopAtFirstFree);
 
+    if std::env::var_os("CODEMGR_WS").is_some() {
+        bail!("helios-build should not run from within the bldenv shell");
+    }
+
     let mut handlers: Vec<CommandInfo> = Vec::new();
     handlers.push(CommandInfo {
         name: "setup".into(),
