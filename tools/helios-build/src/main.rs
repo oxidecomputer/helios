@@ -283,8 +283,8 @@ fn regen_illumos_sh(log: &Logger, bt: BuildType) -> Result<PathBuf> {
             /*
              * Enable the shadow compiler for full builds:
              */
-            env += "export SHADOW_CCS=gcc4,/opt/gcc/4.4.4/bin/gcc,gnu\n";
-            env += "export SHADOW_CCCS=gcc4,/opt/gcc/4.4.4/bin/g++,gnu\n";
+            env += "export SHADOW_CCS=gcc4,/opt/gcc-4.4.4/bin/gcc,gnu\n";
+            env += "export SHADOW_CCCS=gcc4,/opt/gcc-4.4.4/bin/g++,gnu\n";
 
             /*
              * Enable smatch checks for full builds:
@@ -1704,7 +1704,7 @@ fn cmd_setup(ca: &CommandArg) -> Result<()> {
             site_sh += &format!("RELVER={}\n", RELVER);
             site_sh += &format!("DASHREV={}\n", DASHREV);
             site_sh += "PVER=$RELVER.$DASHREV\n";
-            site_sh += "IPS_REPO=https://pkg.oxide.computer/helios-dev-2\n";
+            site_sh += "IPS_REPO=https://pkg.oxide.computer/helios-dev\n";
             site_sh += &format!("TMPDIR={}\n", &tmp.to_str().unwrap());
             site_sh += "DTMPDIR=$TMPDIR\n";
 
