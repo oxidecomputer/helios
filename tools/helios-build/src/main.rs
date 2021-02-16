@@ -309,8 +309,9 @@ fn regen_illumos_sh(log: &Logger, bt: BuildType) -> Result<PathBuf> {
     env += "export BUILDPY3=\n";
     env += "export BUILDPY2TOOLS=\n";
     env += "export BUILDPY3TOOLS=\n";
-    env += "export PYTHON3_VERSION=3.7\n";
-    env += "export PYTHON3_PKGVERS=-37\n";
+    env += "export PYTHON3_VERSION=3.9\n";
+    env += "export PYTHON3_PKGVERS=-39\n";
+    env += "export PYTHON3_SUFFIX=\n";
     env += "export TOOLS_PYTHON=/usr/bin/python$PYTHON3_VERSION\n";
     env += "export STAFFER=\"$LOGNAME\"\n";
     env += "export MAILTO=\"${MAILTO:-$STAFFER}\"\n";
