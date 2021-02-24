@@ -1,9 +1,6 @@
 mod common;
 use common::*;
 
-pub mod illumos;
-pub mod ensure;
-
 use anyhow::{Result, Context, bail};
 use serde::{Serialize, Deserialize};
 use std::collections::{BTreeMap, HashMap, VecDeque, BTreeSet};
@@ -12,10 +9,16 @@ use std::os::unix::process::CommandExt;
 use std::io::{BufWriter, BufReader, Write, Read};
 use std::fs::File;
 use slog::Logger;
-use illumos::ZonesExt;
 use std::path::Path;
 use walkdir::{WalkDir, DirEntry};
 use regex::Regex;
+
+pub mod illumos;
+pub mod ensure;
+mod ips;
+
+use illumos::ZonesExt;
+use ips::{Action, DependType};
 
 const PKGREPO: &str = "/usr/bin/pkgrepo";
 const PKGRECV: &str = "/usr/bin/pkgrecv";
@@ -1079,261 +1082,6 @@ fn repo_contains(log: &Logger, fmri: &str) -> Result<bool> {
     }
 }
 
-#[derive(Debug)]
-struct ActionDepend {
-    fmri: Vec<String>,
-    type_: String,
-    predicate: Vec<String>,
-    variant_zone: Option<String>,
-}
-
-impl ActionDepend {
-    fn fmris(&self) -> Vec<&str> {
-        self.fmri.iter().map(|x| x.as_str()).collect()
-    }
-}
-
-#[derive(Debug)]
-enum Action {
-    Depend(ActionDepend),
-    Unknown(String, Vec<String>, Vals),
-}
-
-#[derive(Debug)]
-enum ParseState {
-    Rest,
-    Type,
-    Key,
-    Value,
-    ValueQuoted,
-    ValueQuotedSpace,
-    ValueUnquoted,
-}
-
-#[derive(Debug)]
-struct Vals {
-    vals: Vec<(String, String)>,
-    extra: BTreeSet<String>,
-}
-
-impl Vals {
-    fn new() -> Vals {
-        Vals {
-            vals: Vec::new(),
-            extra: BTreeSet::new(),
-        }
-    }
-
-    fn insert(&mut self, key: &str, value: &str) {
-        /*
-         * XXX Ignore "facet.*" properties for now...
-         */
-        if key.starts_with("facet.") {
-            return;
-        }
-
-        self.vals.push((key.to_string(), value.to_string()));
-        self.extra.insert(key.to_string());
-    }
-
-    fn maybe_single(&mut self, name: &str) -> Result<Option<String>> {
-        let mut out: Option<String> = None;
-
-        for (k, v) in self.vals.iter() {
-            if k == name {
-                if out.is_some() {
-                    bail!("more than one value for {}, wanted a single value",
-                        name);
-                }
-                out = Some(v.to_string());
-            }
-        }
-
-        self.extra.remove(name);
-        Ok(out)
-    }
-
-    fn single(&mut self, name: &str) -> Result<String> {
-        let out = self.maybe_single(name)?;
-
-        if let Some(out) = out {
-            Ok(out)
-        } else {
-            bail!("no values for {} found", name);
-        }
-    }
-
-    fn maybe_list(&mut self, name: &str) -> Result<Vec<String>> {
-        let mut out: Vec<String> = Vec::new();
-
-        for (k, v) in self.vals.iter() {
-            if k == name {
-                out.push(v.to_string());
-            }
-        }
-
-        self.extra.remove(name);
-        Ok(out)
-    }
-
-    fn list(&mut self, name: &str) -> Result<Vec<String>> {
-        let out = self.maybe_list(name)?;
-        if out.is_empty() {
-            bail!("wanted at least one value for {}, found none", name);
-        }
-        Ok(out)
-    }
-
-    fn check_for_extra(&self) -> Result<()> {
-        if !self.extra.is_empty() {
-            bail!("some properties present but not consumed: {:?}, {:?}",
-                self.extra, self.vals);
-        }
-
-        Ok(())
-    }
-}
-
-fn parse_manifest(_log: &Logger, input: &str) -> Result<Vec<Action>> {
-    let mut out = Vec::new();
-
-    for l in input.lines() {
-        let mut s = ParseState::Rest;
-        let mut a = String::new();
-        let mut k = String::new();
-        let mut v = String::new();
-        let mut vals = Vals::new();
-        let mut free: Vec<String> = Vec::new();
-        let mut quote = '"';
-
-        for c in l.chars() {
-            match s {
-                ParseState::Rest => {
-                    if c.is_ascii_alphabetic() {
-                        a.clear();
-                        k.clear();
-                        v.clear();
-
-                        a.push(c);
-                        s = ParseState::Type;
-                    } else {
-                        bail!("invalid line ({:?}): {}", s, l);
-                    }
-                }
-                ParseState::Type => {
-                    if c.is_ascii_alphabetic() {
-                        a.push(c);
-                    } else if c == ' ' {
-                        s = ParseState::Key;
-                    } else {
-                        bail!("invalid line ({:?}): {}", s, l);
-                    }
-                }
-                ParseState::Key => {
-                    if c.is_ascii_alphanumeric()
-                        || c == '.' || c == '-' || c == '_' || c == '/'
-                        || c == '@'
-                    {
-                        k.push(c);
-                    } else if c == ' ' {
-                        free.push(k.clone());
-                        k.clear();
-                    } else if c == '=' {
-                        s = ParseState::Value;
-                    } else {
-                        bail!("invalid line ({:?}, {}): {}", s, k, l);
-                    }
-                }
-                ParseState::Value => {
-                    /*
-                     * This state represents the start of a new value, which
-                     * will either be quoted or unquoted.
-                     */
-                    v.clear();
-                    if c == '"' || c == '\'' {
-                        /*
-                         * Record the type of quote used at the start of the
-                         * string so that we can match it with the same type
-                         * of quote at the end.
-                         */
-                        quote = c;
-                        s = ParseState::ValueQuoted;
-                    } else {
-                        s = ParseState::ValueUnquoted;
-                        v.push(c);
-                    }
-                }
-                ParseState::ValueQuoted => {
-                    if c == '\\' {
-                        /*
-                         * XXX handle escaped quotes...
-                         */
-                        bail!("invalid line (backslash...): {}", l);
-                    } else if c == quote {
-                        s = ParseState::ValueQuotedSpace;
-                    } else {
-                        v.push(c);
-                    }
-                }
-                ParseState::ValueQuotedSpace => {
-                    /*
-                     * We expect at least one space after a quoted string before
-                     * the next key.
-                     */
-                    if c == ' ' {
-                        vals.insert(&k, &v);
-                        s = ParseState::Key;
-                        k.clear();
-                    } else {
-                        bail!("invalid after quote ({:?}, {}): {}", s, k, l);
-                    }
-                }
-                ParseState::ValueUnquoted => {
-                    if c == '"' || c == '\'' {
-                        bail!("invalid line (errant quote...): {}", l);
-                    } else if c == ' ' {
-                        vals.insert(&k, &v);
-                        s = ParseState::Key;
-                        k.clear();
-                    } else {
-                        v.push(c);
-                    }
-                }
-            }
-        }
-
-        match s {
-            ParseState::ValueQuotedSpace | ParseState::ValueUnquoted => {
-                vals.insert(&k, &v);
-            }
-            ParseState::Type => {},
-            _ => bail!("invalid line (terminal state {:?}: {}", s, l),
-        }
-
-        match a.as_str() {
-            "depend" => {
-                let fmri = vals.list("fmri")?;
-                let type_ = vals.single("type")?;
-                let predicate = vals.maybe_list("predicate")?;
-                let variant_zone = vals.maybe_single(
-                    "variant.opensolaris.zone")?;
-
-                vals.check_for_extra()?;
-
-                out.push(Action::Depend(ActionDepend {
-                    fmri,
-                    type_,
-                    predicate,
-                    variant_zone,
-                }))
-            }
-            _ => out.push(Action::Unknown(a.to_string(), free, vals)),
-        }
-    }
-
-    Ok(out)
-}
-
 fn repo_contents(log: &Logger, fmri: &str) -> Result<Vec<Action>> {
     let repodir = top_path(&["projects", "userland", "i386", "repo"])?;
 
@@ -1354,7 +1102,7 @@ fn repo_contents(log: &Logger, fmri: &str) -> Result<Vec<Action>> {
     /*
      * Parse the output manifest lines...
      */
-    Ok(parse_manifest(log, &String::from_utf8(out.stdout)?)?)
+    Ok(ips::parse_manifest(&String::from_utf8(out.stdout)?)?)
 }
 
 fn cmd_userland_promote(ca: &CommandArg) -> Result<()> {
@@ -1594,22 +1342,20 @@ fn cmd_userland_plan(ca: &CommandArg) -> Result<()> {
         for a in contents.iter() {
             match &a {
                 Action::Depend(ad) => {
-                    if ad.type_ == "incorporate" {
-                        /*
-                         * Incorporated dependencies constrain versions, but do
-                         * not themselves require installation.
-                         */
-                        continue;
-                    }
-
-                    if ad.type_ != "require" &&
-                        ad.type_ != "require-any" &&
-                        ad.type_ != "group" &&
-                        ad.type_ != "group-any" &&
-                        ad.type_ != "optional" &&
-                        ad.type_ != "conditional"
-                    {
-                        bail!("unexpected depend type: {:?}", ad);
+                    match ad.type_() {
+                        DependType::Incorporate => {
+                            /*
+                             * Incorporated dependencies constrain versions, but
+                             * do not themselves require installation.
+                             */
+                            continue;
+                        }
+                        DependType::Require
+                            | DependType::RequireAny
+                            | DependType::Group
+                            | DependType::GroupAny
+                            | DependType::Optional
+                            | DependType::Conditional => {}
                     }
 
                     for dep in ad.fmris().iter() {
@@ -1624,8 +1370,9 @@ fn cmd_userland_plan(ca: &CommandArg) -> Result<()> {
                             continue;
                         }
 
-                        info!(log, "adding ({}): {} -> {}", ad.type_, pkg, dep);
-                        let depopt = ad.type_ == "optional";
+                        info!(log, "adding ({:?}): {} -> {}", ad.type_(), pkg,
+                            dep);
+                        let depopt = ad.type_() == DependType::Optional;
                         memo.q.push_back(MemoQueueEntry {
                             fmri: dep.to_string(),
                             optional: depopt
