@@ -1,0 +1,52 @@
+#
+# Each "transform" rule acts on a specific pkg(5) action, such as a "depend"
+# or a "file" entry.  In this file, we wish to trim out a few specific
+# dependencies from a few specific packages.  Unfortunately, pkgmogrify
+# only allows for matching action-level attributes (e.g., "type" and "fmri" for
+# a "depend" action) in predicates, but we want to be able to match on
+# the FMRI of the package which contains the "depend" entries we wish to drop.
+#
+# To work around this limitation, we add a temporary action-level attribute
+# to _every_ depend entry, using the value expansion pattern match %{...},
+# which _does_ have access to pacakage-level attributes.
+#
+<transform depend -> default tmp.fmri %{pkg.fmri}>
+
+#
+# We can then match on specific FMRI values and assign them a removal bank
+# number.
+#
+
+#
+# Bank 1: system/file-system/zfs depends on a Python runtime directly because
+# it contains a vestigial script, "/usr/lib/zfs/pyzfs.py".  Drop those
+# dependencies for now until we have a chance to clean up the gate:
+#
+<transform depend tmp.fmri=pkg://[^/]*/system/file-system/zfs@.* \
+    -> default X 1>
+<transform depend X=1 type=require fmri=.*/library/python/zfs-.* -> drop>
+<transform depend X=1 type=require fmri=.*/library/python/solaris-.* -> drop>
+<transform depend X=1 type=require fmri=.*runtime/python-.* -> drop>
+
+#
+# Bank 2: mailwrapper depends on sendmail directly, but we do not wish sendmail
+# installed.  Drop the dependency, so that mail will at least fail to be
+# delivered rather than litter the system.
+#
+<transform depend tmp.fmri=pkg://[^/]*/system/network/mailwrapper@.* \
+    -> default X 2>
+<transform depend X=2 type=require fmri=.*sendmail.* -> drop>
+
+#
+# Bank 3: In fact, let's not require mailwrapper at all.
+#
+<transform depend tmp.fmri=pkg://[^/]*/SUNWcs@.* \
+    -> default X 3>
+<transform depend X=3 type=require fmri=.*/mailwrapper.* -> drop>
+
+#
+# Unconditionally drop our temporary attributes so that they do not then appear
+# in the manifest output:
+#
+<transform depend X=.* -> delete X .*>
+<transform depend tmp.fmri=.* -> delete tmp.fmri .*>

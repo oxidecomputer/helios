@@ -185,8 +185,10 @@ fn cmd_promote_illumos(ca: &CommandArg) -> Result<()> {
     }
 
     let publisher = "on-nightly";
-    let staging = top_path(&["projects", "illumos", "packages", "i386",
-        "merged"])?;
+
+    ensure_dir(&["tmp", "illumos"])?;
+    let repo_merge = top_path(&["tmp", "illumos", "nightly-merged"])?;
+
     let repo_d = top_path(&["projects", "illumos", "packages", "i386",
         "nightly", "repo.redist"])?;
     let repo_nd = top_path(&["projects", "illumos", "packages", "i386",
@@ -196,12 +198,34 @@ fn cmd_promote_illumos(ca: &CommandArg) -> Result<()> {
      * Merge the packages from the DEBUG and non-DEBUG builds into a single
      * staging repository using the IPS variant feature.
      */
-    info!(log, "recreating staging repository at {:?}", &staging);
-    create_ips_repo(log, &staging, &publisher, true)?;
+    info!(log, "recreating merging repository at {:?}", &repo_merge);
+    create_ips_repo(log, &repo_merge, &publisher, true)?;
 
-    ensure::run(log, &["/usr/bin/pkgmerge", "-d", &staging.to_str().unwrap(),
+    ensure::run(log, &["/usr/bin/pkgmerge", "-d", &repo_merge.to_str().unwrap(),
         "-s", &format!("debug.illumos=false,{}/", repo_nd.to_str().unwrap()),
         "-s", &format!("debug.illumos=true,{}/", repo_d.to_str().unwrap())])?;
+
+    info!(log, "transforming packages for publishing...");
+
+    let mog_publisher = top_path(&["packages", "publisher.mogrify"])?;
+    let mog_conflicts = top_path(&["packages", "os-conflicts.mogrify"])?;
+    let mog_deps = top_path(&["packages", "os-deps.mogrify"])?;
+    let repo = top_path(&["packages", "os"])?;
+
+    ensure::run(log, &[PKGRECV,
+        "-s", &repo_merge.to_str().unwrap(),
+        "-d", &repo.to_str().unwrap(),
+        "--mog-file", &mog_publisher.to_str().unwrap(),
+        "--mog-file", &mog_conflicts.to_str().unwrap(),
+        "--mog-file", &mog_deps.to_str().unwrap(),
+        "-m", "latest",
+        "*"])?;
+    ensure::run(log, &[PKGREPO, "refresh", "-s", &repo.to_str().unwrap()])?;
+
+    /*
+     * Clean up the temporary merged repo files:
+     */
+    std::fs::remove_dir_all(&repo_merge).ok();
 
     Ok(())
 }
@@ -244,21 +268,28 @@ fn regen_illumos_sh(log: &Logger, bt: BuildType) -> Result<PathBuf> {
 
     let maxjobs = ncpus()?;
 
-    let rnum = match bt {
+    let (rnum, vers, banner) = match bt {
         /*
          * Though git does not support an SVN- or Mercurial-like revision
          * number, our history is sufficiently linear that we can approximate
          * one anyway.  Use that to set an additional version number component
-         * beyond the release version:
+         * beyond the release version, and as the value for "uname -v":
          */
-        BuildType::Full => git_commit_count(&gate)?,
+        BuildType::Full => {
+            let rnum = git_commit_count(&gate)?;
+            let vers = format!("helios-{}.{}.{}", RELVER, DASHREV, rnum);
+            (rnum, vers, "Oxide Helios Version ^v ^w-bit")
+        }
         /*
          * If this is a quick build that one intends to install on the local
          * system and iterate on, set the revision number to an extremely high
          * number that is obviously not related to the production package commit
          * numbers:
          */
-        BuildType::Quick => 999999,
+        BuildType::Quick => {
+            let vers = "$(git describe --long --all HEAD | cut -d/ -f2-)";
+            (999999, vers.into(), "Oxide Helios Version ^v ^w-bit (onu)")
+        }
     };
 
     /*
@@ -329,8 +360,8 @@ fn regen_illumos_sh(log: &Logger, bt: BuildType) -> Result<PathBuf> {
     env += "export PARENT_TOOLS_ROOT=\
         \"$PARENT_WS/usr/src/tools/proto/root_$MACH-nd\"\n";
     env += "export PKGARCHIVE=\"${CODEMGR_WS}/packages/${MACH}/nightly\"\n";
-    env += "export VERSION=\"`git describe --long --all HEAD \
-        | cut -d/ -f2-`\"\n";
+    env += &format!("export VERSION=\"{}\"\n", vers);
+    env += &format!("export BOOTBANNER1=\"{}\"\n", banner);
     env += "export ROOT=\"$CODEMGR_WS/proto/root_${MACH}\"\n";
     env += "export SRC=\"$CODEMGR_WS/usr/src\"\n";
     env += "export MULTI_PROTO=\"yes\"\n";
@@ -419,9 +450,10 @@ fn cmd_illumos_onu(ca: &CommandArg) -> Result<()> {
     create_ips_repo(log, &repo, "on-nightly", true)?;
 
     /*
-     * This pkgmogrify(1) script will drop any conflicting files:
+     * These pkgmogrify(1) scripts will drop any conflicting actions:
      */
-    let transforms = top_path(&["packages", "os-conflicts.mogrify"])?;
+    let mog_conflicts = top_path(&["packages", "os-conflicts.mogrify"])?;
+    let mog_deps = top_path(&["packages", "os-deps.mogrify"])?;
 
     info!(log, "transforming packages for installation...");
     let repo_nd = top_path(&["projects", "illumos", "packages", "i386",
@@ -429,7 +461,8 @@ fn cmd_illumos_onu(ca: &CommandArg) -> Result<()> {
     ensure::run(log, &[PKGRECV,
         "-s", &repo_nd.to_str().unwrap(),
         "-d", &repo.to_str().unwrap(),
-        "--mog-file", &transforms.to_str().unwrap(),
+        "--mog-file", &mog_conflicts.to_str().unwrap(),
+        "--mog-file", &mog_deps.to_str().unwrap(),
         "-m", "latest",
         "*"])?;
     ensure::run(log, &[PKGREPO, "refresh", "-s", &repo.to_str().unwrap()])?;
@@ -1154,11 +1187,11 @@ fn cmd_userland_promote(ca: &CommandArg) -> Result<()> {
      * transforming the publisher as we go:
      */
     let dock = top_path(&["packages", "repo"])?;
-    let transforms = top_path(&["packages", "publisher.mogrify"])?;
+    let mog_publisher = top_path(&["packages", "publisher.mogrify"])?;
     ensure::run(log, &[PKGRECV,
         "-s", &repo.to_str().unwrap(),
         "-d", &dock.to_str().unwrap(),
-        "--mog-file", &transforms.to_str().unwrap(),
+        "--mog-file", &mog_publisher.to_str().unwrap(),
         "-m", "latest",
         "-r",
         "-v",
@@ -1487,8 +1520,11 @@ fn cmd_setup(ca: &CommandArg) -> Result<()> {
     let mogpath = top_path(&["packages", "osver.mogrify"])?;
     ensure::file_str(log, &mog, &mogpath, 0o644, ensure::Create::Always)?;
 
-    let mogpath = top_path(&["packages", "os-conflicts.mogrify"])?;
-    ensure::symlink(log, &mogpath, "../tools/packages/os-conflicts.mogrify")?;
+    for mog in &["os-conflicts", "os-deps"] {
+        let mogpath = top_path(&["packages", &format!("{}.mogrify", mog)])?;
+        ensure::symlink(log, &mogpath,
+            &format!("../tools/packages/{}.mogrify", mog))?;
+    }
 
     /*
      * Perform setup in userland repository.
