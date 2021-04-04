@@ -339,9 +339,9 @@ fn regen_illumos_sh(log: &Logger, bt: BuildType) -> Result<PathBuf> {
     env += "export JAVA_ROOT=/usr/jdk/openjdk11.0\n";
     env += "export JAVA_HOME=$JAVA_ROOT\n";
     env += "export BLD_JAVA_11=\n";
-    env += "export BUILDPY2=\n";
+    env += "export BUILDPY2='#'\n";
     env += "export BUILDPY3=\n";
-    env += "export BUILDPY2TOOLS=\n";
+    env += "export BUILDPY2TOOLS='#'\n";
     env += "export BUILDPY3TOOLS=\n";
     env += "export PYTHON3_VERSION=3.9\n";
     env += "export PYTHON3_PKGVERS=-39\n";
@@ -1481,6 +1481,7 @@ fn cmd_setup(ca: &CommandArg) -> Result<()> {
             let mut site_sh = String::new();
             site_sh += "PFEXEC=/usr/bin/pfexec\n";
             site_sh += "PKGPUBLISHER=helios-dev\n";
+            site_sh += "HOMEURL=https://oxide.computer/helios\n";
             site_sh += "PUBLISHER_EMAIL=jmc@oxide.computer\n";
             site_sh += &format!("RELVER={}\n", RELVER);
             site_sh += &format!("DASHREV={}\n", DASHREV);
