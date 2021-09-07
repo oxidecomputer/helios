@@ -248,23 +248,30 @@ fn ncpus() -> Result<u32> {
     Ok(stdout.trim().parse().context("psrinfo parse failure")?)
 }
 
+#[derive(Clone, Copy)]
 enum BuildType {
     Quick,
     Full,
 }
 
+impl BuildType {
+    fn script_name(&self) -> &str {
+        use BuildType::*;
+
+        /*
+         * The build environment will be different, depending on the build type.
+         * Use a different file for each type to make that clear.
+         */
+        match self {
+            Quick => "illumos-quick.sh",
+            Full => "illumos.sh",
+        }
+    }
+}
+
 fn regen_illumos_sh(log: &Logger, bt: BuildType) -> Result<PathBuf> {
     let gate = top_path(&["projects", "illumos"])?;
-
-    /*
-     * The build environment will be different, depending on the build type.
-     * Use a different file for each type to make that clear.
-     */
-    let env_name = match bt {
-        BuildType::Quick => "illumos-quick.sh",
-        BuildType::Full => "illumos.sh",
-    };
-    let path_env = top_path(&["projects", "illumos", env_name])?;
+    let path_env = top_path(&["projects", "illumos", bt.script_name()])?;
 
     let maxjobs = ncpus()?;
 
@@ -497,7 +504,8 @@ fn cmd_illumos_onu(ca: &CommandArg) -> Result<()> {
 }
 
 fn cmd_illumos_bldenv(ca: &CommandArg) -> Result<()> {
-    let opts = baseopts();
+    let mut opts = baseopts();
+    opts.optflag("q", "quick", "quick build (no shadows, no DEBUG)");
 
     let usage = || {
         println!("{}", opts.usage("Usage: helios [OPTIONS] bldenv [OPTIONS]"));
@@ -514,9 +522,15 @@ fn cmd_illumos_bldenv(ca: &CommandArg) -> Result<()> {
         bail!("unexpected arguments");
     }
 
-    regen_illumos_sh(ca.log, BuildType::Full)?;
+    let t = if res.opt_present("q") {
+        BuildType::Quick
+    } else {
+        BuildType::Full
+    };
 
-    let env = top_path(&["projects", "illumos", "illumos.sh"])?;
+    regen_illumos_sh(ca.log, t)?;
+
+    let env = top_path(&["projects", "illumos", t.script_name()])?;
     let src = top_path(&["projects", "illumos", "usr", "src"])?;
     let bldenv = top_path(&["projects", "illumos", "usr", "src",
         "tools", "scripts", "bldenv"])?;
@@ -1538,6 +1552,9 @@ fn cmd_setup(ca: &CommandArg) -> Result<()> {
         ensure::symlink(log, &mogpath,
             &format!("../tools/packages/{}.mogrify", mog))?;
     }
+
+    regen_illumos_sh(log, BuildType::Full)?;
+    regen_illumos_sh(log, BuildType::Quick)?;
 
     /*
      * Perform setup in userland repository.
