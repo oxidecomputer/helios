@@ -414,7 +414,8 @@ fn cmd_build_illumos(ca: &CommandArg) -> Result<()> {
 
 fn cmd_illumos_onu(ca: &CommandArg) -> Result<()> {
     let mut opts = baseopts();
-    opts.optopt("t", "", "boot environment name (required)", "NAME");
+    opts.optopt("t", "", "boot environment name", "NAME");
+    opts.optflag("P", "", "prepare packages only");
 
     let usage = || {
         println!("{}", opts.usage("Usage: helios [OPTIONS] onu [OPTIONS]"));
@@ -432,12 +433,11 @@ fn cmd_illumos_onu(ca: &CommandArg) -> Result<()> {
         bail!("unexpected arguments");
     }
 
-    let bename = if let Some(bename) = res.opt_str("t") {
-        bename
-    } else {
-        usage();
-        bail!("must specify a boot environment name (-t)");
-    };
+    match (res.opt_present("t"), res.opt_present("P")) {
+        (true, true) => bail!("-t and -P are mutually exclusive"),
+        (false, false) => bail!("must specify either -t or -P"),
+        (_, _) => (),
+    }
 
     /*
      * In order to install development illumos bits, we first need to elide any
@@ -466,6 +466,18 @@ fn cmd_illumos_onu(ca: &CommandArg) -> Result<()> {
         "-m", "latest",
         "*"])?;
     ensure::run(log, &[PKGREPO, "refresh", "-s", &repo.to_str().unwrap()])?;
+
+    if res.opt_present("P") {
+        info!(log, "transformed packages available for onu at: {:?}", &repo);
+        return Ok(());
+    }
+
+    let bename = if let Some(bename) = res.opt_str("t") {
+        bename
+    } else {
+        usage();
+        bail!("must specify a boot environment name (-t)");
+    };
 
     /*
      * onu(1) will create a new boot environment, adjusting it to accept nightly
