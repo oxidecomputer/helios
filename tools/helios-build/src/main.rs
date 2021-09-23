@@ -22,6 +22,7 @@ use ips::{Action, DependType};
 
 const PKGREPO: &str = "/usr/bin/pkgrepo";
 const PKGRECV: &str = "/usr/bin/pkgrecv";
+const PKGDEPOTD: &str = "/usr/lib/pkg.depotd";
 
 const RELVER: u32 = 1;
 const DASHREV: u32 = 0;
@@ -423,6 +424,7 @@ fn cmd_illumos_onu(ca: &CommandArg) -> Result<()> {
     let mut opts = baseopts();
     opts.optopt("t", "", "boot environment name", "NAME");
     opts.optflag("P", "", "prepare packages only");
+    opts.optflag("D", "", "prepare packages and run a depot");
 
     let usage = || {
         println!("{}", opts.usage("Usage: helios [OPTIONS] onu [OPTIONS]"));
@@ -440,10 +442,13 @@ fn cmd_illumos_onu(ca: &CommandArg) -> Result<()> {
         bail!("unexpected arguments");
     }
 
-    match (res.opt_present("t"), res.opt_present("P")) {
-        (true, true) => bail!("-t and -P are mutually exclusive"),
-        (false, false) => bail!("must specify either -t or -P"),
-        (_, _) => (),
+    let count = ["t", "P", "D"].iter().filter(|o| res.opt_present(o)).count();
+    if count == 0 {
+        usage();
+        bail!("must specify one of -t, -P, or -D");
+    } else if count > 1 {
+        usage();
+        bail!("-t, -P, and -D, are mutually exclusive");
     }
 
     /*
@@ -477,6 +482,45 @@ fn cmd_illumos_onu(ca: &CommandArg) -> Result<()> {
     if res.opt_present("P") {
         info!(log, "transformed packages available for onu at: {:?}", &repo);
         return Ok(());
+    }
+
+    if res.opt_present("D") {
+        let port = 7891;
+        info!(log, "starting pkg.depotd on packages at: {:?}", &repo);
+
+        /*
+         * Run a pkg.depotd to serve the packages we have just transformed.
+         */
+        ensure_dir(&["tmp", "depot"])?;
+        let logdir = ensure_dir(&["tmp", "depot", "log"])?;
+        let mut access = logdir.clone();
+        access.push("access");
+        let rootdir = ensure_dir(&["tmp", "depot", "root"])?;
+
+        info!(log, "access log file is {:?}", &access);
+        info!(log, "listening on port {}", port);
+        info!(log, "^C to quit");
+
+        return Err(Command::new(PKGDEPOTD)
+            /*
+             * Setting this environment variable prevents the depot from
+             * daemonising.
+             */
+            .env("PKGDEPOT_CONTROLLER", "1")
+            .arg("-d")
+            .arg(&repo)
+            .arg("-p")
+            .arg(port.to_string())
+            .arg("--log-access")
+            .arg(access)
+            .arg("--log-error")
+            .arg("stderr")
+            .arg("--readonly")
+            .arg("true")
+            .arg("--writable-root")
+            .arg(&rootdir)
+            .exec()
+            .into());
     }
 
     let bename = if let Some(bename) = res.opt_str("t") {
