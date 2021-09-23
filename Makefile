@@ -23,13 +23,19 @@ gmakecheck:
 		exit 1; \
 	fi
 
+#
+# Run a "quick" build of illumos for development:
+#
 .PHONY: illumos
 illumos: gmakecheck $(HELIOS_BUILD)
-	$(HELIOS_BUILD) build-illumos
+	$(HELIOS_BUILD) build-illumos -q
 
+#
+# Enter the "quick" build environment so that you can run dmake, etc:
+#
 .PHONY: bldenv
 bldenv: gmakecheck $(HELIOS_BUILD)
-	$(HELIOS_BUILD) bldenv
+	$(HELIOS_BUILD) bldenv -q
 
 .PHONY: setup
 setup: gmakecheck $(HELIOS_BUILD)
@@ -39,10 +45,6 @@ setup: gmakecheck $(HELIOS_BUILD)
 	@printf '\n'
 	@printf 'Setup complete!  ./helios-build is now available.\n'
 	@printf '\n'
-
-.PHONY: zone
-zone: gmakecheck $(HELIOS_BUILD)
-	@$(HELIOS_BUILD) zone
 
 .PHONY: $(HELIOS_BUILD)
 $(HELIOS_BUILD):
