@@ -182,6 +182,11 @@ on-nightly              origin   online F http://vulcan:7891/
 helios-dev (non-sticky) origin   online F https://pkg.oxide.computer/helios-dev/
 ```
 
+For now, depending on what you're doing on the test system, it may be necessary
+to uninstall the `entire` meta-package before proceeding.  This is especially
+true if you have zones based on the `lipkg` brand.  You can do this via `pkg
+uninstall entire`.  The stock `onu` tool from illumos does this automatically.
+
 Perform a dry-run update to confirm that we are going to get updated
 packages from the quick build on your build machine:
 
