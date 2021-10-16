@@ -325,8 +325,8 @@ fn regen_illumos_sh(log: &Logger, bt: BuildType) -> Result<PathBuf> {
             /*
              * Enable the shadow compiler for full builds:
              */
-            env += "export SHADOW_CCS=gcc4,/opt/gcc-4.4.4/bin/gcc,gnu\n";
-            env += "export SHADOW_CCCS=gcc4,/opt/gcc-4.4.4/bin/g++,gnu\n";
+            env += "export SHADOW_CCS=gcc10,/opt/gcc-10/bin/gcc,gnu\n";
+            env += "export SHADOW_CCCS=gcc10,/opt/gcc-10/bin/g++,gnu\n";
 
             /*
              * Enable smatch checks for full builds:
