@@ -76,6 +76,21 @@ fn top() -> Result<PathBuf> {
     Ok(exe)
 }
 
+fn rel_path<P: AsRef<Path>>(
+    p: Option<P>,
+    components: &[&str],
+) -> Result<PathBuf> {
+    let mut top = if let Some(p) = p {
+        p.as_ref().to_path_buf()
+    } else {
+        top()?
+    };
+    for c in components {
+        top.push(c);
+    }
+    Ok(top)
+}
+
 fn top_path(components: &[&str]) -> Result<PathBuf> {
     let mut top = top()?;
     for c in components {
@@ -425,6 +440,8 @@ fn cmd_illumos_onu(ca: &CommandArg) -> Result<()> {
     opts.optopt("t", "", "boot environment name", "NAME");
     opts.optflag("P", "", "prepare packages only");
     opts.optflag("D", "", "prepare packages and run a depot");
+    opts.optflag("d", "", "use DEBUG packages");
+    opts.optopt("g", "", "use an external gate directory", "DIR");
 
     let usage = || {
         println!("{}", opts.usage("Usage: helios [OPTIONS] onu [OPTIONS]"));
@@ -441,6 +458,16 @@ fn cmd_illumos_onu(ca: &CommandArg) -> Result<()> {
     if !res.free.is_empty() {
         bail!("unexpected arguments");
     }
+
+    let gate = if let Some(gate) = res.opt_str("g") {
+        let gate = PathBuf::from(gate);
+        if !gate.is_absolute() {
+            bail!("specify an absolute path for -g");
+        }
+        gate
+    } else {
+        top_path(&["projects", "illumos"])?
+    };
 
     let count = ["t", "P", "D"].iter().filter(|o| res.opt_present(o)).count();
     if count == 0 {
@@ -468,8 +495,9 @@ fn cmd_illumos_onu(ca: &CommandArg) -> Result<()> {
     let mog_deps = top_path(&["packages", "os-deps.mogrify"])?;
 
     info!(log, "transforming packages for installation...");
-    let repo_nd = top_path(&["projects", "illumos", "packages", "i386",
-        "nightly-nd", "repo.redist"])?;
+    let which = if res.opt_present("d") { "nightly" } else { "nightly-nd" };
+    let repo_nd = rel_path(Some(&gate),
+        &["packages", "i386", which, "repo.redist"])?;
     ensure::run(log, &[PKGRECV,
         "-s", &repo_nd.to_str().unwrap(),
         "-d", &repo.to_str().unwrap(),
