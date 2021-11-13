@@ -398,6 +398,10 @@ fn regen_illumos_sh(log: &Logger, bt: BuildType) -> Result<PathBuf> {
 }
 
 fn cmd_build_illumos(ca: &CommandArg) -> Result<()> {
+    if std::env::var_os("CODEMGR_WS").is_some() {
+        bail!("illumos build should not run from within the bldenv shell");
+    }
+
     let mut opts = baseopts();
     opts.optflag("q", "quick", "quick build (no shadows, no DEBUG)");
 
@@ -576,6 +580,10 @@ fn cmd_illumos_onu(ca: &CommandArg) -> Result<()> {
 }
 
 fn cmd_illumos_bldenv(ca: &CommandArg) -> Result<()> {
+    if std::env::var_os("CODEMGR_WS").is_some() {
+        bail!("bldenv should not run from within the bldenv shell");
+    }
+
     let mut opts = baseopts();
     opts.optflag("q", "quick", "quick build (no shadows, no DEBUG)");
 
@@ -1657,10 +1665,6 @@ struct CommandInfo {
 fn main() -> Result<()> {
     let mut opts = baseopts();
     opts.parsing_style(getopts::ParsingStyle::StopAtFirstFree);
-
-    if std::env::var_os("CODEMGR_WS").is_some() {
-        bail!("helios-build should not run from within the bldenv shell");
-    }
 
     let mut handlers: Vec<CommandInfo> = Vec::new();
     handlers.push(CommandInfo {
