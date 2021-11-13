@@ -285,9 +285,11 @@ impl BuildType {
     }
 }
 
-fn regen_illumos_sh(log: &Logger, bt: BuildType) -> Result<PathBuf> {
-    let gate = top_path(&["projects", "illumos"])?;
-    let path_env = top_path(&["projects", "illumos", bt.script_name()])?;
+fn regen_illumos_sh<P: AsRef<Path>>(log: &Logger, gate: P, bt: BuildType)
+    -> Result<PathBuf>
+{
+    let gate = gate.as_ref();
+    let path_env = rel_path(Some(gate), &[bt.script_name()])?;
 
     let maxjobs = ncpus()?;
 
@@ -426,9 +428,9 @@ fn cmd_build_illumos(ca: &CommandArg) -> Result<()> {
     } else {
         BuildType::Full
     };
-    let env_sh = regen_illumos_sh(log, bt)?;
 
     let gate = top_path(&["projects", "illumos"])?;
+    let env_sh = regen_illumos_sh(log, &gate, bt)?;
 
     let script = format!("cd {} && ./usr/src/tools/scripts/nightly {}",
         gate.to_str().unwrap(),
@@ -579,6 +581,42 @@ fn cmd_illumos_onu(ca: &CommandArg) -> Result<()> {
     Ok(())
 }
 
+fn cmd_illumos_genenv(ca: &CommandArg) -> Result<()> {
+    let mut opts = baseopts();
+    opts.optopt("g", "", "use an external gate directory", "DIR");
+
+    let usage = || {
+        println!("{}", opts.usage("Usage: helios [OPTIONS] genenv [OPTIONS]"));
+    };
+
+    let res = opts.parse(ca.args)?;
+
+    if res.opt_present("help") {
+        usage();
+        return Ok(());
+    }
+
+    if !res.free.is_empty() {
+        bail!("unexpected arguments");
+    }
+
+    let gate = if let Some(gate) = res.opt_str("g") {
+        let gate = PathBuf::from(gate);
+        if !gate.is_absolute() {
+            bail!("specify an absolute path for -g");
+        }
+        gate
+    } else {
+        top_path(&["projects", "illumos"])?
+    };
+
+    regen_illumos_sh(ca.log, &gate, BuildType::Quick)?;
+    regen_illumos_sh(ca.log, &gate, BuildType::Full)?;
+
+    info!(ca.log, "ok");
+    Ok(())
+}
+
 fn cmd_illumos_bldenv(ca: &CommandArg) -> Result<()> {
     if std::env::var_os("CODEMGR_WS").is_some() {
         bail!("bldenv should not run from within the bldenv shell");
@@ -608,11 +646,12 @@ fn cmd_illumos_bldenv(ca: &CommandArg) -> Result<()> {
         BuildType::Full
     };
 
-    regen_illumos_sh(ca.log, t)?;
+    let gate = top_path(&["projects", "illumos"])?;
+    regen_illumos_sh(ca.log, &gate, t)?;
 
-    let env = top_path(&["projects", "illumos", t.script_name()])?;
-    let src = top_path(&["projects", "illumos", "usr", "src"])?;
-    let bldenv = top_path(&["projects", "illumos", "usr", "src",
+    let env = rel_path(Some(&gate), &[t.script_name()])?;
+    let src = rel_path(Some(&gate), &["usr", "src"])?;
+    let bldenv = rel_path(Some(&gate), &["usr", "src",
         "tools", "scripts", "bldenv"])?;
 
     /*
@@ -1633,8 +1672,9 @@ fn cmd_setup(ca: &CommandArg) -> Result<()> {
             &format!("../tools/packages/{}.mogrify", mog))?;
     }
 
-    regen_illumos_sh(log, BuildType::Full)?;
-    regen_illumos_sh(log, BuildType::Quick)?;
+    let gate = top_path(&["projects", "illumos"])?;
+    regen_illumos_sh(log, &gate, BuildType::Full)?;
+    regen_illumos_sh(log, &gate, BuildType::Quick)?;
 
     /*
      * Perform setup in userland repository.
@@ -1680,6 +1720,13 @@ fn main() -> Result<()> {
         func: cmd_zone,
         hide: true,
         blank: false,
+    });
+    handlers.push(CommandInfo {
+        name: "genenv".into(),
+        desc: "generate environment file for illumos build".into(),
+        func: cmd_illumos_genenv,
+        hide: false,
+        blank: true,
     });
     handlers.push(CommandInfo {
         name: "bldenv".into(),
