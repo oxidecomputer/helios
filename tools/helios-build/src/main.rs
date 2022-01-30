@@ -636,6 +636,7 @@ fn cmd_illumos_bldenv(ca: &CommandArg) -> Result<()> {
 
     let mut opts = baseopts();
     opts.optflag("q", "quick", "quick build (no shadows, no DEBUG)");
+    opts.optflag("d", "debug", "build a debug build");
 
     let usage = || {
         println!("{}", opts.usage("Usage: helios [OPTIONS] bldenv [OPTIONS]"));
@@ -653,7 +654,11 @@ fn cmd_illumos_bldenv(ca: &CommandArg) -> Result<()> {
     }
 
     let t = if res.opt_present("q") {
-        BuildType::Quick
+        if res.opt_present("d") {
+            BuildType::QuickDebug
+        } else {
+            BuildType::Quick
+        }
     } else {
         BuildType::Full
     };
@@ -661,7 +666,7 @@ fn cmd_illumos_bldenv(ca: &CommandArg) -> Result<()> {
     let gate = top_path(&["projects", "illumos"])?;
     regen_illumos_sh(ca.log, &gate, t)?;
 
-    let env = rel_path(Some(&gate), &[t.script_name()])?;
+	let env = rel_path(Some(&gate), &[t.script_name()])?;
     let src = rel_path(Some(&gate), &["usr", "src"])?;
     let bldenv = rel_path(Some(&gate), &["usr", "src",
         "tools", "scripts", "bldenv"])?;
@@ -672,10 +677,12 @@ fn cmd_illumos_bldenv(ca: &CommandArg) -> Result<()> {
      * exec(2) and replace this process rather than run it as a logged child
      * process.
      */
-    let err = Command::new(&bldenv)
-        .arg(&env)
-        .current_dir(&src)
-        .exec();
+    let mut cmd = Command::new(&bldenv);
+    if res.opt_present("d") && !res.opt_present("q") {
+		cmd.arg("-d");
+    }
+    cmd.arg(env).current_dir(&src);
+	let err = cmd.exec();
     bail!("exec failure: {:?}", err);
 }
 
