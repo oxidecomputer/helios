@@ -267,6 +267,7 @@ fn ncpus() -> Result<u32> {
 #[derive(Clone, Copy)]
 enum BuildType {
     Quick,
+    QuickDebug,
     Full,
 }
 
@@ -280,6 +281,7 @@ impl BuildType {
          */
         match self {
             Quick => "illumos-quick.sh",
+            QuickDebug => "illumos-quick-debug.sh",
             Full => "illumos.sh",
         }
     }
@@ -311,7 +313,7 @@ fn regen_illumos_sh<P: AsRef<Path>>(log: &Logger, gate: P, bt: BuildType)
          * number that is obviously not related to the production package commit
          * numbers:
          */
-        BuildType::Quick => {
+        BuildType::Quick | BuildType::QuickDebug => {
             let vers = "$(git describe --long --all HEAD | cut -d/ -f2-)";
             (999999, vers.into(), "Oxide Helios Version ^v ^w-bit (onu)")
         }
@@ -324,6 +326,7 @@ fn regen_illumos_sh<P: AsRef<Path>>(log: &Logger, gate: P, bt: BuildType)
     match bt {
         BuildType::Full => env += "export NIGHTLY_OPTIONS='-nCDAmprt'\n",
         BuildType::Quick => env += "export NIGHTLY_OPTIONS='-nCAmprt'\n",
+        BuildType::QuickDebug => env += "export NIGHTLY_OPTIONS='-nCADFmprt'\n",
     }
     env += &format!("export CODEMGR_WS='{}'\n", gate.to_str().unwrap());
     env += "export MACH=\"$(uname -p)\"\n";
@@ -331,7 +334,7 @@ fn regen_illumos_sh<P: AsRef<Path>>(log: &Logger, gate: P, bt: BuildType)
     env += "export PRIMARY_CC=gcc7,$GNUC_ROOT/bin/gcc,gnu\n";
     env += "export PRIMARY_CCC=gcc7,$GNUC_ROOT/bin/g++,gnu\n";
     match bt {
-        BuildType::Quick => {
+        BuildType::Quick | BuildType::QuickDebug => {
             /*
              * Skip the shadow compiler and smatch for quick builds:
              */
@@ -406,6 +409,7 @@ fn cmd_build_illumos(ca: &CommandArg) -> Result<()> {
 
     let mut opts = baseopts();
     opts.optflag("q", "quick", "quick build (no shadows, no DEBUG)");
+    opts.optflag("d", "debug", "build a debug build (use with -q)");
 
     let usage = || {
         println!("{}", opts.usage("Usage: helios [OPTIONS] build-illumos [OPTIONS]"));
@@ -423,8 +427,16 @@ fn cmd_build_illumos(ca: &CommandArg) -> Result<()> {
         bail!("unexpected arguments");
     }
 
+    if res.opt_present("d") && !res.opt_present("q") {
+        bail!("requesting a debug build (-d) requires -q");
+    }
+
     let bt = if res.opt_present("q") {
-        BuildType::Quick
+        if res.opt_present("d") {
+            BuildType::QuickDebug
+        } else {
+            BuildType::Quick
+        }
     } else {
         BuildType::Full
     };
@@ -611,6 +623,7 @@ fn cmd_illumos_genenv(ca: &CommandArg) -> Result<()> {
     };
 
     regen_illumos_sh(ca.log, &gate, BuildType::Quick)?;
+    regen_illumos_sh(ca.log, &gate, BuildType::QuickDebug)?;
     regen_illumos_sh(ca.log, &gate, BuildType::Full)?;
 
     info!(ca.log, "ok");
@@ -624,6 +637,7 @@ fn cmd_illumos_bldenv(ca: &CommandArg) -> Result<()> {
 
     let mut opts = baseopts();
     opts.optflag("q", "quick", "quick build (no shadows, no DEBUG)");
+    opts.optflag("d", "debug", "build a debug build");
 
     let usage = || {
         println!("{}", opts.usage("Usage: helios [OPTIONS] bldenv [OPTIONS]"));
@@ -641,7 +655,11 @@ fn cmd_illumos_bldenv(ca: &CommandArg) -> Result<()> {
     }
 
     let t = if res.opt_present("q") {
-        BuildType::Quick
+        if res.opt_present("d") {
+            BuildType::QuickDebug
+        } else {
+            BuildType::Quick
+        }
     } else {
         BuildType::Full
     };
@@ -649,7 +667,7 @@ fn cmd_illumos_bldenv(ca: &CommandArg) -> Result<()> {
     let gate = top_path(&["projects", "illumos"])?;
     regen_illumos_sh(ca.log, &gate, t)?;
 
-    let env = rel_path(Some(&gate), &[t.script_name()])?;
+	let env = rel_path(Some(&gate), &[t.script_name()])?;
     let src = rel_path(Some(&gate), &["usr", "src"])?;
     let bldenv = rel_path(Some(&gate), &["usr", "src",
         "tools", "scripts", "bldenv"])?;
@@ -660,10 +678,12 @@ fn cmd_illumos_bldenv(ca: &CommandArg) -> Result<()> {
      * exec(2) and replace this process rather than run it as a logged child
      * process.
      */
-    let err = Command::new(&bldenv)
-        .arg(&env)
-        .current_dir(&src)
-        .exec();
+    let mut cmd = Command::new(&bldenv);
+    if res.opt_present("d") && !res.opt_present("q") {
+		cmd.arg("-d");
+    }
+    cmd.arg(env).current_dir(&src);
+	let err = cmd.exec();
     bail!("exec failure: {:?}", err);
 }
 
@@ -1674,6 +1694,7 @@ fn cmd_setup(ca: &CommandArg) -> Result<()> {
 
     let gate = top_path(&["projects", "illumos"])?;
     regen_illumos_sh(log, &gate, BuildType::Full)?;
+    regen_illumos_sh(log, &gate, BuildType::QuickDebug)?;
     regen_illumos_sh(log, &gate, BuildType::Quick)?;
 
     /*
