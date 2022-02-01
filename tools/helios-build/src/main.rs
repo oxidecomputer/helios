@@ -623,6 +623,7 @@ fn cmd_illumos_genenv(ca: &CommandArg) -> Result<()> {
     };
 
     regen_illumos_sh(ca.log, &gate, BuildType::Quick)?;
+    regen_illumos_sh(ca.log, &gate, BuildType::QuickDebug)?;
     regen_illumos_sh(ca.log, &gate, BuildType::Full)?;
 
     info!(ca.log, "ok");
@@ -1693,6 +1694,7 @@ fn cmd_setup(ca: &CommandArg) -> Result<()> {
 
     let gate = top_path(&["projects", "illumos"])?;
     regen_illumos_sh(log, &gate, BuildType::Full)?;
+    regen_illumos_sh(log, &gate, BuildType::QuickDebug)?;
     regen_illumos_sh(log, &gate, BuildType::Quick)?;
 
     /*
