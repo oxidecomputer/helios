@@ -458,6 +458,7 @@ fn cmd_illumos_onu(ca: &CommandArg) -> Result<()> {
     opts.optopt("t", "", "boot environment name", "NAME");
     opts.optflag("P", "", "prepare packages only");
     opts.optflag("D", "", "prepare packages and run a depot");
+    opts.optflag("A", "", "create a p5p archive from packages");
     opts.optflag("d", "", "use DEBUG packages");
     opts.optopt("g", "", "use an external gate directory", "DIR");
 
@@ -487,13 +488,13 @@ fn cmd_illumos_onu(ca: &CommandArg) -> Result<()> {
         top_path(&["projects", "illumos"])?
     };
 
-    let count = ["t", "P", "D"].iter().filter(|o| res.opt_present(o)).count();
+    let count = ["t", "P", "D", "A"].iter().filter(|o| res.opt_present(o)).count();
     if count == 0 {
         usage();
-        bail!("must specify one of -t, -P, or -D");
+        bail!("must specify one of -t, -P, -D or -A");
     } else if count > 1 {
         usage();
-        bail!("-t, -P, and -D, are mutually exclusive");
+        bail!("-t, -P, -D and -A, are mutually exclusive");
     }
 
     /*
@@ -516,6 +517,22 @@ fn cmd_illumos_onu(ca: &CommandArg) -> Result<()> {
     let which = if res.opt_present("d") { "nightly" } else { "nightly-nd" };
     let repo_nd = rel_path(Some(&gate),
         &["packages", "i386", which, "repo.redist"])?;
+
+    if res.opt_present("A") {
+        info!(log, "creating p5p archive file from packages at: {:?}", &repo);
+        let archive = top_path(&["tmp", "onu", "repo.p5p"])?;
+        ensure::run(log, &[PKGRECV,
+            "-a",
+            "-s", &repo_nd.to_str().unwrap(),
+            "-d", &archive.to_str().unwrap(),
+            "--mog-file", &mog_conflicts.to_str().unwrap(),
+            "--mog-file", &mog_deps.to_str().unwrap(),
+            "-m", "latest",
+            "*"])?;
+        info!(log, "p5p archive created at: {:?}", &archive);
+        return Ok(());
+    }
+
     ensure::run(log, &[PKGRECV,
         "-s", &repo_nd.to_str().unwrap(),
         "-d", &repo.to_str().unwrap(),
