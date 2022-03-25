@@ -269,6 +269,7 @@ enum BuildType {
     Quick,
     QuickDebug,
     Full,
+    Release
 }
 
 impl BuildType {
@@ -283,6 +284,7 @@ impl BuildType {
             Quick => "illumos-quick.sh",
             QuickDebug => "illumos-quick-debug.sh",
             Full => "illumos.sh",
+            Release => "illumos-release.sh",
         }
     }
 }
@@ -302,7 +304,7 @@ fn regen_illumos_sh<P: AsRef<Path>>(log: &Logger, gate: P, bt: BuildType)
          * one anyway.  Use that to set an additional version number component
          * beyond the release version, and as the value for "uname -v":
          */
-        BuildType::Full => {
+        BuildType::Release => {
             let rnum = git_commit_count(&gate)?;
             let vers = format!("helios-{}.{}.{}", RELVER, DASHREV, rnum);
             (rnum, vers, "Oxide Helios Version ^v ^w-bit")
@@ -313,7 +315,7 @@ fn regen_illumos_sh<P: AsRef<Path>>(log: &Logger, gate: P, bt: BuildType)
          * number that is obviously not related to the production package commit
          * numbers:
          */
-        BuildType::Quick | BuildType::QuickDebug => {
+        BuildType::Quick | BuildType::QuickDebug | BuildType::Full => {
             let vers = "$(git describe --long --all HEAD | cut -d/ -f2-)";
             (999999, vers.into(), "Oxide Helios Version ^v ^w-bit (onu)")
         }
@@ -325,6 +327,7 @@ fn regen_illumos_sh<P: AsRef<Path>>(log: &Logger, gate: P, bt: BuildType)
     let mut env = String::new();
     match bt {
         BuildType::Full => env += "export NIGHTLY_OPTIONS='-nCDAmprt'\n",
+        BuildType::Release => env += "export NIGHTLY_OPTIONS='-nCDAmprt'\n",
         BuildType::Quick => env += "export NIGHTLY_OPTIONS='-nCAmprt'\n",
         BuildType::QuickDebug => env += "export NIGHTLY_OPTIONS='-nCADFmprt'\n",
     }
@@ -341,7 +344,7 @@ fn regen_illumos_sh<P: AsRef<Path>>(log: &Logger, gate: P, bt: BuildType)
             env += "export SHADOW_CCS=\n";
             env += "export SHADOW_CCCS=\n";
         }
-        BuildType::Full => {
+        BuildType::Full | BuildType::Release => {
             /*
              * Enable the shadow compiler for full builds:
              */
@@ -410,6 +413,7 @@ fn cmd_build_illumos(ca: &CommandArg) -> Result<()> {
     let mut opts = baseopts();
     opts.optflag("q", "quick", "quick build (no shadows, no DEBUG)");
     opts.optflag("d", "debug", "build a debug build (use with -q)");
+    opts.optflag("r", "release", "build a release build");
 
     let usage = || {
         println!("{}", opts.usage("Usage: helios [OPTIONS] build-illumos [OPTIONS]"));
@@ -427,6 +431,14 @@ fn cmd_build_illumos(ca: &CommandArg) -> Result<()> {
         bail!("unexpected arguments");
     }
 
+    if res.opt_present("q") && res.opt_present("r") {
+        bail!("you cannot request a release build (-r) and a quick build (-q)");
+    }
+
+    if res.opt_present("d") && res.opt_present("r") {
+        bail!("you cannot request a release build (-r) and a debug build (-d)");
+    }
+
     if res.opt_present("d") && !res.opt_present("q") {
         bail!("requesting a debug build (-d) requires -q");
     }
@@ -437,6 +449,8 @@ fn cmd_build_illumos(ca: &CommandArg) -> Result<()> {
         } else {
             BuildType::Quick
         }
+    } else if res.opt_present("r") {
+        BuildType::Release
     } else {
         BuildType::Full
     };
@@ -625,6 +639,7 @@ fn cmd_illumos_genenv(ca: &CommandArg) -> Result<()> {
     regen_illumos_sh(ca.log, &gate, BuildType::Quick)?;
     regen_illumos_sh(ca.log, &gate, BuildType::QuickDebug)?;
     regen_illumos_sh(ca.log, &gate, BuildType::Full)?;
+    regen_illumos_sh(ca.log, &gate, BuildType::Release)?;
 
     info!(ca.log, "ok");
     Ok(())
@@ -638,6 +653,7 @@ fn cmd_illumos_bldenv(ca: &CommandArg) -> Result<()> {
     let mut opts = baseopts();
     opts.optflag("q", "quick", "quick build (no shadows, no DEBUG)");
     opts.optflag("d", "debug", "build a debug build");
+    opts.optflag("r", "release", "build a release build");
 
     let usage = || {
         println!("{}", opts.usage("Usage: helios [OPTIONS] bldenv [OPTIONS]"));
@@ -654,12 +670,22 @@ fn cmd_illumos_bldenv(ca: &CommandArg) -> Result<()> {
         bail!("unexpected arguments");
     }
 
+    if res.opt_present("q") && res.opt_present("r") {
+        bail!("you cannot request a release build (-r) and a quick build (-q)");
+    }
+
+    if res.opt_present("d") && res.opt_present("r") {
+        bail!("you cannot request a release build (-r) and a debug build (-d)");
+    }
+
     let t = if res.opt_present("q") {
         if res.opt_present("d") {
             BuildType::QuickDebug
         } else {
             BuildType::Quick
         }
+    } else if res.opt_present("r") {
+        BuildType::Release
     } else {
         BuildType::Full
     };
@@ -1696,6 +1722,7 @@ fn cmd_setup(ca: &CommandArg) -> Result<()> {
     regen_illumos_sh(log, &gate, BuildType::Full)?;
     regen_illumos_sh(log, &gate, BuildType::QuickDebug)?;
     regen_illumos_sh(log, &gate, BuildType::Quick)?;
+    regen_illumos_sh(log, &gate, BuildType::Release)?;
 
     /*
      * Perform setup in userland repository.
