@@ -269,7 +269,7 @@ enum BuildType {
     Quick,
     QuickDebug,
     Full,
-    Release
+    Release,
 }
 
 impl BuildType {
