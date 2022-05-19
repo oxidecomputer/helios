@@ -474,6 +474,8 @@ fn cmd_illumos_onu(ca: &CommandArg) -> Result<()> {
     opts.optflag("D", "", "prepare packages and run a depot");
     opts.optflag("d", "", "use DEBUG packages");
     opts.optopt("g", "", "use an external gate directory", "DIR");
+    opts.optopt("l", "", "depot listen port (default 7891)", "PORT");
+    opts.optopt("s", "", "tempdir name suffix", "SUFFIX");
 
     let usage = || {
         println!("{}", opts.usage("Usage: helios [OPTIONS] onu [OPTIONS]"));
@@ -501,6 +503,12 @@ fn cmd_illumos_onu(ca: &CommandArg) -> Result<()> {
         top_path(&["projects", "illumos"])?
     };
 
+    let tonu = if let Some(suffix) = res.opt_str("s") {
+        format!("onu.{}", suffix)
+    } else {
+        "onu".to_string()
+    };
+
     let count = ["t", "P", "D"].iter().filter(|o| res.opt_present(o)).count();
     if count == 0 {
         usage();
@@ -516,8 +524,8 @@ fn cmd_illumos_onu(ca: &CommandArg) -> Result<()> {
      * consolidations.  To do this, we create an onu-specific repository:
      */
     info!(log, "creating temporary repository...");
-    ensure_dir(&["tmp", "onu"])?;
-    let repo = top_path(&["tmp", "onu", "repo.redist"])?;
+    ensure_dir(&["tmp", &tonu])?;
+    let repo = top_path(&["tmp", &tonu, "repo.redist"])?;
     create_ips_repo(log, &repo, "on-nightly", true)?;
 
     /*
@@ -545,17 +553,31 @@ fn cmd_illumos_onu(ca: &CommandArg) -> Result<()> {
     }
 
     if res.opt_present("D") {
-        let port = 7891;
+        let port = if let Some(port) = res.opt_str("l") {
+            let port: u16 = port.parse()?;
+            if port == 0 {
+                bail!("port number (-l) must be a positive integer");
+            }
+            port
+        } else {
+            7891
+        };
+        let tdepot = if let Some(suffix) = res.opt_str("s") {
+            format!("depot.{}", suffix)
+        } else {
+            "depot".to_string()
+        };
+
         info!(log, "starting pkg.depotd on packages at: {:?}", &repo);
 
         /*
          * Run a pkg.depotd to serve the packages we have just transformed.
          */
-        ensure_dir(&["tmp", "depot"])?;
-        let logdir = ensure_dir(&["tmp", "depot", "log"])?;
+        ensure_dir(&["tmp", &tdepot])?;
+        let logdir = ensure_dir(&["tmp", &tdepot, "log"])?;
         let mut access = logdir.clone();
         access.push("access");
-        let rootdir = ensure_dir(&["tmp", "depot", "root"])?;
+        let rootdir = ensure_dir(&["tmp", &tdepot, "root"])?;
 
         info!(log, "access log file is {:?}", &access);
         info!(log, "listening on port {}", port);
@@ -598,7 +620,7 @@ fn cmd_illumos_onu(ca: &CommandArg) -> Result<()> {
     info!(log, "installing packages...");
     let onu = top_path(&["projects", "illumos", "usr", "src",
         "tools", "proto", "root_i386-nd", "opt", "onbld", "bin", "onu"])?;
-    let onu_dir = top_path(&["tmp", "onu"])?;
+    let onu_dir = top_path(&["tmp", &tonu])?;
     ensure::run(log, &["pfexec", &onu.to_str().unwrap(), "-v",
         "-d", &onu_dir.to_str().unwrap(),
         "-t", &bename])?;
