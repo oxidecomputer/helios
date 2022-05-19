@@ -414,6 +414,7 @@ fn cmd_build_illumos(ca: &CommandArg) -> Result<()> {
     opts.optflag("q", "quick", "quick build (no shadows, no DEBUG)");
     opts.optflag("d", "debug", "build a debug build (use with -q)");
     opts.optflag("r", "release", "build a release build");
+    opts.optopt("g", "", "use an external gate directory", "DIR");
 
     let usage = || {
         println!("{}", opts.usage("Usage: helios [OPTIONS] build-illumos [OPTIONS]"));
@@ -455,7 +456,15 @@ fn cmd_build_illumos(ca: &CommandArg) -> Result<()> {
         BuildType::Full
     };
 
-    let gate = top_path(&["projects", "illumos"])?;
+    let gate = if let Some(gate) = res.opt_str("g") {
+        let gate = PathBuf::from(gate);
+        if !gate.is_absolute() {
+            bail!("specify an absolute path for -g");
+        }
+        gate
+    } else {
+        top_path(&["projects", "illumos"])?
+    };
     let env_sh = regen_illumos_sh(log, &gate, bt)?;
 
     let script = format!("cd {} && ./usr/src/tools/scripts/nightly {}",
