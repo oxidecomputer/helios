@@ -41,6 +41,8 @@ fn baseopts() -> getopts::Options {
 use std::path::{PathBuf, Component};
 use std::ffi::OsStr;
 
+const NO_PATH: Option<PathBuf> = None;
+
 fn pc(s: &str) -> Component {
     Component::Normal(OsStr::new(s))
 }
@@ -181,11 +183,15 @@ fn create_ips_repo<P, S>(log: &Logger, path: P, publ: S, torch: bool)
     Ok(())
 }
 
-fn cmd_promote_illumos(ca: &CommandArg) -> Result<()> {
-    let opts = baseopts();
+fn cmd_merge_illumos(ca: &CommandArg) -> Result<()> {
+    let mut opts = baseopts();
+    opts.optopt("g", "", "use an external gate directory", "DIR");
+    opts.optopt("s", "", "tempdir name suffix", "SUFFIX");
+    opts.optopt("o", "", "output repository", "REPO");
+    opts.optopt("p", "", "publisher name", "PUBLISHER");
 
     let usage = || {
-        println!("{}", opts.usage("Usage: helios [OPTIONS] promote-illumos [OPTIONS]"));
+        println!("{}", opts.usage("Usage: helios [OPTIONS] merge-illumos [OPTIONS]"));
     };
 
     let log = ca.log;
@@ -202,13 +208,29 @@ fn cmd_promote_illumos(ca: &CommandArg) -> Result<()> {
 
     let publisher = "on-nightly";
 
-    ensure_dir(&["tmp", "illumos"])?;
-    let repo_merge = top_path(&["tmp", "illumos", "nightly-merged"])?;
+    let gate = if let Some(gate) = res.opt_str("g") {
+        let gate = PathBuf::from(gate);
+        if !gate.is_absolute() {
+            bail!("specify an absolute path for -g");
+        }
+        gate
+    } else {
+        top_path(&["projects", "illumos"])?
+    };
 
-    let repo_d = top_path(&["projects", "illumos", "packages", "i386",
-        "nightly", "repo.redist"])?;
-    let repo_nd = top_path(&["projects", "illumos", "packages", "i386",
-        "nightly-nd", "repo.redist"])?;
+    let tillumos = if let Some(suffix) = res.opt_str("s") {
+        format!("illumos.{}", suffix)
+    } else {
+        "illumos".to_string()
+    };
+
+    ensure_dir(&["tmp", &tillumos])?;
+    let repo_merge = top_path(&["tmp", &tillumos, "nightly-merged"])?;
+
+    let repo_d = rel_path(Some(&gate),
+        &["packages", "i386", "nightly", "repo.redist"])?;
+    let repo_nd = rel_path(Some(&gate),
+        &["packages", "i386", "nightly-nd", "repo.redist"])?;
 
     /*
      * Merge the packages from the DEBUG and non-DEBUG builds into a single
@@ -223,10 +245,23 @@ fn cmd_promote_illumos(ca: &CommandArg) -> Result<()> {
 
     info!(log, "transforming packages for publishing...");
 
-    let mog_publisher = top_path(&["packages", "publisher.mogrify"])?;
+    let mog_publisher = if let Some(publisher) = res.opt_str("p") {
+        info!(log, "using custom publisher {:?}", publisher);
+        let file = top_path(&["tmp", &tillumos, "custom-publisher.mogrify"])?;
+        regen_publisher_mog(log, Some(&file), &publisher)?;
+        file
+    } else {
+        info!(log, "using default publisher");
+        top_path(&["packages", "publisher.mogrify"])?
+    };
+
     let mog_conflicts = top_path(&["packages", "os-conflicts.mogrify"])?;
     let mog_deps = top_path(&["packages", "os-deps.mogrify"])?;
-    let repo = top_path(&["packages", "os"])?;
+    let repo = if let Some(repo) = res.opt_str("o") {
+        PathBuf::from(repo)
+    } else {
+        top_path(&["packages", "os"])?
+    };
 
     ensure::run(log, &[PKGRECV,
         "-s", &repo_merge.to_str().unwrap(),
@@ -242,6 +277,9 @@ fn cmd_promote_illumos(ca: &CommandArg) -> Result<()> {
      * Clean up the temporary merged repo files:
      */
     std::fs::remove_dir_all(&repo_merge).ok();
+    if res.opt_present("p") {
+        std::fs::remove_file(&mog_publisher).ok();
+    }
 
     Ok(())
 }
@@ -287,6 +325,25 @@ impl BuildType {
             Release => "illumos-release.sh",
         }
     }
+}
+
+fn regen_publisher_mog<P: AsRef<Path>>(log: &Logger, mogfile: Option<P>,
+    publisher: &str) -> Result<()>
+{
+    /*
+     * Create the pkgmogrify template that we need to replace the pkg(5)
+     * publisher name when promoting packages from a build repository to the
+     * central repository.
+     */
+    let mog = format!("<transform set name=pkg.fmri -> \
+        edit value pkg://[^/]+/ pkg://{}/>\n", publisher);
+    let mogpath = if let Some(mogfile) = mogfile {
+        mogfile.as_ref().to_path_buf()
+    } else {
+        top_path(&["packages", "publisher.mogrify"])?
+    };
+    ensure::file_str(log, &mog, &mogpath, 0o644, ensure::Create::Always)?;
+    Ok(())
 }
 
 fn regen_illumos_sh<P: AsRef<Path>>(log: &Logger, gate: P, bt: BuildType)
@@ -1728,21 +1785,7 @@ fn cmd_setup(ca: &CommandArg) -> Result<()> {
         create_ips_repo(log, &repo_path, &publisher, false)?;
     }
 
-    /*
-     * Create the pkgmogrify template that we need to replace the pkg(5)
-     * publisher name when promoting packages from a build repository to the
-     * central repository.
-     */
-    let mog = format!("<transform set name=pkg.fmri -> \
-        edit value pkg://[^/]+/ pkg://{}/>\n", publisher);
-    let mogpath = top_path(&["packages", "publisher.mogrify"])?;
-    ensure::file_str(log, &mog, &mogpath, 0o644, ensure::Create::Always)?;
-
-    let mog = format!("<transform depend fmri=.*-151035.0$ -> \
-        edit fmri 151035.0$ {}.{}>\n", RELVER, DASHREV);
-    let mogpath = top_path(&["packages", "osver.mogrify"])?;
-    ensure::file_str(log, &mog, &mogpath, 0o644, ensure::Create::Always)?;
-
+    regen_publisher_mog(log, NO_PATH, publisher)?;
     for mog in &["os-conflicts", "os-deps"] {
         let mogpath = top_path(&["packages", &format!("{}.mogrify", mog)])?;
         ensure::symlink(log, &mogpath,
@@ -1831,7 +1874,7 @@ fn main() -> Result<()> {
     handlers.push(CommandInfo {
         name: "merge-illumos".into(),
         desc: "merge DEBUG and non-DEBUG packages into one repository".into(),
-        func: cmd_promote_illumos,
+        func: cmd_merge_illumos,
         hide: false,
         blank: false,
     });
