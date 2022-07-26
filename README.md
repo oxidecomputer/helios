@@ -6,6 +6,10 @@ tools and documentation in this top-level repository.
 
 ## Getting started
 
+**NOTE: These instructions are for building your own operating system packages
+and installing them.  If you're just trying to use Helios, you probably do not
+need to do this.**
+
 The best way to get started is to be using a physical or virtual build machine
 running an up-to-date installation of Helios.  There are some details on
 getting a virtual machine installed in the
