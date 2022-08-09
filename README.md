@@ -53,6 +53,20 @@ upstream illumos documentation has a guide, [Building
 illumos](https://illumos.org/docs/developers/build/), which covers most of what
 the Helios tools are doing on your behalf if you are curious.
 
+### Prerequisites
+
+If you've installed the `helios-engvm` listed above, the prerequisites should
+already be available. This is the `full` image from that repo. However, if
+you're using the `base` image, you'll need to install the following packages:
+
+1. `/developer/omnios-build-tools`
+2. `/ooce/extra-build-tools`
+3. `/ooce/helios-build-tools`
+
+These include the closed binaries and assorted other machinery for
+`helios-build` to work its magic. You can determine if you have these installed
+already with `pkg list <pkg_name>`.
+
 ### Building during development
 
 While making changes to illumos, you can perform a "quick" build.  This
