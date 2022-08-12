@@ -57,15 +57,10 @@ the Helios tools are doing on your behalf if you are curious.
 
 If you've installed the `helios-engvm` listed above, the prerequisites should
 already be available. This is the `full` image from that repo. However, if
-you're using the `base` image, you'll need to install the following packages:
-
-1. `/developer/omnios-build-tools`
-2. `/ooce/extra-build-tools`
-3. `/ooce/helios-build-tools`
-
-These include the closed binaries and assorted other machinery for
-`helios-build` to work its magic. You can determine if you have these installed
-already with `pkg list <pkg_name>`.
+you're using the `base` image, you'll need to install the
+`developer/illumos-tools` package. This includes the closed binaries and
+assorted other machinery for `helios-build` to work its magic. You can determine
+if you already have this installed with `pkg list developer/illumos-tools.`
 
 ### Building during development
 
