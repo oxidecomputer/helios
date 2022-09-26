@@ -99,6 +99,31 @@ fn top_path(components: &[&str]) -> Result<PathBuf> {
     Ok(top)
 }
 
+fn abs_path<P: AsRef<Path>>(p: P) -> Result<PathBuf> {
+    let p = p.as_ref();
+    Ok(if p.is_absolute() {
+        p.to_path_buf()
+    } else {
+        let mut pp = std::env::current_dir()?;
+        pp.push(p);
+        pp.canonicalize()?
+    })
+}
+
+fn gate_name<P: AsRef<Path>>(p: P) -> Result<String> {
+    let p = abs_path(p)?;
+    p.canonicalize()?;
+    if !p.is_dir() {
+        bail!("{:?} is not a directory?", p);
+    }
+    if let Some(basename) = p.file_name() {
+        if let Some(basename) = basename.to_str() {
+            return Ok(basename.trim().to_string());
+        }
+    }
+    bail!("could not get base name of {:?}", p);
+}
+
 #[derive(Debug, Deserialize)]
 struct Projects {
     #[serde(default)]
@@ -474,6 +499,8 @@ fn cmd_illumos_onu(ca: &CommandArg) -> Result<()> {
     opts.optflag("D", "", "prepare packages and run a depot");
     opts.optflag("d", "", "use DEBUG packages");
     opts.optopt("g", "", "use an external gate directory", "DIR");
+    opts.optopt("l", "", "depot listen port (default 7891)", "PORT");
+    opts.optopt("s", "", "tempdir name suffix", "SUFFIX");
 
     let usage = || {
         println!("{}", opts.usage("Usage: helios [OPTIONS] onu [OPTIONS]"));
@@ -492,13 +519,36 @@ fn cmd_illumos_onu(ca: &CommandArg) -> Result<()> {
     }
 
     let gate = if let Some(gate) = res.opt_str("g") {
-        let gate = PathBuf::from(gate);
-        if !gate.is_absolute() {
-            bail!("specify an absolute path for -g");
-        }
-        gate
+        abs_path(gate)?
     } else {
         top_path(&["projects", "illumos"])?
+    };
+
+    /*
+     * We want a temporary directory name that does not overlap with other
+     * concurrent usage of this tool.
+     */
+    let tonu = if let Some(suffix) = res.opt_str("s") {
+        /*
+         * If the user provides a specific suffix, just use it as-is.
+         */
+        format!("onu.{}", suffix)
+    } else if let Some(gate) = res.opt_str("g") {
+        /*
+         * If an external gate is selected, we assume that the base directory
+         * name is unique; e.g., "/ws/ftdi", or "/ws/upstream" would yield
+         * "ftdi" or "upstream".  This allows repeat runs for the same external
+         * workspace to reuse the previous temporary directory.
+         */
+        format!("onu.gate-{}", gate_name(gate)?)
+    } else if let Some(port) = res.opt_str("l") {
+        /*
+         * If the internal gate is in use, but a non-default port number is
+         * specified, use that port for the temporary suffix.
+         */
+        format!("onu.port-{}", port)
+    } else {
+        "onu".to_string()
     };
 
     let count = ["t", "P", "D"].iter().filter(|o| res.opt_present(o)).count();
@@ -516,8 +566,8 @@ fn cmd_illumos_onu(ca: &CommandArg) -> Result<()> {
      * consolidations.  To do this, we create an onu-specific repository:
      */
     info!(log, "creating temporary repository...");
-    ensure_dir(&["tmp", "onu"])?;
-    let repo = top_path(&["tmp", "onu", "repo.redist"])?;
+    ensure_dir(&["tmp", &tonu])?;
+    let repo = top_path(&["tmp", &tonu, "repo.redist"])?;
     create_ips_repo(log, &repo, "on-nightly", true)?;
 
     /*
@@ -545,17 +595,40 @@ fn cmd_illumos_onu(ca: &CommandArg) -> Result<()> {
     }
 
     if res.opt_present("D") {
-        let port = 7891;
+        let port = if let Some(port) = res.opt_str("l") {
+            let port: u16 = port.parse()?;
+            if port == 0 {
+                bail!("port number (-l) must be a positive integer");
+            }
+            port
+        } else {
+            7891
+        };
+
+        /*
+         * Perform a construction similar to the one we do for repository
+         * temporary files, but for depot logs.
+         */
+        let tdepot = if let Some(suffix) = res.opt_str("s") {
+            format!("depot.{}", suffix)
+        } else if let Some(gate) = res.opt_str("g") {
+            format!("depot.gate-{}", gate_name(gate)?)
+        } else if let Some(port) = res.opt_str("l") {
+            format!("depot.port-{}", port)
+        } else {
+            "depot".to_string()
+        };
+
         info!(log, "starting pkg.depotd on packages at: {:?}", &repo);
 
         /*
          * Run a pkg.depotd to serve the packages we have just transformed.
          */
-        ensure_dir(&["tmp", "depot"])?;
-        let logdir = ensure_dir(&["tmp", "depot", "log"])?;
+        ensure_dir(&["tmp", &tdepot])?;
+        let logdir = ensure_dir(&["tmp", &tdepot, "log"])?;
         let mut access = logdir.clone();
         access.push("access");
-        let rootdir = ensure_dir(&["tmp", "depot", "root"])?;
+        let rootdir = ensure_dir(&["tmp", &tdepot, "root"])?;
 
         info!(log, "access log file is {:?}", &access);
         info!(log, "listening on port {}", port);
@@ -598,7 +671,7 @@ fn cmd_illumos_onu(ca: &CommandArg) -> Result<()> {
     info!(log, "installing packages...");
     let onu = top_path(&["projects", "illumos", "usr", "src",
         "tools", "proto", "root_i386-nd", "opt", "onbld", "bin", "onu"])?;
-    let onu_dir = top_path(&["tmp", "onu"])?;
+    let onu_dir = top_path(&["tmp", &tonu])?;
     ensure::run(log, &["pfexec", &onu.to_str().unwrap(), "-v",
         "-d", &onu_dir.to_str().unwrap(),
         "-t", &bename])?;
@@ -627,11 +700,7 @@ fn cmd_illumos_genenv(ca: &CommandArg) -> Result<()> {
     }
 
     let gate = if let Some(gate) = res.opt_str("g") {
-        let gate = PathBuf::from(gate);
-        if !gate.is_absolute() {
-            bail!("specify an absolute path for -g");
-        }
-        gate
+        abs_path(gate)?
     } else {
         top_path(&["projects", "illumos"])?
     };
