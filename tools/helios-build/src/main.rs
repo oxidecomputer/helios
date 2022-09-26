@@ -849,7 +849,7 @@ fn cmd_illumos_bldenv(ca: &CommandArg) -> Result<()> {
     let gate = top_path(&["projects", "illumos"])?;
     regen_illumos_sh(ca.log, &gate, t)?;
 
-	let env = rel_path(Some(&gate), &[t.script_name()])?;
+    let env = rel_path(Some(&gate), &[t.script_name()])?;
     let src = rel_path(Some(&gate), &["usr", "src"])?;
     let bldenv = rel_path(Some(&gate), &["usr", "src",
         "tools", "scripts", "bldenv"])?;
@@ -862,10 +862,10 @@ fn cmd_illumos_bldenv(ca: &CommandArg) -> Result<()> {
      */
     let mut cmd = Command::new(&bldenv);
     if res.opt_present("d") && !res.opt_present("q") {
-		cmd.arg("-d");
+        cmd.arg("-d");
     }
     cmd.arg(env).current_dir(&src);
-	let err = cmd.exec();
+    let err = cmd.exec();
     bail!("exec failure: {:?}", err);
 }
 
