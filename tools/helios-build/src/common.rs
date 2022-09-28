@@ -2,6 +2,8 @@
  * Copyright 2020 Oxide Computer Company
  */
 
+#![allow(unused)]
+
 use atty::Stream;
 use slog::{Drain, Logger};
 use std::sync::Mutex;
