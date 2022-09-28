@@ -654,6 +654,23 @@ pub fn scrub_env(cmd: &mut Command, utf8: bool) {
     cmd.env_remove("LC_ALL");
 }
 
+pub fn run_in<S: AsRef<OsStr>, P: AsRef<Path>>(log: &Logger, pwd: P,
+    args: &[S]) -> Result<()>
+{
+    let args: Vec<&OsStr> = args.iter().map(|s| s.as_ref()).collect();
+
+    let mut cmd = Command::new(&args[0]);
+    cmd.current_dir(pwd.as_ref());
+
+    scrub_env(&mut cmd, false);
+
+    if args.len() > 1 {
+        cmd.args(&args[1..]);
+    }
+
+    run_common(log, &mut cmd, args.as_slice())
+}
+
 pub fn run<S: AsRef<OsStr>>(log: &Logger, args: &[S]) -> Result<()> {
     let args: Vec<&OsStr> = args.iter().map(|s| s.as_ref()).collect();
 

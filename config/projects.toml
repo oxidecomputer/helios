@@ -10,3 +10,29 @@ site_sh = true
 github = "oxidecomputer/helios-omnios-extra"
 use_ssh = true
 site_sh = true
+
+[project.pinprick]
+github = "oxidecomputer/pinprick"
+use_ssh = false
+cargo_build = true
+
+[project.phbl]
+github = "oxidecomputer/phbl"
+use_ssh = true
+
+[project.amd-host-image-builder]
+github = "oxidecomputer/amd-host-image-builder"
+use_ssh = true
+cargo_build = true
+use_debug = true
+
+[project.bootserver]
+github = "oxidecomputer/etherboot-server"
+use_ssh = true
+cargo_build = true
+
+[project.image-builder]
+github = "illumos/image-builder"
+use_ssh = false
+cargo_build = true
+use_debug = true

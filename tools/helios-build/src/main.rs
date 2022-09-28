@@ -8,6 +8,7 @@ use std::process::Command;
 use std::os::unix::process::CommandExt;
 use std::io::{BufWriter, BufReader, Write, Read};
 use std::fs::File;
+use std::time::Instant;
 use slog::Logger;
 use std::path::Path;
 use walkdir::{WalkDir, DirEntry};
@@ -148,6 +149,14 @@ struct Project {
      */
     #[serde(default)]
     site_sh: bool,
+
+    /*
+     * Run "cargo build" in this project to produce tools that we need:
+     */
+    #[serde(default)]
+    cargo_build: bool,
+    #[serde(default)]
+    use_debug: bool,
 }
 
 impl Project {
@@ -1807,6 +1816,7 @@ fn cmd_setup(ca: &CommandArg) -> Result<()> {
 
             let mut child = Command::new("git")
                 .arg("clone")
+                .arg("--recurse-submodules")
                 .arg(&url)
                 .arg(&path)
                 .spawn()?;
@@ -1867,14 +1877,20 @@ fn cmd_setup(ca: &CommandArg) -> Result<()> {
     regen_illumos_sh(log, &gate, BuildType::Release)?;
 
     /*
-     * Perform setup in userland repository.
+     * Perform setup in project repositories that require it.
      */
-    // let userland_path = top_path(&["projects", "userland"])?;
-    // if exists_dir(&userland_path)? {
-    //     let p = userland_path.to_str().unwrap(); /* XXX */
-
-    //     ensure::run(log, &["/usr/bin/gmake", "-C", &p, "setup"])?;
-    // }
+    for (name, project) in p.project.iter().filter(|p| p.1.cargo_build) {
+        let path = top_path(&["projects", &name])?;
+        info!(log, "building project {:?} at {}", name, path.display());
+        let start = Instant::now();
+        let mut args = vec!["cargo", "build", "--locked"];
+        if !project.use_debug {
+            args.push("--release");
+        }
+        ensure::run_in(log, &path, &args)?;
+        let delta = Instant::now().saturating_duration_since(start).as_secs();
+        info!(log, "building project {:?} ok ({} seconds)", name, delta);
+    }
 
     Ok(())
 }
