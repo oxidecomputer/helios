@@ -1,0 +1,25 @@
+<?xml version='1.0'?>
+<!DOCTYPE service_bundle SYSTEM '/usr/share/lib/xml/dtd/service_bundle.dtd.1'>
+<service_bundle type='profile' name='helios'
+  xmlns:xi='http://www.w3.org/2003/XInclude' >
+  <service name='network/ntp' version='1' type='service'>
+    <instance name='default' enabled='true' />
+  </service>
+
+  <!-- There does not appear to be a reason for this to be disabled: -->
+  <service name='system/hotplug' version='1' type='service'>
+    <instance name='default' enabled='true' />
+  </service>
+
+  <!-- See: https://www.illumos.org/issues/14006 -->
+  <service name='network/routing/route' version='1' type='service'>
+    <instance name='default' enabled='false' />
+  </service>
+  <service name='network/routing-setup' version='1' type='service'>
+    <instance name='default'>
+      <property_group name='routeadm' type='application'>
+        <propval name='ipv4-routing-set' type='boolean' value='true' />
+      </property_group>
+    </instance>
+  </service>
+</service_bundle>

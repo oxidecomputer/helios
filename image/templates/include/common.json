@@ -1,0 +1,38 @@
+{
+    "steps": [
+        { "t": "ensure_symlink", "link": "/etc/svc/profile/generic.xml",
+            "target": "generic_limited_net.xml",
+            "owner": "root", "group": "root" },
+        { "t": "ensure_symlink", "link": "/etc/svc/profile/inetd_services.xml",
+            "target": "inetd_generic.xml",
+            "owner": "root", "group": "root" },
+        { "t": "ensure_symlink", "link": "/etc/svc/profile/platform.xml",
+            "target": "platform_none.xml",
+            "owner": "root", "group": "root" },
+
+        { "t": "ensure_symlink", "link": "/etc/svc/profile/name_service.xml",
+            "target": "ns_dns.xml",
+            "owner": "root", "group": "root" },
+        { "t": "ensure_file", "file": "/etc/nsswitch.conf",
+            "imagesrc": "/etc/nsswitch.dns",
+            "owner": "root", "group": "root", "mode": "644" },
+
+        { "t": "shadow", "username": "root", "password":
+            "$5$kr1VgdIt$OUiUAyZCDogH/uaxH71rMeQxvpDEY2yX.x0ZQRnmeb9" },
+
+        { "t": "ensure_file", "file": "/etc/inet/hosts",
+            "src": "hosts",
+            "owner": "root", "group": "root", "mode": "644" },
+        { "t": "ensure_file", "file": "/etc/nodename",
+            "contents": "unknown\n",
+            "owner": "root", "group": "root", "mode": "644" },
+
+        { "t": "ensure_file", "file": "/etc/default/dhcpagent",
+            "src": "dhcpagent",
+            "owner": "root", "group": "sys", "mode": "644" },
+
+        { "t": "ensure_file", "file": "/etc/resolv.conf",
+            "contents": "",
+            "owner": "root", "group": "root", "mode": "644" }
+    ]
+}

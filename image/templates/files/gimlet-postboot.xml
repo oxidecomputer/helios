@@ -1,0 +1,84 @@
+<?xml version="1.0"?>
+<!DOCTYPE service_bundle SYSTEM "/usr/share/lib/xml/dtd/service_bundle.dtd.1">
+
+<service_bundle type='manifest' name='postboot'>
+
+<service name='site/postboot' type='service' version='1'>
+  <create_default_instance enabled='true' />
+  <single_instance />
+
+  <!-- File systems should all be mounted before we begin: -->
+  <dependency name='fs-root' grouping='require_all' restart_on='none'
+    type='service'>
+    <service_fmri value='svc:/system/filesystem/root' />
+  </dependency>
+  <dependency name='fs-minimal' grouping='require_all' restart_on='none'
+    type='service'>
+    <service_fmri value='svc:/system/filesystem/minimal' />
+  </dependency>
+
+  <!-- We are going to manipulate the network configuration, but it should
+    be in the expected state (with all management daemons running) before
+    we try to do that. -->
+  <dependency name='loopback' grouping='require_all' restart_on='none'
+    type='service'>
+    <service_fmri value='svc:/network/loopback' />
+  </dependency>
+  <dependency name='physical' grouping='require_all' restart_on='none'
+    type='service'>
+    <service_fmri value='svc:/network/physical' />
+  </dependency>
+
+  <!-- Run after initial device configuration has completed. -->
+  <dependency name='devices' grouping='require_all' restart_on='none'
+    type='service'>
+    <service_fmri value='svc:/milestone/devices' />
+  </dependency>
+
+  <!-- Hold the network and system configuration milestones back, in case
+    we end up making changes to the IP stack, hostname, or the DNS
+    configuration, etc. -->
+  <dependent name='network' grouping='optional_all' restart_on='none'>
+    <service_fmri value='svc:/milestone/network' />
+  </dependent>
+  <dependent name='sysconfig' grouping='optional_all' restart_on='none'>
+    <service_fmri value='svc:/milestone/sysconfig' />
+  </dependent>
+
+  <!-- "Hostname:" is printed on the console (at least on OmniOS) by the
+    svc:/system/identity:node instance.  Make sure node identity runs
+    after we do. -->
+  <dependent name='identity' grouping='optional_all' restart_on='none'>
+    <service_fmri value='svc:/system/identity' />
+  </dependent>
+
+  <!-- Routing setup looks at /etc/defaultrouter when making some
+    decisions about system configuration. We should run before it, to make
+    sure we have populated that file. -->
+  <dependent name='routing' grouping='optional_all' restart_on='none'>
+    <service_fmri value='svc:/network/routing-setup' />
+  </dependent>
+
+  <exec_method type='method' name='start'
+    exec='/usr/lib/postboot' timeout_seconds='3600' />
+
+  <exec_method type='method' name='stop' exec=':true' timeout_seconds='3' />
+
+  <property_group name='startd' type='framework'>
+    <propval name='duration' type='astring' value='transient' />
+  </property_group>
+
+  <stability value='Unstable' />
+
+  <template>
+    <common_name>
+      <loctext xml:lang='C'>ramdisk postboot</loctext>
+    </common_name>
+    <description>
+      <loctext xml:lang='C'>runs scripts injected through bootfs</loctext>
+    </description>
+  </template>
+</service>
+
+</service_bundle>
+<!-- vim: set ts=2 sts=2 sw=2 et: -->

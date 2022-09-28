@@ -17,6 +17,7 @@ use regex::Regex;
 pub mod illumos;
 pub mod ensure;
 mod ips;
+mod zfs;
 
 const PKGREPO: &str = "/usr/bin/pkgrepo";
 const PKGRECV: &str = "/usr/bin/pkgrecv";
@@ -578,6 +579,34 @@ fn cmd_build_illumos(ca: &CommandArg) -> Result<()> {
     Ok(())
 }
 
+fn create_transformed_repo(log: &Logger, gate: &Path, tmpdir: &Path, debug: bool)
+    -> Result<PathBuf>
+{
+    let repo = rel_path(Some(tmpdir), &["repo.redist"])?;
+    create_ips_repo(log, &repo, "on-nightly", true)?;
+
+    /*
+     * These pkgmogrify(1) scripts will drop any conflicting actions:
+     */
+    let mog_conflicts = top_path(&["packages", "os-conflicts.mogrify"])?;
+    let mog_deps = top_path(&["packages", "os-deps.mogrify"])?;
+
+    info!(log, "transforming packages for installation...");
+    let which = if debug { "nightly" } else { "nightly-nd" };
+    let repo_nd = rel_path(Some(gate),
+        &["packages", "i386", which, "repo.redist"])?;
+    ensure::run(log, &[PKGRECV,
+        "-s", &repo_nd.to_str().unwrap(),
+        "-d", &repo.to_str().unwrap(),
+        "--mog-file", &mog_conflicts.to_str().unwrap(),
+        "--mog-file", &mog_deps.to_str().unwrap(),
+        "-m", "latest",
+        "*"])?;
+    ensure::run(log, &[PKGREPO, "refresh", "-s", &repo.to_str().unwrap()])?;
+
+    Ok(repo)
+}
+
 fn cmd_illumos_onu(ca: &CommandArg) -> Result<()> {
     let mut opts = baseopts();
     opts.optopt("t", "", "boot environment name", "NAME");
@@ -652,28 +681,8 @@ fn cmd_illumos_onu(ca: &CommandArg) -> Result<()> {
      * consolidations.  To do this, we create an onu-specific repository:
      */
     info!(log, "creating temporary repository...");
-    ensure_dir(&["tmp", &tonu])?;
-    let repo = top_path(&["tmp", &tonu, "repo.redist"])?;
-    create_ips_repo(log, &repo, "on-nightly", true)?;
-
-    /*
-     * These pkgmogrify(1) scripts will drop any conflicting actions:
-     */
-    let mog_conflicts = top_path(&["packages", "os-conflicts.mogrify"])?;
-    let mog_deps = top_path(&["packages", "os-deps.mogrify"])?;
-
-    info!(log, "transforming packages for installation...");
-    let which = if res.opt_present("d") { "nightly" } else { "nightly-nd" };
-    let repo_nd = rel_path(Some(&gate),
-        &["packages", "i386", which, "repo.redist"])?;
-    ensure::run(log, &[PKGRECV,
-        "-s", &repo_nd.to_str().unwrap(),
-        "-d", &repo.to_str().unwrap(),
-        "--mog-file", &mog_conflicts.to_str().unwrap(),
-        "--mog-file", &mog_deps.to_str().unwrap(),
-        "-m", "latest",
-        "*"])?;
-    ensure::run(log, &[PKGREPO, "refresh", "-s", &repo.to_str().unwrap()])?;
+    let repo = create_transformed_repo(log, &gate,
+        &ensure_dir(&["tmp", &tonu])?, res.opt_present("d"))?;
 
     if res.opt_present("P") {
         info!(log, "transformed packages available for onu at: {:?}", &repo);
@@ -995,6 +1004,220 @@ fn cmd_build_omnios(ca: &CommandArg) -> Result<()> {
     Ok(())
 }
 
+fn cargo_target_cmd(project: &str, command: &str, debug: bool)
+    -> Result<String>
+{
+    let bin = top_path(&["projects", project, "target",
+        if debug { "debug" } else { "release" }, command])?;
+    if !bin.is_file() {
+        bail!("binary {:?} does not exist.  run \"gmake setup\"?", bin);
+    }
+    Ok(bin.to_str().unwrap().to_string())
+}
+
+fn cmd_image(ca: &CommandArg) -> Result<()> {
+    let mut opts = baseopts();
+    opts.optflag("d", "", "use DEBUG packages");
+    opts.optopt("g", "", "use an external gate directory", "DIR");
+    opts.optopt("s", "", "tempdir name suffix", "SUFFIX");
+
+    let usage = || {
+        println!("{}",
+            opts.usage("Usage: helios [OPTIONS] experiment-image [OPTIONS]"));
+    };
+
+    let log = ca.log;
+    let res = opts.parse(ca.args)?;
+
+    if res.opt_present("help") {
+        usage();
+        return Ok(());
+    }
+
+    if !res.free.is_empty() {
+        bail!("unexpected arguments");
+    }
+
+    /*
+     * Check for the commands we need before we start doing any expensive work.
+     */
+    let builder = cargo_target_cmd("image-builder", "image-builder", true)?;
+    let mkimage = cargo_target_cmd("bootserver", "mkimage", false)?;
+    let pinprick = cargo_target_cmd("pinprick", "pinprick", false)?;
+    let ahib = cargo_target_cmd("amd-host-image-builder",
+        "amd-host-image-builder", true)?;
+
+    /*
+     * Make sure the dataset that we want to use for image construction exists.
+     */
+    let imgds = if let Ok(imgds) = std::env::var("IMAGE_DATASET") {
+        imgds
+    } else if let Ok(logname) = std::env::var("LOGNAME") {
+        format!("rpool/images/{}", logname)
+    } else {
+        bail!("neither LOGNAME nor IMAGE_DATASET present in environment?");
+    };
+    if !zfs::dataset_exists(&imgds)? {
+        bail!("ZFS dataset {:?} does not exist; we need it to create images",
+            imgds);
+    }
+    let mp = zfs::zfs_get(&imgds, "mountpoint")?;
+
+    let gate = if let Some(gate) = res.opt_str("g") {
+        abs_path(gate)?
+    } else {
+        top_path(&["projects", "illumos"])?
+    };
+
+    /*
+     * We want a temporary directory name that does not overlap with other
+     * concurrent usage of this tool.
+     */
+    let timage = if let Some(suffix) = res.opt_str("s") {
+        /*
+         * If the user provides a specific suffix, just use it as-is.
+         */
+        format!("image.{}", suffix)
+    } else if let Some(gate) = res.opt_str("g") {
+        /*
+         * If an external gate is selected, we assume that the base directory
+         * name is unique; e.g., "/ws/ftdi", or "/ws/upstream" would yield
+         * "ftdi" or "upstream".  This allows repeat runs for the same external
+         * workspace to reuse the previous temporary directory.
+         */
+        format!("image.gate-{}", gate_name(gate)?)
+    } else {
+        "image".to_string()
+    };
+
+    let tempdir = ensure_dir(&["tmp", &timage])?;
+
+    /*
+     * In order to install development illumos bits, we first need to elide any
+     * files that would conflict with packages delivered from other
+     * consolidations.  To do this, we create an onu-specific repository:
+     */
+    info!(log, "creating temporary repository...");
+    let repo = create_transformed_repo(log, &gate, &tempdir,
+        res.opt_present("d"))?;
+
+    /*
+     * Use the image builder to begin creating the image from locally built OS
+     * packages, plus other packages from the upstream helios-dev repository.
+     */
+    let templates = top_path(&["image", "templates"])?;
+    info!(log, "image builder template: ramdisk-01-os...");
+    ensure::run(log, &["pfexec", &builder, "build",
+        "-d", &imgds,
+        "-g", "gimlet",
+        "-n", "ramdisk-01-os",
+        "-T", &templates.to_str().unwrap(),
+        "-F", &format!("repo_redist={}", repo.to_str().unwrap()),
+        "--fullreset",
+    ])?;
+    info!(log, "image builder template: ramdisk-02-trim...");
+    ensure::run(log, &["pfexec", &builder, "build",
+        "-d", &imgds,
+        "-g", "gimlet",
+        "-n", "ramdisk-02-trim",
+        "-T", &templates.to_str().unwrap(),
+    ])?;
+    info!(log, "image builder template: zfs...");
+    ensure::run(log, &["pfexec", &builder, "build",
+        "-d", &imgds,
+        "-g", "gimlet",
+        "-n", "zfs",
+        "-T", &templates.to_str().unwrap(),
+        "-F", "baud=3000000",
+    ])?;
+    let raw = format!("{}/output/gimlet-zfs.raw", mp);
+    let root = format!("{}/work/gimlet/ramdisk", mp);
+
+    /*
+     * Store built image artefacts together.  Ensure the output directory is
+     * empty to begin with.
+     */
+    let outdir = top_path(&["image", "output"])?;
+    if exists_dir(&outdir)? {
+        std::fs::remove_dir_all(&outdir)?;
+    }
+    std::fs::create_dir(&outdir)?;
+    info!(log, "output artefacts stored in: {:?}", outdir);
+
+    /*
+     * Oxide boot images need a header that contains some basic metadata like
+     * the SHA256 hash of the image itself.  This header is consumed by the
+     * kernel boot code when reading the image from an NVMe device, and by the
+     * network boot server.
+     */
+    let zfsimg = rel_path(Some(&outdir), &["zfs.img"])?;
+
+    /*
+     * The CPIO archive also needs to know the image checksum so that we can
+     * boot only a matching ramdisk image.
+     */
+    let csumfile = rel_path(Some(&tempdir), &["boot_image_csum"])?;
+
+    /*
+     * Create the image and extract the checksum:
+     */
+    info!(log, "creating Oxide boot image...");
+    ensure::run(log, &[mkimage.as_str(),
+        "-i", &raw,
+        "-o", zfsimg.to_str().unwrap(),
+        "-O", csumfile.to_str().unwrap(),
+    ])?;
+
+    /*
+     * Create the boot archive (CPIO) with the kernel and modules that we need
+     * to boot and mount the ramdisk.
+     * XXX This should be an image-builder feature.
+     */
+    let mkcpio = top_path(&["image", "mkcpio.sh"])?;
+    let cpio = rel_path(Some(&outdir), &["cpio"])?;
+    info!(log, "creating boot archive (CPIO)...");
+    ensure::run(log, &["bash", mkcpio.to_str().unwrap(),
+        &root, cpio.to_str().unwrap(), tempdir.to_str().unwrap()])?;
+
+    /*
+     * Create a compressed CPIO and kernel to be passed to nanobl-rs via XMODEM:
+     */
+    let cpioz = rel_path(Some(&outdir), &["cpio.z"])?;
+    let unix = format!("{}/platform/oxide/kernel/amd64/unix", root);
+    let unixz = rel_path(Some(&outdir), &["unix.z"])?;
+    info!(log, "creating compressed cpio/unix for nanobl-rs...");
+    ensure::run(log, &["bash", "-c",
+        &format!("'{}' '{}' >'{}'", pinprick, unix,
+            unixz.to_str().unwrap())])?;
+    ensure::run(log, &["bash", "-c",
+        &format!("'{}' '{}' >'{}'", pinprick, cpio.to_str().unwrap(),
+            cpioz.to_str().unwrap())])?;
+
+    /*
+     * Create the reset image for the Gimlet SPI ROM:
+     */
+    info!(log, "creating reset image...");
+    ensure::run_in(log, &top_path(&["projects", "phbl"])?,
+        &["cargo", "xtask", "build", "--release",
+        "--cpioz", cpioz.to_str().unwrap()])?;
+    info!(log, "building host image...");
+    let rom = rel_path(Some(&outdir), &["rom"])?;
+    let reset = top_path(&["projects", "phbl", "target",
+        "x86_64-oxide-none-elf", "release", "phbl"])?;
+    ensure::run_in(log, &top_path(&["projects", "amd-host-image-builder"])?, &[
+        ahib.as_str(),
+        "-B", "amd-firmware/GN/1.0.0.1",
+        "-B", "amd-firmware/GN/1.0.0.6",
+        "--config", "etc/milan-gimlet-b.efs.json5",
+        "--output-file", rom.to_str().unwrap(),
+        "--reset-image", reset.to_str().unwrap(),
+    ])?;
+
+    info!(log, "image complete! materials are in {:?}", outdir);
+    std::fs::remove_dir_all(&tempdir).ok();
+    Ok(())
+}
+
 fn git_commit_count<P: AsRef<Path>>(path: P) -> Result<u32> {
     let out = Command::new("git")
         .env_clear()
@@ -1196,6 +1419,13 @@ fn main() -> Result<()> {
         desc: "build-omnios".into(),
         func: cmd_build_omnios,
         hide: true,
+        blank: false,
+    });
+    handlers.push(CommandInfo {
+        name: "experiment-image".into(),
+        desc: "experimental image construction for Gimlets".into(),
+        func: cmd_image,
+        hide: false,
         blank: false,
     });
 

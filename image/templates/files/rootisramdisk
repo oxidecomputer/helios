@@ -1,0 +1,7 @@
+#!/sbin/sh
+#
+# The real rootisramdisk needs to be able to look through ZFS, which presently
+# obfuscates the ramdisk reality somewhat.  For now, we shall fake it until we
+# make it.
+#
+exit 0
