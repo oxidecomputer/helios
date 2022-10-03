@@ -432,10 +432,10 @@ fn regen_illumos_sh<P: AsRef<Path>>(log: &Logger, gate: P, bt: BuildType)
      */
     let mut env = String::new();
     match bt {
-        BuildType::Full => env += "export NIGHTLY_OPTIONS='-nCDAmprt'\n",
-        BuildType::Release => env += "export NIGHTLY_OPTIONS='-nCDAmprt'\n",
-        BuildType::Quick => env += "export NIGHTLY_OPTIONS='-nCAmprt'\n",
-        BuildType::QuickDebug => env += "export NIGHTLY_OPTIONS='-nCADFmprt'\n",
+        BuildType::Full => env += "export NIGHTLY_OPTIONS='-nCDAprt'\n",
+        BuildType::Release => env += "export NIGHTLY_OPTIONS='-nCDAprt'\n",
+        BuildType::Quick => env += "export NIGHTLY_OPTIONS='-nCAprt'\n",
+        BuildType::QuickDebug => env += "export NIGHTLY_OPTIONS='-nCADFprt'\n",
     }
     env += &format!("export CODEMGR_WS='{}'\n", gate.to_str().unwrap());
     env += "export MACH=\"$(uname -p)\"\n";
