@@ -36,3 +36,4 @@ github = "illumos/image-builder"
 use_ssh = false
 cargo_build = true
 use_debug = true
+auto_update = true

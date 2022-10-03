@@ -137,6 +137,12 @@ struct Project {
     url: Option<String>,
 
     /*
+     * Attempt to update this repository from upstream when running setup?
+     */
+    #[serde(default)]
+    auto_update: bool,
+
+    /*
      * If this is a private repository, we force the use of SSH:
      */
     #[serde(default)]
@@ -1270,6 +1276,28 @@ fn cmd_setup(ca: &CommandArg) -> Result<()> {
 
         if exists_dir(&path)? {
             println!("clone {} exists already at {}", url, path.display());
+            if project.auto_update {
+                println!("fetching updates for clone ...");
+                let mut child = Command::new("git")
+                    .arg("fetch")
+                    .spawn()?;
+
+                let exit = child.wait()?;
+                if !exit.success() {
+                    bail!("fetch in {} failed", path.display());
+                }
+
+                println!("rolling branch forward...");
+                let mut child = Command::new("git")
+                    .arg("merge")
+                    .arg("--ff-only")
+                    .spawn()?;
+
+                let exit = child.wait()?;
+                if !exit.success() {
+                    bail!("update merge in {} failed", path.display());
+                }
+            }
         } else {
             println!("cloning {} at {}...", url, path.display());
 
