@@ -1026,6 +1026,7 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
     opts.optflag("d", "", "use DEBUG packages");
     opts.optopt("g", "", "use an external gate directory", "DIR");
     opts.optopt("s", "", "tempdir name suffix", "SUFFIX");
+    opts.optmulti("F", "", "pass extra image builder features", "KEY[=VAL]");
 
     let usage = || {
         println!("{}",
@@ -1121,6 +1122,7 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
         "-F", &format!("repo_redist={}", repo.to_str().unwrap()),
         "--fullreset",
     ])?;
+
     info!(log, "image builder template: ramdisk-02-trim...");
     ensure::run(log, &["pfexec", &builder, "build",
         "-d", &imgds,
@@ -1128,14 +1130,24 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
         "-n", "ramdisk-02-trim",
         "-T", &templates.to_str().unwrap(),
     ])?;
+
     info!(log, "image builder template: zfs...");
-    ensure::run(log, &["pfexec", &builder, "build",
+    let extras = top_path(&["projects", "illumos", "etc-stlouis", "extras"])?;
+    let fargs = res.opt_strs("F");
+    let mut ibargs = vec!["pfexec", &builder, "build",
         "-d", &imgds,
         "-g", "gimlet",
         "-n", "zfs",
         "-T", &templates.to_str().unwrap(),
+        "-E", &extras.to_str().unwrap(),
         "-F", "baud=3000000",
-    ])?;
+    ];
+    for f in fargs.iter() {
+        ibargs.push("-F");
+        ibargs.push(f.as_str());
+    }
+    ensure::run(log, &ibargs)?;
+
     let raw = format!("{}/output/gimlet-zfs.raw", mp);
     let root = format!("{}/work/gimlet/ramdisk", mp);
 
