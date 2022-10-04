@@ -36,6 +36,10 @@
             "src": "ntp.conf",
             "owner": "root", "group": "root", "mode": "644" },
 
+        { "t": "ensure_file", "file": "/etc/ssh/sshd_config",
+            "src": "sshd_config",
+            "owner": "root", "group": "root", "mode": "644" },
+
         { "t": "ensure_file", "file": "/usr/lib/bootparams",
             "src": "bootparams.sh",
             "owner": "root", "group": "bin", "mode": "0755" },
