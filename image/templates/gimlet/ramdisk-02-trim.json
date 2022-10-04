@@ -67,6 +67,18 @@
             "src": "motd",
             "owner": "root", "group": "sys", "mode": "0644" },
 
+        { "t": "ensure_dir", "with": "omicron1",
+            "dir": "/usr/lib/brand/omicron1/baseline",
+            "owner": "root", "group": "sys", "mode": "0755" },
+        { "t": "ensure_file", "with": "omicron1",
+            "file": "/usr/lib/brand/omicron1/baseline/files.tar.gz",
+            "extsrc": "files.tar.gz",
+            "owner": "root", "group": "sys", "mode": "0644" },
+        { "t": "ensure_file", "with": "omicron1",
+            "file": "/usr/lib/brand/omicron1/baseline/gzonly.txt",
+            "extsrc": "gzonly.txt",
+            "owner": "root", "group": "sys", "mode": "0644" },
+
         { "t": "pack_tar", "name": "gimlet-ramdisk.tar.gz" }
     ]
 }

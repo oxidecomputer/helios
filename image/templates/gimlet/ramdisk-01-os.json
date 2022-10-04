@@ -69,6 +69,12 @@
             "/system/library/bhyve",
 
             "/network/openssh-server"
+        ] },
+
+        { "t": "pkg_install", "with": "omicron1", "pkgs": [
+            "/library/libxmlsec1",
+            "/ooce/library/postgresql-13",
+            "/system/zones/brand/omicron1"
         ] }
     ]
 }

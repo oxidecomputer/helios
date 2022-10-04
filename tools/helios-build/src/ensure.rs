@@ -608,6 +608,41 @@ where
     }))
 }
 
+pub fn run2(log: &Logger, cmd: &mut Command) -> Result<()> {
+    let mut logargs = vec![ cmd.get_program().to_owned() ];
+    for arg in cmd.get_args() {
+        logargs.push(arg.to_owned());
+    }
+    info!(log, "exec: {:?}", &logargs);
+
+    cmd.stdin(Stdio::null());
+    cmd.stdout(Stdio::piped());
+    cmd.stderr(Stdio::piped());
+
+    let mut child = cmd.spawn()?;
+
+    let readout = spawn_reader(log, "O", child.stdout.take());
+    let readerr = spawn_reader(log, "E", child.stderr.take());
+
+    if let Some(t) = readout {
+        t.join().expect("join stdout thread");
+    }
+    if let Some(t) = readerr {
+        t.join().expect("join stderr thread");
+    }
+
+    match child.wait() {
+        Err(e) => Err(e.into()),
+        Ok(es) => {
+            if !es.success() {
+                Err(anyhow!("exec {:?}: failed {:?}", &logargs, &es))
+            } else {
+                Ok(())
+            }
+        }
+    }
+}
+
 fn run_common(log: &Logger, cmd: &mut Command, args: &[&OsStr]) -> Result<()> {
     info!(log, "exec: {:?}", &args);
 

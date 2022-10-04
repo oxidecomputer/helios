@@ -1027,6 +1027,7 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
     opts.optopt("g", "", "use an external gate directory", "DIR");
     opts.optopt("s", "", "tempdir name suffix", "SUFFIX");
     opts.optmulti("F", "", "pass extra image builder features", "KEY[=VAL]");
+    opts.optflag("B", "", "include omicron1 brand");
 
     let usage = || {
         println!("{}",
@@ -1053,6 +1054,10 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
     let pinprick = cargo_target_cmd("pinprick", "pinprick", false)?;
     let ahib = cargo_target_cmd("amd-host-image-builder",
         "amd-host-image-builder", true)?;
+    let baseline = "/usr/lib/brand/omicron1/baseline";
+    if !PathBuf::from(baseline).is_file() {
+        bail!("install /system/zones/brand/omicron1/tools");
+    }
 
     /*
      * Make sure the dataset that we want to use for image construction exists.
@@ -1113,43 +1118,63 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
      * packages, plus other packages from the upstream helios-dev repository.
      */
     let templates = top_path(&["image", "templates"])?;
+    let extras = top_path(&["projects", "illumos", "etc-stlouis", "extras"])?;
+    let brand = res.opt_present("B");
+    let brand_extras = rel_path(Some(&tempdir), &["omicron1"])?;
+    std::fs::create_dir_all(&brand_extras)?;
+    let basecmd = || -> Command {
+        let mut cmd = Command::new("pfexec");
+        cmd.arg(&builder);
+        cmd.arg("build");
+        cmd.arg("-d").arg(&imgds);
+        cmd.arg("-g").arg("gimlet");
+        cmd.arg("-T").arg(&templates);
+        cmd.arg("-E").arg(&extras);
+        cmd.arg("-E").arg(&brand_extras);
+        cmd.arg("-F").arg(format!("repo_redist={}", repo.to_str().unwrap()));
+        cmd.arg("-F").arg("baud=3000000");
+        if brand {
+            cmd.arg("-F").arg("omicron1");
+        }
+        for farg in res.opt_strs("F") {
+            cmd.arg("-F").arg(farg);
+        }
+        cmd
+    };
+
     info!(log, "image builder template: ramdisk-01-os...");
-    ensure::run(log, &["pfexec", &builder, "build",
-        "-d", &imgds,
-        "-g", "gimlet",
-        "-n", "ramdisk-01-os",
-        "-T", &templates.to_str().unwrap(),
-        "-F", &format!("repo_redist={}", repo.to_str().unwrap()),
-        "--fullreset",
-    ])?;
+    let mut cmd = basecmd();
+    cmd.arg("-n").arg("ramdisk-01-os");
+    cmd.arg("--fullreset");
+    ensure::run2(log, &mut cmd)?;
+
+    let root = format!("{}/work/gimlet/ramdisk", mp);
+    if brand {
+        /*
+         * After we install packages but before we remove unwanted files from
+         * the image (which includes the packaging metadata), we need to
+         * generate the baseline archive the omicron1 zone brand uses to
+         * populate /etc files.
+         */
+        info!(log, "omicron1 baseline generation...");
+
+        ensure::run(log, &[baseline,
+            "-R", &root,
+            &brand_extras.to_str().unwrap()
+        ])?;
+    }
 
     info!(log, "image builder template: ramdisk-02-trim...");
-    ensure::run(log, &["pfexec", &builder, "build",
-        "-d", &imgds,
-        "-g", "gimlet",
-        "-n", "ramdisk-02-trim",
-        "-T", &templates.to_str().unwrap(),
-    ])?;
+    let mut cmd = basecmd();
+    cmd.arg("-n").arg("ramdisk-02-trim");
+    ensure::run2(log, &mut cmd)?;
 
     info!(log, "image builder template: zfs...");
-    let extras = top_path(&["projects", "illumos", "etc-stlouis", "extras"])?;
-    let fargs = res.opt_strs("F");
-    let mut ibargs = vec!["pfexec", &builder, "build",
-        "-d", &imgds,
-        "-g", "gimlet",
-        "-n", "zfs",
-        "-T", &templates.to_str().unwrap(),
-        "-E", &extras.to_str().unwrap(),
-        "-F", "baud=3000000",
-    ];
-    for f in fargs.iter() {
-        ibargs.push("-F");
-        ibargs.push(f.as_str());
-    }
-    ensure::run(log, &ibargs)?;
+    let mut cmd = basecmd();
+    cmd.arg("-n").arg("zfs");
+    ensure::run2(log, &mut cmd)?;
 
     let raw = format!("{}/output/gimlet-zfs.raw", mp);
-    let root = format!("{}/work/gimlet/ramdisk", mp);
 
     /*
      * Store built image artefacts together.  Ensure the output directory is
