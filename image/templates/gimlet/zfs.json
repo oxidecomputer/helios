@@ -63,6 +63,11 @@
             "src": "site.xml",
             "owner": "root", "group": "root", "mode": "644" },
 
+	{ "t": "ensure_file", "with": "stress",
+	    "file": "/root/max-power.stress-ng",
+	    "src": "max-power.stress-ng",
+            "owner": "root", "group": "root", "mode": "644" },
+
         { "t": "seed_smf", "apply_site": true }
     ]
 }

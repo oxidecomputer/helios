@@ -1,0 +1,7 @@
+verbose
+verify
+
+matrix 96
+
+stream 32
+stream-l3-size 256m

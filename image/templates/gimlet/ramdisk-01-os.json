@@ -75,6 +75,11 @@
             "/library/libxmlsec1",
             "/ooce/library/postgresql-13",
             "/system/zones/brand/omicron1"
-        ] }
+        ] },
+
+	{ "t": "pkg_install", "with": "stress", "pkgs": [
+	    "/ooce/util/stress-ng",
+	    "/system/test/fio"
+	] }
     ]
 }
