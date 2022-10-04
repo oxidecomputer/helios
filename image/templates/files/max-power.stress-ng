@@ -1,7 +1,7 @@
 verbose
 verify
 
-matrix 96
+matrix 114
 
-stream 32
+stream 14
 stream-l3-size 256m
