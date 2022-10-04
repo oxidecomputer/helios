@@ -1036,6 +1036,7 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
 
     let log = ca.log;
     let res = opts.parse(ca.args)?;
+    let brand = res.opt_present("B");
 
     if res.opt_present("help") {
         usage();
@@ -1055,8 +1056,8 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
     let ahib = cargo_target_cmd("amd-host-image-builder",
         "amd-host-image-builder", true)?;
     let baseline = "/usr/lib/brand/omicron1/baseline";
-    if !PathBuf::from(baseline).is_file() {
-        bail!("install /system/zones/brand/omicron1/tools");
+    if brand && !PathBuf::from(baseline).is_file() {
+        bail!("pkg install /system/zones/brand/omicron1/tools");
     }
 
     /*
@@ -1119,7 +1120,6 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
      */
     let templates = top_path(&["image", "templates"])?;
     let extras = top_path(&["projects", "illumos", "etc-stlouis", "extras"])?;
-    let brand = res.opt_present("B");
     let brand_extras = rel_path(Some(&tempdir), &["omicron1"])?;
     std::fs::create_dir_all(&brand_extras)?;
     let basecmd = || -> Command {
