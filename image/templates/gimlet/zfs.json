@@ -71,6 +71,14 @@
 	    "file": "/root/max-power.stress-ng",
 	    "src": "max-power.stress-ng",
             "owner": "root", "group": "root", "mode": "644" },
+	{ "t": "ensure_file", "with": "stress",
+	    "file": "/root/nvme-max-power.fio",
+	    "src": "nvme-max-power.fio",
+            "owner": "root", "group": "root", "mode": "644" },
+	{ "t": "ensure_file", "with": "stress",
+	    "file": "/root/nvme-max-power.sh",
+	    "src": "nvme-max-power.sh",
+            "owner": "root", "group": "root", "mode": "755" },
 
         { "t": "seed_smf", "apply_site": true }
     ]
