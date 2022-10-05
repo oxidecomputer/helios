@@ -80,6 +80,11 @@
             "src": "nvme-max-power.sh",
             "owner": "root", "group": "root", "mode": "755" },
 
+        { "t": "ensure_file", "with": "opte",
+            "file": "/kernel/drv/xde.conf",
+            "src": "xde.conf",
+            "owner": "root", "group": "sys", "mode": "0644" },
+
         { "t": "seed_smf", "apply_site": true }
     ]
 }

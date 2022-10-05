@@ -77,6 +77,10 @@
             "/system/zones/brand/omicron1"
         ] },
 
+        { "t": "pkg_install", "with": "opte", "pkgs": [
+            "/driver/network/opte@0.1.118"
+        ] },
+
         { "t": "pkg_install", "with": "stress", "pkgs": [
             "/ooce/util/stress-ng",
             "/system/test/fio"
