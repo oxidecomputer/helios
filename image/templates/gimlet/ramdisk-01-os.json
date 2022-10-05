@@ -77,9 +77,9 @@
             "/system/zones/brand/omicron1"
         ] },
 
-	{ "t": "pkg_install", "with": "stress", "pkgs": [
-	    "/ooce/util/stress-ng",
-	    "/system/test/fio"
-	] }
+        { "t": "pkg_install", "with": "stress", "pkgs": [
+            "/ooce/util/stress-ng",
+            "/system/test/fio"
+        ] }
     ]
 }
