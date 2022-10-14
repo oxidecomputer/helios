@@ -38,24 +38,25 @@
   <!-- Hold the network and system configuration milestones back, in case
     we end up making changes to the IP stack, hostname, or the DNS
     configuration, etc. -->
-  <dependent name='network' grouping='optional_all' restart_on='none'>
+  <dependent name='postboot-network' grouping='optional_all' restart_on='none'>
     <service_fmri value='svc:/milestone/network' />
   </dependent>
-  <dependent name='sysconfig' grouping='optional_all' restart_on='none'>
+  <dependent name='postboot-sysconfig' grouping='optional_all'
+    restart_on='none'>
     <service_fmri value='svc:/milestone/sysconfig' />
   </dependent>
 
   <!-- "Hostname:" is printed on the console (at least on OmniOS) by the
     svc:/system/identity:node instance.  Make sure node identity runs
     after we do. -->
-  <dependent name='identity' grouping='optional_all' restart_on='none'>
+  <dependent name='postboot-identity' grouping='optional_all' restart_on='none'>
     <service_fmri value='svc:/system/identity' />
   </dependent>
 
   <!-- Routing setup looks at /etc/defaultrouter when making some
     decisions about system configuration. We should run before it, to make
     sure we have populated that file. -->
-  <dependent name='routing' grouping='optional_all' restart_on='none'>
+  <dependent name='postboot-routing' grouping='optional_all' restart_on='none'>
     <service_fmri value='svc:/network/routing-setup' />
   </dependent>
 
