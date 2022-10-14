@@ -22,4 +22,9 @@
       </property_group>
     </instance>
   </service>
+
+  <service name='network/chrony' version='1' type='service'>
+    <instance name='default' enabled='true' />
+  </service>
+
 </service_bundle>

@@ -60,6 +60,11 @@
     <service_fmri value='svc:/network/routing-setup' />
   </dependent>
 
+  <!-- Hold chrony back until the network is configured -->
+  <dependent name='postboot-chrony' grouping='optional_all' restart_on='none'>
+    <service_fmri value='svc:/network/chrony' />
+  </dependent>
+
   <exec_method type='method' name='start'
     exec='/usr/lib/postboot' timeout_seconds='3600' />
 

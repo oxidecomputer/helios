@@ -65,6 +65,7 @@
             "/system/gpio",
             "/system/bhyve",
             "/system/library/bhyve",
+            "/service/network/chrony",
 
             "/network/openssh-server"
         ] },
