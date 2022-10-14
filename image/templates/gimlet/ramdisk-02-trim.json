@@ -17,7 +17,6 @@
         { "t": "remove_files", "dir": "/usr/share/man" },
         { "t": "remove_files", "dir": "/usr/share/doc" },
         { "t": "remove_files", "dir": "/usr/share/bash-completion" },
-        { "t": "remove_files", "dir": "/usr/share/ipfilter/examples" },
 
         { "t": "remove_files", "dir": "/etc/net-snmp" },
 
