@@ -26,6 +26,7 @@
 
         { "t": "remove_files", "pattern": "*.a" },
 
+        { "t": "remove_files", "dir": "/boot" },
         { "t": "remove_files", "dir": "/platform/i86pc" },
         { "t": "remove_files", "dir": "/usr/platform/i86xpv" },
         { "t": "remove_files", "dir": "/usr/platform/i86pc" },
@@ -44,6 +45,11 @@
             "file": "/usr/lib/fm/fmd/plugins/ses-log-transport.so" },
         { "t": "remove_files",
             "file": "/usr/lib/fm/fmd/plugins/ses-log-transport.conf" },
+
+        { "t": "remove_files", "file": "/sbin/bootadm" },
+        { "t": "remove_files", "file": "/usr/sbin/bootadm" },
+        { "t": "remove_files", "file": "/sbin/beadm" },
+        { "t": "remove_files", "file": "/usr/sbin/beadm" },
 
         { "t": "ensure_file",
             "file": "/lib/svc/method/keymap",
