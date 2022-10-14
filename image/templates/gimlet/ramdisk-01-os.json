@@ -59,7 +59,6 @@
             "/system/data/urxvt-terminfo",
             "/network/netcat",
             "/network/rsync",
-            "/network/ipfilter",
             "/network/snoop",
             "/compress/gzip",
             "/locale/en",
