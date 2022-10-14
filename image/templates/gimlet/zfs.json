@@ -102,6 +102,6 @@
             "src": "mfg.xml",
             "owner": "root", "group": "sys", "mode": "0644" },
 
-        { "t": "seed_smf", "apply_site": true }
+        { "t": "seed_smf", "apply_site": true, "skip_seed": true }
     ]
 }
