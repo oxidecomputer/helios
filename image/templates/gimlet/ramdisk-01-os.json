@@ -41,6 +41,7 @@
 
             "/developer/macro/cpp",
 
+            "/system/flash/fwflash",
             "/system/library/gcc-runtime",
             "/system/library/g++-runtime",
             "/developer/linker",
