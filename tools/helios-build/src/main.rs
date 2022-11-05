@@ -1316,6 +1316,7 @@ fn cmd_setup(ca: &CommandArg) -> Result<()> {
             if project.auto_update {
                 println!("fetching updates for clone ...");
                 let mut child = Command::new("git")
+                    .current_dir(&path)
                     .arg("fetch")
                     .spawn()?;
 
@@ -1326,6 +1327,7 @@ fn cmd_setup(ca: &CommandArg) -> Result<()> {
 
                 println!("rolling branch forward...");
                 let mut child = Command::new("git")
+                    .current_dir(&path)
                     .arg("merge")
                     .arg("--ff-only")
                     .spawn()?;
