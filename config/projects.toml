@@ -30,6 +30,7 @@ use_debug = true
 github = "oxidecomputer/etherboot-server"
 use_ssh = true
 cargo_build = true
+auto_update = true
 
 [project.image-builder]
 github = "illumos/image-builder"
