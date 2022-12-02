@@ -1252,11 +1252,12 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
         "x86_64-oxide-none-elf", "release", "phbl"])?;
     ensure::run_in(log, &top_path(&["projects", "amd-host-image-builder"])?, &[
         ahib.as_str(),
-        "-B", "amd-firmware/GN/1.0.0.1",
-        "-B", "amd-firmware/GN/1.0.0.6",
-        "--config", "etc/milan-gimlet-b.efs.json5",
-        "--output-file", rom.to_str().unwrap(),
-        "--reset-image", reset.to_str().unwrap(),
+        "-v",
+        "-B", "amd-firmware/GN/1.0.0.9-fastspew",
+        "-B", "amd-firmware/GN/1.0.0.9",
+        "-c", "etc/milan-gimlet-b.efs.json5",
+        "-r", reset.to_str().unwrap(),
+        "-o", rom.to_str().unwrap(),
     ])?;
 
     info!(log, "image complete! materials are in {:?}", outdir);
@@ -1338,6 +1339,19 @@ fn cmd_setup(ca: &CommandArg) -> Result<()> {
                 let exit = child.wait()?;
                 if !exit.success() {
                     bail!("update merge in {} failed", path.display());
+                }
+
+                println!("updating submodules...");
+                let mut child = Command::new("git")
+                    .current_dir(&path)
+                    .arg("submodule")
+                    .arg("update")
+                    .arg("--recursive")
+                    .spawn()?;
+
+                let exit = child.wait()?;
+                if !exit.success() {
+                    bail!("submodule update in {} failed", path.display());
                 }
             }
         } else {

@@ -25,6 +25,7 @@ github = "oxidecomputer/amd-host-image-builder"
 use_ssh = true
 cargo_build = true
 use_debug = true
+auto_update = true
 
 [project.bootserver]
 github = "oxidecomputer/etherboot-server"
