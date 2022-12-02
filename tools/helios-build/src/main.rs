@@ -585,7 +585,8 @@ fn cmd_build_illumos(ca: &CommandArg) -> Result<()> {
     Ok(())
 }
 
-fn create_transformed_repo(log: &Logger, gate: &Path, tmpdir: &Path, debug: bool)
+fn create_transformed_repo(log: &Logger, gate: &Path, tmpdir: &Path,
+    debug: bool, refresh: bool)
     -> Result<PathBuf>
 {
     let repo = rel_path(Some(tmpdir), &["repo.redist"])?;
@@ -608,7 +609,9 @@ fn create_transformed_repo(log: &Logger, gate: &Path, tmpdir: &Path, debug: bool
         "--mog-file", &mog_deps.to_str().unwrap(),
         "-m", "latest",
         "*"])?;
-    ensure::run(log, &[PKGREPO, "refresh", "-s", &repo.to_str().unwrap()])?;
+    if refresh {
+        ensure::run(log, &[PKGREPO, "refresh", "-s", &repo.to_str().unwrap()])?;
+    }
 
     Ok(repo)
 }
@@ -688,7 +691,7 @@ fn cmd_illumos_onu(ca: &CommandArg) -> Result<()> {
      */
     info!(log, "creating temporary repository...");
     let repo = create_transformed_repo(log, &gate,
-        &ensure_dir(&["tmp", &tonu])?, res.opt_present("d"))?;
+        &ensure_dir(&["tmp", &tonu])?, res.opt_present("d"), true)?;
 
     if res.opt_present("P") {
         info!(log, "transformed packages available for onu at: {:?}", &repo);
@@ -1112,7 +1115,7 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
      */
     info!(log, "creating temporary repository...");
     let repo = create_transformed_repo(log, &gate, &tempdir,
-        res.opt_present("d"))?;
+        res.opt_present("d"), false)?;
 
     /*
      * Use the image builder to begin creating the image from locally built OS
