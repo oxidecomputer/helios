@@ -41,10 +41,6 @@
 
             "/developer/macro/cpp",
 
-            "/driver/misc/tofino",
-            "/library/libusb",
-            "/library/expat",
-
             "/system/library/gcc-runtime",
             "/system/library/g++-runtime",
             "/developer/linker",
@@ -79,6 +75,12 @@
 
         { "t": "pkg_install", "with": "opte", "pkgs": [
             "/driver/network/opte@0.1.118"
+        ] },
+
+        { "t": "pkg_install", "with": "tofino", "pkgs": [
+            "/driver/misc/tofino",
+            "/library/libusb",
+            "/library/expat"
         ] },
 
         { "t": "pkg_install", "with": "stress", "pkgs": [
