@@ -143,6 +143,12 @@ struct Project {
     auto_update: bool,
 
     /*
+     * When cloning or updating this repository, pin to this commit hash:
+     */
+    #[serde(default)]
+    commit: Option<String>,
+
+    /*
      * If this is a private repository, we force the use of SSH:
      */
     #[serde(default)]
@@ -1252,12 +1258,11 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
         "x86_64-oxide-none-elf", "release", "phbl"])?;
     ensure::run_in(log, &top_path(&["projects", "amd-host-image-builder"])?, &[
         ahib.as_str(),
-        "-v",
-        "-B", "amd-firmware/GN/1.0.0.9-fastspew",
-        "-B", "amd-firmware/GN/1.0.0.9",
-        "-c", "etc/milan-gimlet-b.efs.json5",
-        "-r", reset.to_str().unwrap(),
-        "-o", rom.to_str().unwrap(),
+        "-B", "amd-firmware/GN/1.0.0.1",
+        "-B", "amd-firmware/GN/1.0.0.6",
+        "--config", "etc/milan-gimlet-b.efs.json5",
+        "--output-file", rom.to_str().unwrap(),
+        "--reset-image", reset.to_str().unwrap(),
     ])?;
 
     info!(log, "image complete! materials are in {:?}", outdir);
@@ -1319,9 +1324,85 @@ fn cmd_setup(ca: &CommandArg) -> Result<()> {
             println!("clone {} exists already at {}", url, path.display());
             if project.auto_update {
                 println!("fetching updates for clone ...");
+                let mut child = if let Some(commit) = &project.commit {
+                    Command::new("git")
+                        .current_dir(&path)
+                        .arg("fetch")
+                        .arg("origin")
+                        .arg(commit)
+                        .spawn()?
+                } else {
+                    Command::new("git")
+                        .current_dir(&path)
+                        .arg("fetch")
+                        .spawn()?
+                };
+
+                let exit = child.wait()?;
+                if !exit.success() {
+                    bail!("fetch in {} failed", path.display());
+                }
+
+                if let Some(commit) = &project.commit {
+                    println!("pinning to commit {}...", commit);
+                    let mut child = Command::new("git")
+                        .current_dir(&path)
+                        .arg("checkout")
+                        .arg(commit)
+                        .spawn()?;
+
+                    let exit = child.wait()?;
+                    if !exit.success() {
+                        bail!("update merge in {} failed", path.display());
+                    }
+                } else {
+                    println!("rolling branch forward...");
+                    let mut child = Command::new("git")
+                        .current_dir(&path)
+                        .arg("merge")
+                        .arg("--ff-only")
+                        .spawn()?;
+
+                    let exit = child.wait()?;
+                    if !exit.success() {
+                        bail!("update merge in {} failed", path.display());
+                    }
+                }
+
+                println!("updating submodules...");
+                let mut child = Command::new("git")
+                    .current_dir(&path)
+                    .arg("submodule")
+                    .arg("update")
+                    .arg("--recursive")
+                    .spawn()?;
+
+                let exit = child.wait()?;
+                if !exit.success() {
+                    bail!("submodule update in {} failed", path.display());
+                }
+            }
+        } else {
+            println!("cloning {} at {}...", url, path.display());
+            let mut child = Command::new("git")
+                .arg("clone")
+                .arg("--recurse-submodules")
+                .arg(&url)
+                .arg(&path)
+                .spawn()?;
+
+            let exit = child.wait()?;
+            if !exit.success() {
+                bail!("clone of {} to {} failed", url, path.display());
+            }
+
+            if let Some(commit) = &project.commit {
+                println!("fetching commit {} for clone ...", commit);
                 let mut child = Command::new("git")
                     .current_dir(&path)
                     .arg("fetch")
+                    .arg("origin")
+                    .arg(commit)
                     .spawn()?;
 
                 let exit = child.wait()?;
@@ -1329,11 +1410,11 @@ fn cmd_setup(ca: &CommandArg) -> Result<()> {
                     bail!("fetch in {} failed", path.display());
                 }
 
-                println!("rolling branch forward...");
+                println!("pinning to commit {}...", commit);
                 let mut child = Command::new("git")
                     .current_dir(&path)
-                    .arg("merge")
-                    .arg("--ff-only")
+                    .arg("checkout")
+                    .arg(commit)
                     .spawn()?;
 
                 let exit = child.wait()?;
@@ -1353,20 +1434,6 @@ fn cmd_setup(ca: &CommandArg) -> Result<()> {
                 if !exit.success() {
                     bail!("submodule update in {} failed", path.display());
                 }
-            }
-        } else {
-            println!("cloning {} at {}...", url, path.display());
-
-            let mut child = Command::new("git")
-                .arg("clone")
-                .arg("--recurse-submodules")
-                .arg(&url)
-                .arg(&path)
-                .spawn()?;
-
-            let exit = child.wait()?;
-            if !exit.success() {
-                bail!("clone of {} to {} failed", url, path.display());
             }
 
             println!("clone ok!");

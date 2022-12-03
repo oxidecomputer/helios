@@ -26,6 +26,11 @@ use_ssh = true
 cargo_build = true
 use_debug = true
 auto_update = true
+#
+# XXX Until amd-host-image-builder#90 is sorted out, we are pinned to an older
+# version of the host image builder:
+#
+commit = "4eae23e8a86a6b5ae16e26283e9c0bee87cc2167"
 
 [project.bootserver]
 github = "oxidecomputer/etherboot-server"
