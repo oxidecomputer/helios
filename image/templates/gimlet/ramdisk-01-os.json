@@ -30,6 +30,8 @@
             "/system/kernel/dtrace/providers",
             "/system/network",
             "/system/microcode/oxide",
+	    "/system/gpio",
+	    "/driver/gpio/amd/zen",
 
             "/driver/network/cxgbe",
             "/driver/network/e1000g",
