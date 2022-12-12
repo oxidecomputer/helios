@@ -79,7 +79,6 @@
 
         { "t": "pkg_install", "with": "tofino", "pkgs": [
             "/driver/misc/tofino",
-            "/library/libusb",
             "/library/expat"
         ] },
 
