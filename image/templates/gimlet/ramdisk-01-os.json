@@ -61,6 +61,8 @@
             "/locale/en",
             "/system/network/routing",
             "/driver/cpu/amd/zen",
+            "/driver/gpio/amd/zen",
+            "/system/gpio",
             "/system/bhyve",
             "/system/library/bhyve",
 
