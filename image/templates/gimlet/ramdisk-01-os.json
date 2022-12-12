@@ -84,6 +84,14 @@
             "/library/expat"
         ] },
 
+        { "t": "pkg_install", "with": "mfg", "pkgs": [
+            "/driver/developer/amd/zen"
+        ] },
+
+        { "t": "pkg_install", "with": "compliance", "pkgs": [
+            "/network/snoop"
+        ] },
+
         { "t": "pkg_install", "with": "stress", "pkgs": [
             "/ooce/util/stress-ng",
             "/system/test/fio"
