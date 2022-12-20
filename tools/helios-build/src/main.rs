@@ -1128,7 +1128,7 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
      * packages, plus other packages from the upstream helios-dev repository.
      */
     let templates = top_path(&["image", "templates"])?;
-    let extras = top_path(&["projects", "illumos", "etc-stlouis", "extras"])?;
+    let extras = rel_path(Some(&gate), &["etc-stlouis", "extras"])?;
     let brand_extras = rel_path(Some(&tempdir), &["omicron1"])?;
     std::fs::create_dir_all(&brand_extras)?;
     let basecmd = || -> Command {
