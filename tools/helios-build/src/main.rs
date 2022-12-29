@@ -533,6 +533,7 @@ fn cmd_build_illumos(ca: &CommandArg) -> Result<()> {
     opts.optflag("d", "debug", "build a debug build (use with -q)");
     opts.optflag("r", "release", "build a release build");
     opts.optopt("g", "", "use an external gate directory", "DIR");
+    opts.optflag("i", "incremental", "perform an incremental build");
 
     let usage = || {
         println!("{}",
@@ -582,8 +583,9 @@ fn cmd_build_illumos(ca: &CommandArg) -> Result<()> {
     };
     let env_sh = regen_illumos_sh(log, &gate, bt)?;
 
-    let script = format!("cd {} && ./usr/src/tools/scripts/nightly {}",
+    let script = format!("cd {} && ./usr/src/tools/scripts/nightly{} {}",
         gate.to_str().unwrap(),
+        if res.opt_present("i") { " -i" } else { "" },
         env_sh.to_str().unwrap());
 
     ensure::run(log, &["/sbin/sh", "-c", &script])?;
