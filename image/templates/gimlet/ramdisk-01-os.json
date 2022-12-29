@@ -81,7 +81,8 @@
 
         { "t": "pkg_install", "with": "tofino", "pkgs": [
             "/driver/misc/tofino",
-            "/library/expat"
+            "/library/expat",
+            "/system/library/pcap"
         ] },
 
         { "t": "pkg_install", "with": "mfg", "pkgs": [
