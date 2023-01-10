@@ -1039,6 +1039,7 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
     opts.optopt("s", "", "tempdir name suffix", "SUFFIX");
     opts.optmulti("F", "", "pass extra image builder features", "KEY[=VAL]");
     opts.optflag("B", "", "include omicron1 brand");
+    opts.optopt("C", "", "compliance dock location", "DOCK");
 
     let usage = || {
         println!("{}",
@@ -1047,7 +1048,8 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
 
     let log = ca.log;
     let res = opts.parse(ca.args)?;
-    let brand = res.opt_present("B");
+    let cdock = res.opt_str("C");
+    let brand = res.opt_present("B") || cdock.is_some();
 
     if res.opt_present("help") {
         usage();
@@ -1140,6 +1142,13 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
         cmd.arg("-d").arg(&imgds);
         cmd.arg("-g").arg("gimlet");
         cmd.arg("-T").arg(&templates);
+        if let Some(cdock) = &cdock {
+            cmd.arg("-F").arg("compliance");
+            cmd.arg("-F").arg("stlouis");
+            cmd.arg("-F").arg("tofino");
+            cmd.arg("-F").arg("stress");
+            cmd.arg("-E").arg(&cdock);
+        }
         cmd.arg("-E").arg(&extras);
         cmd.arg("-E").arg(&brand_extras);
         cmd.arg("-F").arg(format!("repo_redist={}", repo.to_str().unwrap()));
@@ -1180,12 +1189,13 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
     cmd.arg("-n").arg("ramdisk-02-trim");
     ensure::run2(log, &mut cmd)?;
 
-    info!(log, "image builder template: zfs...");
+    let tname = if cdock.is_some() { "zfs-compliance" } else { "zfs" };
+    info!(log, "image builder template: {}...", tname);
     let mut cmd = basecmd();
-    cmd.arg("-n").arg("zfs");
+    cmd.arg("-n").arg(tname);
     ensure::run2(log, &mut cmd)?;
 
-    let raw = format!("{}/output/gimlet-zfs.raw", mp);
+    let raw = format!("{}/output/gimlet-{}.raw", mp, tname);
 
     /*
      * Store built image artefacts together.  Ensure the output directory is
@@ -1215,11 +1225,22 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
     /*
      * Create the image and extract the checksum:
      */
+    let target_size = if cdock.is_some() {
+        /*
+         * In the compliance rack we would like to avoid running out of space,
+         * and we have no customer workloads, so using more RAM for the ramdisk
+         * pool is OK.
+         */
+        16 * 1024
+    } else {
+        4 * 1024
+    };
     info!(log, "creating Oxide boot image...");
     ensure::run(log, &[mkimage.as_str(),
         "-i", &raw,
         "-o", zfsimg.to_str().unwrap(),
         "-O", csumfile.to_str().unwrap(),
+        "-s", &target_size.to_string(),
     ])?;
 
     /*

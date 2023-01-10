@@ -90,6 +90,7 @@
         ] },
 
         { "t": "pkg_install", "with": "compliance", "pkgs": [
+            "/developer/debug/humility",
             "/network/snoop"
         ] },
 
