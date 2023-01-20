@@ -3,6 +3,11 @@ name = "helios-build"
 version = "0.1.0"
 authors = ["Oxide Computer Company"]
 edition = "2018"
+#
+# Report a specific error in the case that the toolchain is too old for
+# let-else:
+#
+rust-version = "1.65.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
