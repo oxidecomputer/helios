@@ -34,7 +34,7 @@ auto_update = true
 commit = "4eae23e8a86a6b5ae16e26283e9c0bee87cc2167"
 
 [project.bootserver]
-github = "oxidecomputer/etherboot-server"
+github = "oxidecomputer/boot-image-tools"
 use_ssh = true
 cargo_build = true
 auto_update = true
@@ -44,4 +44,10 @@ github = "illumos/image-builder"
 use_ssh = false
 cargo_build = true
 use_debug = true
+auto_update = true
+
+[project.chelsio-t6-roms]
+github = "oxidecomputer/chelsio-t6-roms"
+use_ssh = true
+cargo_build = false
 auto_update = true
