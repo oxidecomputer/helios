@@ -1167,6 +1167,7 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
     let templates = top_path(&["image", "templates"])?;
     let extras = rel_path(Some(&gate), &["etc-stlouis", "extras"])?;
     let brand_extras = rel_path(Some(&tempdir), &["omicron1"])?;
+    let projects_extras = top_path(&["projects"])?;
     std::fs::create_dir_all(&brand_extras)?;
     let basecmd = || -> Command {
         let mut cmd = Command::new("pfexec");
@@ -1186,6 +1187,7 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
         }
         cmd.arg("-E").arg(&extras);
         cmd.arg("-E").arg(&brand_extras);
+        cmd.arg("-E").arg(&projects_extras);
         cmd.arg("-F").arg(format!("repo_publisher={}", publisher));
         if let Some(url) = &extrepo {
             cmd.arg("-F").arg(format!("repo_url={}", url));
