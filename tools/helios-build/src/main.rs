@@ -1040,6 +1040,7 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
     opts.optmulti("F", "", "pass extra image builder features", "KEY[=VAL]");
     opts.optflag("B", "", "include omicron1 brand");
     opts.optopt("C", "", "compliance dock location", "DOCK");
+    opts.optflag("X", "", "no tofino?");
     opts.optopt("p", "", "use an external package repository", "PUBLISHER=URL");
 
     let usage = || {
@@ -1175,7 +1176,9 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
         if let Some(cdock) = &cdock {
             cmd.arg("-F").arg("compliance");
             cmd.arg("-F").arg("stlouis");
-            cmd.arg("-F").arg("tofino");
+            if !res.opt_present("X") {
+                cmd.arg("-F").arg("tofino");
+            }
             cmd.arg("-F").arg("stress");
             cmd.arg("-E").arg(&cdock);
         }

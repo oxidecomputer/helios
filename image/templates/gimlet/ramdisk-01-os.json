@@ -60,6 +60,7 @@
             "/network/netcat",
             "/network/rsync",
             "/network/ipfilter",
+            "/network/snoop",
             "/compress/gzip",
             "/locale/en",
             "/system/network/routing",
@@ -82,6 +83,10 @@
             "/driver/network/opte@0.1.118"
         ] },
 
+        { "t": "pkg_install", "with": "optever", "pkgs": [
+            "/driver/network/opte@${optever}"
+        ] },
+
         { "t": "pkg_install", "with": "tofino", "pkgs": [
             "/driver/misc/tofino",
             "/library/expat",
@@ -93,8 +98,7 @@
         ] },
 
         { "t": "pkg_install", "with": "compliance", "pkgs": [
-            "/developer/debug/humility",
-            "/network/snoop"
+            "/developer/debug/humility"
         ] },
 
         { "t": "pkg_install", "with": "stress", "pkgs": [
