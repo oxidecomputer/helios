@@ -6,9 +6,12 @@
 
     "steps": [
         { "t": "pkg_image_create" },
-        { "t": "pkg_set_publisher",
-            "publisher": "on-nightly",
+        { "t": "pkg_set_publisher", "with": "repo_redist",
+            "publisher": "${repo_publisher}",
             "uri": "file://${repo_redist}" },
+        { "t": "pkg_set_publisher", "with": "repo_url",
+            "publisher": "${repo_publisher}",
+            "uri": "${repo_url}" },
         { "t": "pkg_set_publisher",
             "publisher": "helios-dev",
             "uri": "https://pkg.oxide.computer/helios-dev/" },

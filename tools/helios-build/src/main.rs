@@ -1040,6 +1040,7 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
     opts.optmulti("F", "", "pass extra image builder features", "KEY[=VAL]");
     opts.optflag("B", "", "include omicron1 brand");
     opts.optopt("C", "", "compliance dock location", "DOCK");
+    opts.optopt("p", "", "use an external package repository", "PUBLISHER=URL");
 
     let usage = || {
         println!("{}",
@@ -1050,6 +1051,15 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
     let res = opts.parse(ca.args)?;
     let cdock = res.opt_str("C");
     let brand = res.opt_present("B") || cdock.is_some();
+    let (publisher, extrepo) = if let Some(arg) = res.opt_str("p") {
+        if let Some((key, val)) = arg.split_once('=') {
+            (key.to_string(), Some(val.to_string()))
+        } else {
+            bail!("-p argument must be PUBLISHER=URL");
+        }
+    } else {
+        ("on-nightly".to_string(), None)
+    };
 
     if res.opt_present("help") {
         usage();
@@ -1058,6 +1068,16 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
 
     if !res.free.is_empty() {
         bail!("unexpected arguments");
+    }
+
+    if res.opt_present("d") && extrepo.is_some() {
+        /*
+         * At present, our -d flag attempts to find "nightly" instead of
+         * "nightly-nd" bits.  If we are using an external repository, we'll
+         * have to make sure it has the DEBUG bits under a variant; an exercise
+         * for later.
+         */
+        bail!("-d and -p are mutually exclusive");
     }
 
     /*
@@ -1118,14 +1138,24 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
 
     let tempdir = ensure_dir(&["tmp", &timage])?;
 
-    /*
-     * In order to install development illumos bits, we first need to elide any
-     * files that would conflict with packages delivered from other
-     * consolidations.  To do this, we create an onu-specific repository:
-     */
-    info!(log, "creating temporary repository...");
-    let repo = create_transformed_repo(log, &gate, &tempdir,
-        res.opt_present("d"), false)?;
+    let repo = if let Some(extrepo) = &extrepo {
+        /*
+         * If we have been instructed to use a repository URL, we do not need to
+         * do local transformation.  That transformation was done as part of
+         * publishing the packages.
+         */
+        info!(log, "using external package repository {}", extrepo);
+        None
+    } else {
+        /*
+         * In order to install development illumos bits, we first need to elide
+         * any files that would conflict with packages delivered from other
+         * consolidations.  To do this, we create an onu-specific repository:
+         */
+        info!(log, "creating temporary repository...");
+        Some(create_transformed_repo(log, &gate, &tempdir,
+            res.opt_present("d"), false)?)
+    };
 
     /*
      * Use the image builder to begin creating the image from locally built OS
@@ -1151,7 +1181,13 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
         }
         cmd.arg("-E").arg(&extras);
         cmd.arg("-E").arg(&brand_extras);
-        cmd.arg("-F").arg(format!("repo_redist={}", repo.to_str().unwrap()));
+        cmd.arg("-F").arg(format!("repo_publisher={}", publisher));
+        if let Some(url) = &extrepo {
+            cmd.arg("-F").arg(format!("repo_url={}", url));
+        } else if let Some(repo) = &repo {
+            cmd.arg("-F").arg(format!("repo_redist={}",
+                repo.to_str().unwrap()));
+        }
         cmd.arg("-F").arg("baud=3000000");
         if brand {
             cmd.arg("-F").arg("omicron1");
