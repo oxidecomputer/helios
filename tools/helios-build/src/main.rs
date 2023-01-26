@@ -1041,6 +1041,7 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
     opts.optflag("B", "", "include omicron1 brand");
     opts.optopt("C", "", "compliance dock location", "DOCK");
     opts.optflag("X", "", "no tofino?");
+    opts.optflag("", "ddr-testing", "build ROMs for other DDR frequencies");
     opts.optopt("p", "", "use an external package repository", "PUBLISHER=URL");
 
     let usage = || {
@@ -1061,6 +1062,7 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
     } else {
         ("on-nightly".to_string(), None)
     };
+    let ddr_testing = res.opt_present("ddr-testing");
 
     if res.opt_present("help") {
         usage();
@@ -1318,7 +1320,8 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
     let rom = rel_path(Some(&outdir), &["rom"])?;
     let reset = top_path(&["projects", "phbl", "target",
         "x86_64-oxide-none-elf", "release", "phbl"])?;
-    ensure::run_in(log, &top_path(&["projects", "amd-host-image-builder"])?, &[
+    let ahibdir = top_path(&["projects", "amd-host-image-builder"])?;
+    ensure::run_in(log, &ahibdir, &[
         ahib.as_str(),
         "-B", "amd-firmware/GN/1.0.0.1",
         "-B", "amd-firmware/GN/1.0.0.6",
@@ -1327,8 +1330,151 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
         "--reset-image", reset.to_str().unwrap(),
     ])?;
 
+    if ddr_testing {
+        let inputcfg = top_path(&["projects", "amd-host-image-builder",
+            "etc", "milan-gimlet-b.efs.json5"])?;
+
+        /*
+         * The configuration for amd-host-image-builder is stored in JSON5
+         * format.  Read the file as a generic JSON object:
+         */
+        let f = std::fs::read_to_string(&inputcfg)?;
+        let inputcfg: serde_json::Value = json5::from_str(&f)?;
+
+        for limit in [1600, 1866, 2133, 2400, 2667, 2933, 3200] {
+            let rom = rel_path(Some(&outdir), &[&format!("rom.ddr{}", limit)])?;
+
+            /*
+             * Produce a new configuration file with the specified
+             * MemBusFrequencyLimit:
+             */
+            let tmpcfg = rel_path(Some(&tempdir),
+                &[&format!("milan-gimlet-b.ddr{}.efs.json", limit)])?;
+            std::fs::remove_file(&tmpcfg).ok();
+            mk_rom_config(inputcfg.clone(), &tmpcfg, limit)?;
+
+            /*
+             * Build the frequency-specific ROM file for this frequency limit:
+             */
+            ensure::run_in(log, &ahibdir, &[
+                ahib.as_str(),
+                "-B", "amd-firmware/GN/1.0.0.1",
+                "-B", "amd-firmware/GN/1.0.0.6",
+                "--config", tmpcfg.to_str().unwrap(),
+                "--output-file", rom.to_str().unwrap(),
+                "--reset-image", reset.to_str().unwrap(),
+            ])?;
+        }
+    }
+
     info!(log, "image complete! materials are in {:?}", outdir);
     std::fs::remove_dir_all(&tempdir).ok();
+    Ok(())
+}
+
+fn mk_rom_config(mut input: serde_json::Value, output: &Path, ddr_speed: u32)
+    -> Result<()>
+{
+
+    let Some(bhd) = input.get_mut("bhd") else {
+        bail!("could not find bhd");
+    };
+    let Some(dir) = bhd.get_mut("BhdDirectory") else {
+        bail!("could not find BhdDirectory");
+    };
+    let Some(entries) = dir.get_mut("entries") else {
+        bail!("could not find entries");
+    };
+    let Some(entries) = entries.as_array_mut() else {
+        bail!("entries is not an array");
+    };
+
+    for e in entries.iter_mut() {
+        #[derive(Deserialize)]
+        struct EntryTarget {
+            #[serde(rename = "type")]
+            type_: String,
+        }
+
+        #[derive(Deserialize)]
+        struct Entry {
+            target: EntryTarget,
+        }
+
+        let ee: Entry= serde_json::from_value(e.clone())?;
+        if ee.target.type_ != "ApcbBackup" {
+            continue;
+        }
+
+        let Some(src) = e.get_mut("source") else {
+            bail!("could not find source");
+        };
+        let Some(apcb) = src.get_mut("ApcbJson") else {
+            bail!("could not find ApcbJson");
+        };
+        let Some(entries) = apcb.get_mut("entries") else {
+            bail!("could not find entries");
+        };
+        let Some(entries) = entries.as_array_mut() else {
+            bail!("entries is not an array");
+        };
+
+        for e in entries.iter_mut() {
+            #[derive(Deserialize)]
+            struct Header {
+                group_id: u32,
+                entry_id: u32,
+                instance_id: u32,
+            }
+
+            let Some(h) = e.get("header") else {
+                bail!("could not find header");
+            };
+            let h: Header = serde_json::from_value(h.clone())?;
+
+            if h.group_id != 0x3000 || h.entry_id != 0x0004 ||
+                h.instance_id != 0
+            {
+                continue;
+            }
+
+            let Some(tokens) = e.get_mut("tokens") else {
+                bail!("could not get tokens");
+            };
+            let Some(tokens) = tokens.as_array_mut() else {
+                bail!("tokens is not an array");
+            };
+
+            for t in tokens.iter_mut() {
+                let Some(dword) = t.get_mut("Dword") else {
+                    continue;
+                };
+                let Some(dword) = dword.as_object_mut() else {
+                    continue;
+                };
+                {
+                    let keys = dword.keys().collect::<Vec<_>>();
+                    if keys.len() != 1 {
+                        bail!("too many keys? {:?}", keys);
+                    }
+                    if keys[0] != "MemBusFrequencyLimit" {
+                        continue;
+                    }
+                }
+                dword.insert("MemBusFrequencyLimit".to_string(),
+                    serde_json::Value::String(format!("Ddr{}", ddr_speed)));
+            }
+        }
+    }
+
+    /*
+     * Write the file to the target path as JSON.  Note that we are not using
+     * JSON5 here, but that ostensibly doesn't matter as JSON5 is a superset of
+     * JSON.
+     */
+    let s = serde_json::to_string_pretty(&input)?;
+    std::fs::write(output, &s)?;
+
     Ok(())
 }
 

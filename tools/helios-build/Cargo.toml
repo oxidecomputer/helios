@@ -37,3 +37,4 @@ regex = "1.4"
 # same version will then be used by reqwest.
 #
 openssl = { version = "0.10", optional = true }
+json5 = "0.4.1"
