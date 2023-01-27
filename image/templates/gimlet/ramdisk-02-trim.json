@@ -40,6 +40,7 @@
         { "t": "remove_files", "file": "/kernel/drv/amd64/conskbd" },
         { "t": "remove_files", "file": "/kernel/drv/amd64/tzmon" },
         { "t": "remove_files", "file": "/kernel/drv/amd64/power" },
+        { "t": "remove_files", "file": "/kernel/drv/amd64/audio" },
 
         { "t": "remove_files",
             "file": "/usr/lib/fm/fmd/plugins/ses-log-transport.so" },
