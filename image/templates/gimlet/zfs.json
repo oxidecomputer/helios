@@ -1,0 +1,103 @@
+{
+    "pool": {
+        "name": "rpool",
+        "bename": "ramdisk",
+        "ashift": 9,
+        "uefi": false,
+        "size": 350,
+        "label": false,
+        "no_features": false,
+        "compression": "gzip-9",
+        "autoexpand": true
+    },
+
+    "steps": [
+        { "t": "create_be" },
+
+        { "t": "unpack_tar", "name": "gimlet-ramdisk.tar.gz" },
+
+        { "t": "include", "name": "devfs" },
+
+        { "t": "include", "name": "common" },
+
+        { "t": "ensure_file", "file": "/etc/auto_master",
+            "src": "auto_master",
+            "owner": "root", "group": "root", "mode": "644" },
+
+        { "t": "ensure_file", "file": "/etc/ttydefs",
+            "src": "ttydefs.${baud}",
+            "owner": "root", "group": "sys", "mode": "644" },
+
+        { "t": "ensure_file", "file": "/etc/default/init",
+            "src": "default_init",
+            "owner": "root", "group": "root", "mode": "644" },
+
+        { "t": "ensure_file", "file": "/etc/inet/ntp.conf",
+            "src": "ntp.conf",
+            "owner": "root", "group": "root", "mode": "644" },
+
+        { "t": "ensure_file", "file": "/etc/ssh/sshd_config",
+            "src": "sshd_config",
+            "owner": "root", "group": "root", "mode": "644" },
+
+        { "t": "ensure_file", "file": "/usr/lib/bootparams",
+            "src": "bootparams.sh",
+            "owner": "root", "group": "bin", "mode": "0755" },
+
+        { "t": "ensure_file", "without": "mfg",
+            "file": "/usr/lib/postboot",
+            "src": "gimlet-postboot.sh",
+            "owner": "root", "group": "bin", "mode": "0755" },
+        { "t": "ensure_file", "without": "mfg",
+            "file": "/lib/svc/manifest/site/postboot.xml",
+            "src": "gimlet-postboot.xml",
+            "owner": "root", "group": "bin", "mode": "0644" },
+
+        { "t": "ensure_file", "with": "stlouis",
+            "file": "/lib/svc/method/mission-t6",
+            "extsrc": "lib/svc/method/mission-t6",
+            "owner": "root", "group": "bin", "mode": "0755" },
+        { "t": "ensure_file", "with": "stlouis",
+            "file": "/lib/svc/manifest/system/mission-t6.xml",
+            "extsrc": "lib/svc/manifest/system/mission-t6.xml",
+            "owner": "root", "group": "bin", "mode": "0644" },
+
+        { "t": "ensure_file",
+            "file": "/var/svc/profile/site.xml",
+            "src": "site.xml",
+            "owner": "root", "group": "root", "mode": "644" },
+
+        { "t": "ensure_file", "with": "stress",
+            "file": "/root/max-power.stress-ng",
+            "src": "max-power.stress-ng",
+            "owner": "root", "group": "root", "mode": "644" },
+        { "t": "ensure_file", "with": "stress",
+            "file": "/root/nvme-max-power.fio",
+            "src": "nvme-max-power.fio",
+            "owner": "root", "group": "root", "mode": "644" },
+        { "t": "ensure_file", "with": "stress",
+            "file": "/root/nvme-max-power.sh",
+            "src": "nvme-max-power.sh",
+            "owner": "root", "group": "root", "mode": "755" },
+
+        { "t": "ensure_file", "with": "opte",
+            "file": "/kernel/drv/xde.conf",
+            "src": "xde.conf",
+            "owner": "root", "group": "sys", "mode": "0644" },
+
+        { "t": "ensure_file", "with": "mfg",
+            "file": "/etc/default/login",
+            "src": "mfg_default_login",
+            "owner": "root", "group": "sys", "mode": "0644" },
+        { "t": "ensure_file", "with": "mfg",
+            "file": "/lib/svc/method/mfg",
+            "src": "mfg.sh",
+            "owner": "root", "group": "sys", "mode": "0755" },
+        { "t": "ensure_file", "with": "mfg",
+            "file": "/lib/svc/manifest/site/mfg.xml",
+            "src": "mfg.xml",
+            "owner": "root", "group": "sys", "mode": "0644" },
+
+        { "t": "seed_smf", "apply_site": true }
+    ]
+}

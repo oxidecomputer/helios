@@ -608,6 +608,41 @@ where
     }))
 }
 
+pub fn run2(log: &Logger, cmd: &mut Command) -> Result<()> {
+    let mut logargs = vec![ cmd.get_program().to_owned() ];
+    for arg in cmd.get_args() {
+        logargs.push(arg.to_owned());
+    }
+    info!(log, "exec: {:?}", &logargs);
+
+    cmd.stdin(Stdio::null());
+    cmd.stdout(Stdio::piped());
+    cmd.stderr(Stdio::piped());
+
+    let mut child = cmd.spawn()?;
+
+    let readout = spawn_reader(log, "O", child.stdout.take());
+    let readerr = spawn_reader(log, "E", child.stderr.take());
+
+    if let Some(t) = readout {
+        t.join().expect("join stdout thread");
+    }
+    if let Some(t) = readerr {
+        t.join().expect("join stderr thread");
+    }
+
+    match child.wait() {
+        Err(e) => Err(e.into()),
+        Ok(es) => {
+            if !es.success() {
+                Err(anyhow!("exec {:?}: failed {:?}", &logargs, &es))
+            } else {
+                Ok(())
+            }
+        }
+    }
+}
+
 fn run_common(log: &Logger, cmd: &mut Command, args: &[&OsStr]) -> Result<()> {
     info!(log, "exec: {:?}", &args);
 
@@ -652,6 +687,23 @@ pub fn scrub_env(cmd: &mut Command, utf8: bool) {
     cmd.env_remove("LC_MONETARY");
     cmd.env_remove("LC_MESSAGES");
     cmd.env_remove("LC_ALL");
+}
+
+pub fn run_in<S: AsRef<OsStr>, P: AsRef<Path>>(log: &Logger, pwd: P,
+    args: &[S]) -> Result<()>
+{
+    let args: Vec<&OsStr> = args.iter().map(|s| s.as_ref()).collect();
+
+    let mut cmd = Command::new(&args[0]);
+    cmd.current_dir(pwd.as_ref());
+
+    scrub_env(&mut cmd, false);
+
+    if args.len() > 1 {
+        cmd.args(&args[1..]);
+    }
+
+    run_common(log, &mut cmd, args.as_slice())
 }
 
 pub fn run<S: AsRef<OsStr>>(log: &Logger, args: &[S]) -> Result<()> {

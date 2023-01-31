@@ -1,0 +1,35 @@
+{
+    "steps": [
+        { "t": "devfsadm" },
+
+        { "t": "ensure_dir", "dir": "/dev/cfg",
+            "owner": "root", "group": "root", "mode": "755" },
+        { "t": "ensure_dir", "dir": "/dev/dsk",
+            "owner": "root", "group": "sys", "mode": "755" },
+        { "t": "ensure_dir", "dir": "/dev/rdsk",
+            "owner": "root", "group": "sys", "mode": "755" },
+        { "t": "ensure_dir", "dir": "/dev/usb",
+            "owner": "root", "group": "root", "mode": "755" },
+
+        { "t": "remove_files", "dir": "/dev/cfg" },
+        { "t": "remove_files", "dir": "/dev/dsk" },
+        { "t": "remove_files", "dir": "/dev/rdsk" },
+        { "t": "remove_files", "dir": "/dev/usb" },
+
+        { "t": "ensure_dir", "dir": "/dev/cfg",
+            "owner": "root", "group": "root", "mode": "755" },
+        { "t": "ensure_dir", "dir": "/dev/dsk",
+            "owner": "root", "group": "sys", "mode": "755" },
+        { "t": "ensure_dir", "dir": "/dev/rdsk",
+            "owner": "root", "group": "sys", "mode": "755" },
+        { "t": "ensure_dir", "dir": "/dev/usb",
+            "owner": "root", "group": "root", "mode": "755" },
+
+        { "t": "ensure_symlink", "link": "/dev/msglog",
+            "target": "../devices/pseudo/sysmsg@0:msglog",
+            "owner": "root", "group": "root" },
+        { "t": "ensure_file", "file": "/reconfigure",
+            "contents": "",
+            "owner": "root", "group": "root", "mode": "644" }
+    ]
+}

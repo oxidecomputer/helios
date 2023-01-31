@@ -1,0 +1,35 @@
+set -o vi
+
+C_RED='\[\033[01;31m\]'
+C_BLD='\[\033[1m\]'
+C_NUL='\[\033[00m\]'
+
+if [[ -n $SSH_CLIENT ]]; then
+        export PROMPT_COMMAND='echo -ne "\033]0;${HOSTNAME} \007" && history -a'
+fi
+
+case "$TERM" in
+xterm*|rxvt*|screen*|sun-color)
+        PS1="$C_RED\\h $C_NUL$C_BLD#$C_NUL "
+        ;;
+esac
+
+pathdirs=(
+        "$HOME/bin"
+        '/opt/local/sbin'
+        '/opt/local/bin'
+        '/opt/ooce/sbin'
+        '/opt/ooce/bin'
+        '/usr/sbin'
+        '/usr/bin'
+        '/bin'
+        '/sbin'
+)
+export PATH=$(IFS=':'; printf '%s' "${pathdirs[*]}")
+
+#
+# Bracketed paste in bash is a deeply questionable facility, and on a serial
+# console where one may reset the system at any time it leaves the terminal in
+# a state where one cannot then paste correctly into nanobl-rs.
+#
+bind 'set enable-bracketed-paste off'

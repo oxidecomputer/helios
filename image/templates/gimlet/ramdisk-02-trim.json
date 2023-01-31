@@ -1,0 +1,90 @@
+{
+    "dataset": {
+        "name": "ramdisk",
+        "input_snapshot": "os",
+        "output_snapshot": "trim"
+    },
+
+    "steps": [
+        { "t": "remove_files", "dir": "/var/pkg" },
+
+        { "t": "remove_files", "dir": "/usr/gcc/9" },
+
+        { "t": "remove_files", "dir": "/usr/xpg4" },
+        { "t": "remove_files", "dir": "/usr/include" },
+        { "t": "remove_files", "dir": "/usr/demo" },
+        { "t": "remove_files", "dir": "/usr/lib/help" },
+        { "t": "remove_files", "dir": "/usr/share/man" },
+        { "t": "remove_files", "dir": "/usr/share/doc" },
+        { "t": "remove_files", "dir": "/usr/share/bash-completion" },
+
+        { "t": "remove_files", "dir": "/etc/net-snmp" },
+
+        { "t": "remove_files", "dir": "/usr/bin/i386" },
+        { "t": "remove_files", "dir": "/platform/i86xpv" },
+
+        { "t": "remove_files", "pattern": "*.a" },
+
+        { "t": "remove_files", "dir": "/boot" },
+        { "t": "remove_files", "dir": "/platform/i86pc" },
+        { "t": "remove_files", "dir": "/usr/platform/i86xpv" },
+        { "t": "remove_files", "dir": "/usr/platform/i86pc" },
+
+        { "t": "remove_files", "file": "/kernel/misc/amd64/acpica" },
+        { "t": "remove_files", "file": "/kernel/misc/amd64/tem" },
+        { "t": "remove_files", "file": "/kernel/misc/amd64/kbtrans" },
+
+        { "t": "remove_files", "file": "/kernel/drv/amd64/wc" },
+        { "t": "remove_files", "file": "/kernel/drv/amd64/acpi_drv" },
+        { "t": "remove_files", "file": "/kernel/drv/amd64/conskbd" },
+        { "t": "remove_files", "file": "/kernel/drv/amd64/tzmon" },
+        { "t": "remove_files", "file": "/kernel/drv/amd64/power" },
+        { "t": "remove_files", "file": "/kernel/drv/amd64/audio" },
+
+        { "t": "remove_files",
+            "file": "/usr/lib/fm/fmd/plugins/ses-log-transport.so" },
+        { "t": "remove_files",
+            "file": "/usr/lib/fm/fmd/plugins/ses-log-transport.conf" },
+
+        { "t": "remove_files", "file": "/sbin/bootadm" },
+        { "t": "remove_files", "file": "/usr/sbin/bootadm" },
+        { "t": "remove_files", "file": "/sbin/beadm" },
+        { "t": "remove_files", "file": "/usr/sbin/beadm" },
+
+        { "t": "ensure_file",
+            "file": "/lib/svc/method/keymap",
+            "contents": "",
+            "owner": "root", "group": "bin", "mode": "755" },
+        { "t": "ensure_file",
+            "file": "/lib/svc/bin/rootisramdisk",
+            "src": "rootisramdisk",
+            "owner": "root", "group": "sys", "mode": "755" },
+
+        { "t": "ensure_file",
+            "file": "/root/.bash_profile",
+            "src": "bash_profile",
+            "owner": "root", "group": "root", "mode": "0644" },
+        { "t": "ensure_file",
+            "file": "/root/.bashrc",
+            "src": "bashrc",
+            "owner": "root", "group": "root", "mode": "0644" },
+        { "t": "ensure_file",
+            "file": "/etc/motd",
+            "src": "motd",
+            "owner": "root", "group": "sys", "mode": "0644" },
+
+        { "t": "ensure_dir", "with": "omicron1",
+            "dir": "/usr/lib/brand/omicron1/baseline",
+            "owner": "root", "group": "sys", "mode": "0755" },
+        { "t": "ensure_file", "with": "omicron1",
+            "file": "/usr/lib/brand/omicron1/baseline/files.tar.gz",
+            "extsrc": "files.tar.gz",
+            "owner": "root", "group": "sys", "mode": "0644" },
+        { "t": "ensure_file", "with": "omicron1",
+            "file": "/usr/lib/brand/omicron1/baseline/gzonly.txt",
+            "extsrc": "gzonly.txt",
+            "owner": "root", "group": "sys", "mode": "0644" },
+
+        { "t": "pack_tar", "name": "gimlet-ramdisk.tar.gz" }
+    ]
+}

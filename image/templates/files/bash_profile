@@ -1,0 +1,6 @@
+if [[ $TERM == sun-color ]]; then
+	export TERM=xterm
+fi
+
+ENV="$HOME/.bashrc"
+. "$ENV"

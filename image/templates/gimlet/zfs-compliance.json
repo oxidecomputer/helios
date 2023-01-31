@@ -1,0 +1,147 @@
+{
+    "pool": {
+        "name": "rpool",
+        "bename": "ramdisk",
+        "ashift": 9,
+        "uefi": false,
+        "size": 650,
+        "label": false,
+        "no_features": false,
+        "compression": "gzip-9",
+        "autoexpand": true
+    },
+
+    "steps": [
+        { "t": "create_be" },
+
+        { "t": "unpack_tar", "name": "gimlet-ramdisk.tar.gz" },
+
+        { "t": "include", "name": "devfs" },
+
+        { "t": "include", "name": "common" },
+
+        { "t": "ensure_file", "file": "/etc/auto_master",
+            "src": "auto_master",
+            "owner": "root", "group": "root", "mode": "644" },
+
+        { "t": "ensure_file", "file": "/etc/ttydefs",
+            "src": "ttydefs.${baud}",
+            "owner": "root", "group": "sys", "mode": "644" },
+
+        { "t": "ensure_file", "file": "/etc/default/init",
+            "src": "default_init",
+            "owner": "root", "group": "root", "mode": "644" },
+
+        { "t": "ensure_file", "file": "/etc/inet/ntp.conf",
+            "src": "ntp.conf",
+            "owner": "root", "group": "root", "mode": "644" },
+
+        { "t": "ensure_file", "file": "/etc/ssh/sshd_config",
+            "src": "sshd_config",
+            "owner": "root", "group": "root", "mode": "644" },
+
+        { "t": "ensure_file", "file": "/usr/lib/bootparams",
+            "src": "bootparams.sh",
+            "owner": "root", "group": "bin", "mode": "0755" },
+
+        { "t": "ensure_file",
+            "file": "/usr/lib/postboot",
+            "src": "compliance-postboot.sh",
+            "owner": "root", "group": "bin", "mode": "0755" },
+        { "t": "ensure_file",
+            "file": "/lib/svc/manifest/site/postboot.xml",
+            "src": "compliance-postboot.xml",
+            "owner": "root", "group": "bin", "mode": "0644" },
+
+        { "t": "ensure_file",
+            "file": "/usr/lib/compliance-hostname",
+            "src": "compliance-hostname.sh",
+            "owner": "root", "group": "bin", "mode": "0755" },
+        { "t": "ensure_file",
+            "file": "/lib/svc/manifest/site/compliance-hostname.xml",
+            "src": "compliance-hostname.xml",
+            "owner": "root", "group": "bin", "mode": "0644" },
+
+        { "t": "ensure_file",
+            "file": "/usr/lib/compliance-beacon",
+            "src": "compliance-beacon.sh",
+            "owner": "root", "group": "bin", "mode": "0755" },
+        { "t": "ensure_file",
+            "file": "/lib/svc/manifest/site/compliance-beacon.xml",
+            "src": "compliance-beacon.xml",
+            "owner": "root", "group": "bin", "mode": "0644" },
+
+        { "t": "ensure_file",
+            "file": "/usr/lib/compliance-tofino",
+            "src": "compliance-tofino.sh",
+            "owner": "root", "group": "bin", "mode": "0755" },
+        { "t": "ensure_file",
+            "file": "/lib/svc/manifest/site/compliance-tofino.xml",
+            "src": "compliance-tofino.xml",
+            "owner": "root", "group": "bin", "mode": "0644" },
+
+        { "t": "ensure_file", "with": "stlouis",
+            "file": "/lib/svc/method/mission-t6",
+            "extsrc": "lib/svc/method/mission-t6",
+            "owner": "root", "group": "bin", "mode": "0755" },
+        { "t": "ensure_file", "with": "stlouis",
+            "file": "/lib/svc/manifest/system/mission-t6.xml",
+            "extsrc": "lib/svc/manifest/system/mission-t6.xml",
+            "owner": "root", "group": "bin", "mode": "0644" },
+
+        { "t": "ensure_file",
+            "file": "/var/svc/profile/site.xml",
+            "src": "site.xml",
+            "owner": "root", "group": "root", "mode": "644" },
+
+        { "t": "ensure_file", "with": "stress",
+            "file": "/root/max-power.stress-ng",
+            "src": "max-power.stress-ng",
+            "owner": "root", "group": "root", "mode": "644" },
+        { "t": "ensure_file", "with": "stress",
+            "file": "/root/nvme-max-power.fio",
+            "src": "nvme-max-power.fio",
+            "owner": "root", "group": "root", "mode": "644" },
+        { "t": "ensure_file", "with": "stress",
+            "file": "/root/nvme-max-power.sh",
+            "src": "nvme-max-power.sh",
+            "owner": "root", "group": "root", "mode": "755" },
+
+        { "t": "ensure_file", "with": "opte",
+            "file": "/kernel/drv/xde.conf",
+            "src": "xde.conf",
+            "owner": "root", "group": "sys", "mode": "0644" },
+
+        { "t": "shadow", "username": "root", "password": "" },
+        { "t": "ensure_file",
+            "file": "/etc/default/login",
+            "src": "mfg_default_login",
+            "owner": "root", "group": "sys", "mode": "0644" },
+
+        { "t": "ensure_dir",
+            "dir": "/usr/share/compliance",
+            "owner": "root", "group": "sys", "mode": "0755" },
+        { "t": "ensure_file",
+            "file": "/usr/share/compliance/dendrite-asic.tar.gz",
+            "extsrc": "dendrite/dendrite-asic.tar.gz",
+            "owner": "root", "group": "sys", "mode": "0644" },
+        { "t": "ensure_file",
+            "file": "/usr/bin/pilot",
+            "extsrc": "pilot/pilot",
+            "owner": "root", "group": "bin", "mode": "0755" },
+        { "t": "ensure_file",
+            "file": "/usr/share/compliance/pilot.toml",
+            "extsrc": "pilot/${pilot_profile}.toml",
+            "owner": "root", "group": "bin", "mode": "0644" },
+        { "t": "ensure_file",
+            "file": "/usr/bin/xcvradm",
+            "extsrc": "xcvradm",
+            "owner": "root", "group": "bin", "mode": "0755" },
+        { "t": "ensure_file",
+            "file": "/usr/bin/faux-mgs",
+            "extsrc": "faux-mgs",
+            "owner": "root", "group": "bin", "mode": "0755" },
+
+        { "t": "seed_smf", "apply_site": true }
+    ]
+}

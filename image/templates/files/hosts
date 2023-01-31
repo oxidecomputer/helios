@@ -1,0 +1,5 @@
+#
+# Internet host table
+#
+::1 unknown unknown.local localhost loghost
+127.0.0.1 unknown unknown.local localhost loghost

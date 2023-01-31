@@ -1,3 +1,9 @@
+/*
+ * This code should eventually be in a crate that exports things as public
+ * methods instead of vendored here, but for now we'll just ignore unused code.
+ */
+#![allow(unused)]
+
 use anyhow::{bail, Result};
 use std::convert::{TryFrom, TryInto};
 use std::collections::BTreeSet;

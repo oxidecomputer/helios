@@ -1,0 +1,109 @@
+{
+    "dataset": {
+        "name": "ramdisk",
+        "output_snapshot": "os"
+    },
+
+    "steps": [
+        { "t": "pkg_image_create" },
+        { "t": "pkg_set_publisher", "with": "repo_redist",
+            "publisher": "${repo_publisher}",
+            "uri": "file://${repo_redist}" },
+        { "t": "pkg_set_publisher", "with": "repo_url",
+            "publisher": "${repo_publisher}",
+            "uri": "${repo_url}" },
+        { "t": "pkg_set_publisher",
+            "publisher": "helios-dev",
+            "uri": "https://pkg.oxide.computer/helios-dev/" },
+
+        { "t": "pkg_change_variant", "variant": "opensolaris.zone",
+            "value": "global" },
+        { "t": "pkg_change_variant", "variant": "opensolaris.imagetype",
+            "value": "partial" },
+
+        { "t": "pkg_change_facet", "facet": "openssl.10",
+            "value": "false" },
+        { "t": "pkg_change_facet", "facet": "doc",
+            "value": "false" },
+        { "t": "pkg_change_facet", "facet": "doc.man",
+            "value": "false" },
+
+        { "t": "pkg_install", "pkgs": [
+            "/developer/debug/mdb",
+            "/system/kernel/dtrace/providers",
+            "/system/network",
+            "/system/microcode/oxide",
+
+            "/driver/network/cxgbe",
+            "/driver/network/e1000g",
+            "/driver/network/igb",
+            "/driver/network/ixgbe",
+            "/driver/network/rge",
+
+            "/driver/storage/nvme",
+
+            "/developer/macro/cpp",
+
+            "/system/library/gcc-runtime",
+            "/system/library/g++-runtime",
+            "/developer/linker",
+            "/diagnostic/diskinfo",
+            "/diagnostic/pci",
+            "diagnostic/cpu-counters",
+            "/system/data/hardware-registry",
+            "/system/extended-system-utilities",
+            "/web/curl",
+            "/text/less",
+            "/editor/vim",
+            "/terminal/resize",
+            "/system/data/urxvt-terminfo",
+            "/network/netcat",
+            "/network/rsync",
+            "/network/snoop",
+            "/compress/gzip",
+            "/locale/en",
+            "/system/network/routing",
+            "/driver/cpu/amd/zen",
+            "/driver/gpio/amd/zen",
+            "/system/gpio",
+            "/system/bhyve",
+            "/system/library/bhyve",
+
+            "/network/openssh-server"
+        ] },
+
+        { "t": "pkg_install", "with": "omicron1", "pkgs": [
+            "/library/libxmlsec1",
+            "/ooce/library/postgresql-13",
+            "/system/zones/brand/omicron1"
+        ] },
+
+        { "t": "pkg_install", "with": "opte", "pkgs": [
+            "/driver/network/opte@0.1.118"
+        ] },
+
+        { "t": "pkg_install", "with": "optever", "pkgs": [
+            "/driver/network/opte@${optever}"
+        ] },
+
+        { "t": "pkg_install", "with": "tofino", "pkgs": [
+            "/driver/misc/tofino",
+            "/library/expat",
+            "/system/library/pcap"
+        ] },
+
+        { "t": "pkg_install", "with": "mfg", "pkgs": [
+            "/driver/developer/amd/zen"
+        ] },
+
+        { "t": "pkg_install", "with": "compliance", "pkgs": [
+            "/driver/developer/amd/zen",
+            "/developer/debug/humility"
+        ] },
+
+        { "t": "pkg_install", "with": "stress", "pkgs": [
+            "/ooce/util/stress-ng",
+            "/system/test/fio"
+        ] }
+    ]
+}

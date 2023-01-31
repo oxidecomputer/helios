@@ -2,12 +2,13 @@ mod common;
 use common::*;
 
 use anyhow::{Result, Context, bail};
-use serde::{Serialize, Deserialize};
-use std::collections::{BTreeMap, HashMap, VecDeque, BTreeSet};
+use serde::Deserialize;
+use std::collections::HashMap;
 use std::process::Command;
 use std::os::unix::process::CommandExt;
-use std::io::{BufWriter, BufReader, Write, Read};
+use std::io::{BufReader, Read};
 use std::fs::File;
+use std::time::Instant;
 use slog::Logger;
 use std::path::Path;
 use walkdir::{WalkDir, DirEntry};
@@ -16,9 +17,7 @@ use regex::Regex;
 pub mod illumos;
 pub mod ensure;
 mod ips;
-
-use illumos::ZonesExt;
-use ips::{Action, DependType};
+mod zfs;
 
 const PKGREPO: &str = "/usr/bin/pkgrepo";
 const PKGRECV: &str = "/usr/bin/pkgrecv";
@@ -40,6 +39,8 @@ fn baseopts() -> getopts::Options {
 
 use std::path::{PathBuf, Component};
 use std::ffi::OsStr;
+
+const NO_PATH: Option<PathBuf> = None;
 
 fn pc(s: &str) -> Component {
     Component::Normal(OsStr::new(s))
@@ -99,6 +100,31 @@ fn top_path(components: &[&str]) -> Result<PathBuf> {
     Ok(top)
 }
 
+fn abs_path<P: AsRef<Path>>(p: P) -> Result<PathBuf> {
+    let p = p.as_ref();
+    Ok(if p.is_absolute() {
+        p.to_path_buf()
+    } else {
+        let mut pp = std::env::current_dir()?;
+        pp.push(p);
+        pp.canonicalize()?
+    })
+}
+
+fn gate_name<P: AsRef<Path>>(p: P) -> Result<String> {
+    let p = abs_path(p)?;
+    p.canonicalize()?;
+    if !p.is_dir() {
+        bail!("{:?} is not a directory?", p);
+    }
+    if let Some(basename) = p.file_name() {
+        if let Some(basename) = basename.to_str() {
+            return Ok(basename.trim().to_string());
+        }
+    }
+    bail!("could not get base name of {:?}", p);
+}
+
 #[derive(Debug, Deserialize)]
 struct Projects {
     #[serde(default)]
@@ -111,6 +137,18 @@ struct Project {
     url: Option<String>,
 
     /*
+     * Attempt to update this repository from upstream when running setup?
+     */
+    #[serde(default)]
+    auto_update: bool,
+
+    /*
+     * When cloning or updating this repository, pin to this commit hash:
+     */
+    #[serde(default)]
+    commit: Option<String>,
+
+    /*
      * If this is a private repository, we force the use of SSH:
      */
     #[serde(default)]
@@ -121,6 +159,14 @@ struct Project {
      */
     #[serde(default)]
     site_sh: bool,
+
+    /*
+     * Run "cargo build" in this project to produce tools that we need:
+     */
+    #[serde(default)]
+    cargo_build: bool,
+    #[serde(default)]
+    use_debug: bool,
 }
 
 impl Project {
@@ -148,13 +194,6 @@ fn ensure_dir(components: &[&str]) -> Result<PathBuf> {
 }
 
 
-#[derive(Debug, Deserialize)]
-struct UserlandMetadata {
-    dependencies: Vec<String>,
-    fmris: Vec<String>,
-    name: String,
-}
-
 fn create_ips_repo<P, S>(log: &Logger, path: P, publ: S, torch: bool)
     -> Result<()>
     where P: AsRef<Path>,
@@ -181,11 +220,23 @@ fn create_ips_repo<P, S>(log: &Logger, path: P, publ: S, torch: bool)
     Ok(())
 }
 
-fn cmd_promote_illumos(ca: &CommandArg) -> Result<()> {
-    let opts = baseopts();
+/*
+ * illumos builds can be run to produce DEBUG or non-DEBUG ("release") bits.
+ * This command will take a multi-proto build (i.e., one which has produced both
+ * DEBUG and non-DEBUG bits) and merge them into a single unified set of
+ * packages.  That way, the choice of DEBUG or non-DEBUG can be made with "pkg
+ * change-variant" during ramdisk construction or on a mutable root system.
+ */
+fn cmd_merge_illumos(ca: &CommandArg) -> Result<()> {
+    let mut opts = baseopts();
+    opts.optopt("g", "", "use an external gate directory", "DIR");
+    opts.optopt("s", "", "tempdir name suffix", "SUFFIX");
+    opts.optopt("o", "", "output repository", "REPO");
+    opts.optopt("p", "", "output publisher name", "PUBLISHER");
 
     let usage = || {
-        println!("{}", opts.usage("Usage: helios [OPTIONS] promote-illumos [OPTIONS]"));
+        println!("{}",
+            opts.usage("Usage: helios [OPTIONS] merge-illumos [OPTIONS]"));
     };
 
     let log = ca.log;
@@ -200,22 +251,54 @@ fn cmd_promote_illumos(ca: &CommandArg) -> Result<()> {
         bail!("unexpected arguments");
     }
 
-    let publisher = "on-nightly";
+    /*
+     * The illumos build creates packages with the "on-nightly" publisher, which
+     * we then replace with the desired publisher name as part of merging the
+     * DEBUG- and non-DEBUG bits into a unified set of packages.
+     */
+    let input_publisher = "on-nightly";
 
-    ensure_dir(&["tmp", "illumos"])?;
-    let repo_merge = top_path(&["tmp", "illumos", "nightly-merged"])?;
+    let gate = if let Some(gate) = res.opt_str("g") {
+        abs_path(gate)?
+    } else {
+        top_path(&["projects", "illumos"])?
+    };
 
-    let repo_d = top_path(&["projects", "illumos", "packages", "i386",
-        "nightly", "repo.redist"])?;
-    let repo_nd = top_path(&["projects", "illumos", "packages", "i386",
-        "nightly-nd", "repo.redist"])?;
+    /*
+     * We want a temporary directory name that does not overlap with other
+     * concurrent usage of this tool.
+     */
+    let tillumos = if let Some(suffix) = res.opt_str("s") {
+        /*
+         * If the user provides a specific suffix, just use it as-is.
+         */
+        format!("illumos.{}", suffix)
+    } else if let Some(gate) = res.opt_str("g") {
+        /*
+         * If an external gate is selected, we assume that the base directory
+         * name is unique; e.g., "/ws/ftdi", or "/ws/upstream" would yield
+         * "ftdi" or "upstream".  This allows repeat runs for the same external
+         * workspace to reuse the previous temporary directory.
+         */
+        format!("illumos.gate-{}", gate_name(gate)?)
+    } else {
+        "illumos".to_string()
+    };
+
+    ensure_dir(&["tmp", &tillumos])?;
+    let repo_merge = top_path(&["tmp", &tillumos, "nightly-merged"])?;
+
+    let repo_d = rel_path(Some(&gate),
+        &["packages", "i386", "nightly", "repo.redist"])?;
+    let repo_nd = rel_path(Some(&gate),
+        &["packages", "i386", "nightly-nd", "repo.redist"])?;
 
     /*
      * Merge the packages from the DEBUG and non-DEBUG builds into a single
      * staging repository using the IPS variant feature.
      */
     info!(log, "recreating merging repository at {:?}", &repo_merge);
-    create_ips_repo(log, &repo_merge, &publisher, true)?;
+    create_ips_repo(log, &repo_merge, &input_publisher, true)?;
 
     ensure::run(log, &["/usr/bin/pkgmerge", "-d", &repo_merge.to_str().unwrap(),
         "-s", &format!("debug.illumos=false,{}/", repo_nd.to_str().unwrap()),
@@ -223,10 +306,23 @@ fn cmd_promote_illumos(ca: &CommandArg) -> Result<()> {
 
     info!(log, "transforming packages for publishing...");
 
-    let mog_publisher = top_path(&["packages", "publisher.mogrify"])?;
+    let mog_publisher = if let Some(publisher) = res.opt_str("p") {
+        info!(log, "using custom publisher {:?}", publisher);
+        let file = top_path(&["tmp", &tillumos, "custom-publisher.mogrify"])?;
+        regen_publisher_mog(log, Some(&file), &publisher)?;
+        file
+    } else {
+        info!(log, "using default publisher");
+        top_path(&["packages", "publisher.mogrify"])?
+    };
+
     let mog_conflicts = top_path(&["packages", "os-conflicts.mogrify"])?;
     let mog_deps = top_path(&["packages", "os-deps.mogrify"])?;
-    let repo = top_path(&["packages", "os"])?;
+    let repo = if let Some(repo) = res.opt_str("o") {
+        PathBuf::from(repo)
+    } else {
+        top_path(&["packages", "os"])?
+    };
 
     ensure::run(log, &[PKGRECV,
         "-s", &repo_merge.to_str().unwrap(),
@@ -242,6 +338,9 @@ fn cmd_promote_illumos(ca: &CommandArg) -> Result<()> {
      * Clean up the temporary merged repo files:
      */
     std::fs::remove_dir_all(&repo_merge).ok();
+    if res.opt_present("p") {
+        std::fs::remove_file(&mog_publisher).ok();
+    }
 
     Ok(())
 }
@@ -269,6 +368,7 @@ enum BuildType {
     Quick,
     QuickDebug,
     Full,
+    Release,
 }
 
 impl BuildType {
@@ -283,8 +383,28 @@ impl BuildType {
             Quick => "illumos-quick.sh",
             QuickDebug => "illumos-quick-debug.sh",
             Full => "illumos.sh",
+            Release => "illumos-release.sh",
         }
     }
+}
+
+fn regen_publisher_mog<P: AsRef<Path>>(log: &Logger, mogfile: Option<P>,
+    publisher: &str) -> Result<()>
+{
+    /*
+     * Create the pkgmogrify template that we need to replace the pkg(5)
+     * publisher name when promoting packages from a build repository to the
+     * central repository.
+     */
+    let mog = format!("<transform set name=pkg.fmri -> \
+        edit value pkg://[^/]+/ pkg://{}/>\n", publisher);
+    let mogpath = if let Some(mogfile) = mogfile {
+        mogfile.as_ref().to_path_buf()
+    } else {
+        top_path(&["packages", "publisher.mogrify"])?
+    };
+    ensure::file_str(log, &mog, &mogpath, 0o644, ensure::Create::Always)?;
+    Ok(())
 }
 
 fn regen_illumos_sh<P: AsRef<Path>>(log: &Logger, gate: P, bt: BuildType)
@@ -302,7 +422,7 @@ fn regen_illumos_sh<P: AsRef<Path>>(log: &Logger, gate: P, bt: BuildType)
          * one anyway.  Use that to set an additional version number component
          * beyond the release version, and as the value for "uname -v":
          */
-        BuildType::Full => {
+        BuildType::Release => {
             let rnum = git_commit_count(&gate)?;
             let vers = format!("helios-{}.{}.{}", RELVER, DASHREV, rnum);
             (rnum, vers, "Oxide Helios Version ^v ^w-bit")
@@ -313,7 +433,7 @@ fn regen_illumos_sh<P: AsRef<Path>>(log: &Logger, gate: P, bt: BuildType)
          * number that is obviously not related to the production package commit
          * numbers:
          */
-        BuildType::Quick | BuildType::QuickDebug => {
+        BuildType::Quick | BuildType::QuickDebug | BuildType::Full => {
             let vers = "$(git describe --long --all HEAD | cut -d/ -f2-)";
             (999999, vers.into(), "Oxide Helios Version ^v ^w-bit (onu)")
         }
@@ -324,9 +444,10 @@ fn regen_illumos_sh<P: AsRef<Path>>(log: &Logger, gate: P, bt: BuildType)
      */
     let mut env = String::new();
     match bt {
-        BuildType::Full => env += "export NIGHTLY_OPTIONS='-nCDAmprt'\n",
-        BuildType::Quick => env += "export NIGHTLY_OPTIONS='-nCAmprt'\n",
-        BuildType::QuickDebug => env += "export NIGHTLY_OPTIONS='-nCADFmprt'\n",
+        BuildType::Full => env += "export NIGHTLY_OPTIONS='-nCDAprt'\n",
+        BuildType::Release => env += "export NIGHTLY_OPTIONS='-nCDAprt'\n",
+        BuildType::Quick => env += "export NIGHTLY_OPTIONS='-nCAprt'\n",
+        BuildType::QuickDebug => env += "export NIGHTLY_OPTIONS='-nCADFprt'\n",
     }
     env += &format!("export CODEMGR_WS='{}'\n", gate.to_str().unwrap());
     env += "export MACH=\"$(uname -p)\"\n";
@@ -341,7 +462,7 @@ fn regen_illumos_sh<P: AsRef<Path>>(log: &Logger, gate: P, bt: BuildType)
             env += "export SHADOW_CCS=\n";
             env += "export SHADOW_CCCS=\n";
         }
-        BuildType::Full => {
+        BuildType::Full | BuildType::Release => {
             /*
              * Enable the shadow compiler for full builds:
              */
@@ -410,9 +531,13 @@ fn cmd_build_illumos(ca: &CommandArg) -> Result<()> {
     let mut opts = baseopts();
     opts.optflag("q", "quick", "quick build (no shadows, no DEBUG)");
     opts.optflag("d", "debug", "build a debug build (use with -q)");
+    opts.optflag("r", "release", "build a release build");
+    opts.optopt("g", "", "use an external gate directory", "DIR");
+    opts.optflag("i", "incremental", "perform an incremental build");
 
     let usage = || {
-        println!("{}", opts.usage("Usage: helios [OPTIONS] build-illumos [OPTIONS]"));
+        println!("{}",
+            opts.usage("Usage: helios [OPTIONS] build-illumos [OPTIONS]"));
     };
 
     let log = ca.log;
@@ -427,6 +552,14 @@ fn cmd_build_illumos(ca: &CommandArg) -> Result<()> {
         bail!("unexpected arguments");
     }
 
+    if res.opt_present("q") && res.opt_present("r") {
+        bail!("you cannot request a release build (-r) and a quick build (-q)");
+    }
+
+    if res.opt_present("d") && res.opt_present("r") {
+        bail!("you cannot request a release build (-r) and a debug build (-d)");
+    }
+
     if res.opt_present("d") && !res.opt_present("q") {
         bail!("requesting a debug build (-d) requires -q");
     }
@@ -437,20 +570,58 @@ fn cmd_build_illumos(ca: &CommandArg) -> Result<()> {
         } else {
             BuildType::Quick
         }
+    } else if res.opt_present("r") {
+        BuildType::Release
     } else {
         BuildType::Full
     };
 
-    let gate = top_path(&["projects", "illumos"])?;
+    let gate = if let Some(gate) = res.opt_str("g") {
+        abs_path(gate)?
+    } else {
+        top_path(&["projects", "illumos"])?
+    };
     let env_sh = regen_illumos_sh(log, &gate, bt)?;
 
-    let script = format!("cd {} && ./usr/src/tools/scripts/nightly {}",
+    let script = format!("cd {} && ./usr/src/tools/scripts/nightly{} {}",
         gate.to_str().unwrap(),
+        if res.opt_present("i") { " -i" } else { "" },
         env_sh.to_str().unwrap());
 
     ensure::run(log, &["/sbin/sh", "-c", &script])?;
 
     Ok(())
+}
+
+fn create_transformed_repo(log: &Logger, gate: &Path, tmpdir: &Path,
+    debug: bool, refresh: bool)
+    -> Result<PathBuf>
+{
+    let repo = rel_path(Some(tmpdir), &["repo.redist"])?;
+    create_ips_repo(log, &repo, "on-nightly", true)?;
+
+    /*
+     * These pkgmogrify(1) scripts will drop any conflicting actions:
+     */
+    let mog_conflicts = top_path(&["packages", "os-conflicts.mogrify"])?;
+    let mog_deps = top_path(&["packages", "os-deps.mogrify"])?;
+
+    info!(log, "transforming packages for installation...");
+    let which = if debug { "nightly" } else { "nightly-nd" };
+    let repo_nd = rel_path(Some(gate),
+        &["packages", "i386", which, "repo.redist"])?;
+    ensure::run(log, &[PKGRECV,
+        "-s", &repo_nd.to_str().unwrap(),
+        "-d", &repo.to_str().unwrap(),
+        "--mog-file", &mog_conflicts.to_str().unwrap(),
+        "--mog-file", &mog_deps.to_str().unwrap(),
+        "-m", "latest",
+        "*"])?;
+    if refresh {
+        ensure::run(log, &[PKGREPO, "refresh", "-s", &repo.to_str().unwrap()])?;
+    }
+
+    Ok(repo)
 }
 
 fn cmd_illumos_onu(ca: &CommandArg) -> Result<()> {
@@ -461,6 +632,8 @@ fn cmd_illumos_onu(ca: &CommandArg) -> Result<()> {
     opts.optflag("A", "", "create a p5p archive from packages");
     opts.optflag("d", "", "use DEBUG packages");
     opts.optopt("g", "", "use an external gate directory", "DIR");
+    opts.optopt("l", "", "depot listen port (default 7891)", "PORT");
+    opts.optopt("s", "", "tempdir name suffix", "SUFFIX");
 
     let usage = || {
         println!("{}", opts.usage("Usage: helios [OPTIONS] onu [OPTIONS]"));
@@ -479,13 +652,36 @@ fn cmd_illumos_onu(ca: &CommandArg) -> Result<()> {
     }
 
     let gate = if let Some(gate) = res.opt_str("g") {
-        let gate = PathBuf::from(gate);
-        if !gate.is_absolute() {
-            bail!("specify an absolute path for -g");
-        }
-        gate
+        abs_path(gate)?
     } else {
         top_path(&["projects", "illumos"])?
+    };
+
+    /*
+     * We want a temporary directory name that does not overlap with other
+     * concurrent usage of this tool.
+     */
+    let tonu = if let Some(suffix) = res.opt_str("s") {
+        /*
+         * If the user provides a specific suffix, just use it as-is.
+         */
+        format!("onu.{}", suffix)
+    } else if let Some(gate) = res.opt_str("g") {
+        /*
+         * If an external gate is selected, we assume that the base directory
+         * name is unique; e.g., "/ws/ftdi", or "/ws/upstream" would yield
+         * "ftdi" or "upstream".  This allows repeat runs for the same external
+         * workspace to reuse the previous temporary directory.
+         */
+        format!("onu.gate-{}", gate_name(gate)?)
+    } else if let Some(port) = res.opt_str("l") {
+        /*
+         * If the internal gate is in use, but a non-default port number is
+         * specified, use that port for the temporary suffix.
+         */
+        format!("onu.port-{}", port)
+    } else {
+        "onu".to_string()
     };
 
     let count = ["t", "P", "D", "A"].iter().filter(|o| res.opt_present(o)).count();
@@ -504,7 +700,8 @@ fn cmd_illumos_onu(ca: &CommandArg) -> Result<()> {
      */
     info!(log, "creating temporary repository...");
     ensure_dir(&["tmp", "onu"])?;
-    let repo = top_path(&["tmp", "onu", "repo.redist"])?;
+    let repo = create_transformed_repo(log, &gate,
+        &ensure_dir(&["tmp", &tonu])?, res.opt_present("d"), true)?;
     create_ips_repo(log, &repo, "on-nightly", true)?;
 
     /*
@@ -548,17 +745,40 @@ fn cmd_illumos_onu(ca: &CommandArg) -> Result<()> {
     }
 
     if res.opt_present("D") {
-        let port = 7891;
+        let port = if let Some(port) = res.opt_str("l") {
+            let port: u16 = port.parse()?;
+            if port == 0 {
+                bail!("port number (-l) must be a positive integer");
+            }
+            port
+        } else {
+            7891
+        };
+
+        /*
+         * Perform a construction similar to the one we do for repository
+         * temporary files, but for depot logs.
+         */
+        let tdepot = if let Some(suffix) = res.opt_str("s") {
+            format!("depot.{}", suffix)
+        } else if let Some(gate) = res.opt_str("g") {
+            format!("depot.gate-{}", gate_name(gate)?)
+        } else if let Some(port) = res.opt_str("l") {
+            format!("depot.port-{}", port)
+        } else {
+            "depot".to_string()
+        };
+
         info!(log, "starting pkg.depotd on packages at: {:?}", &repo);
 
         /*
          * Run a pkg.depotd to serve the packages we have just transformed.
          */
-        ensure_dir(&["tmp", "depot"])?;
-        let logdir = ensure_dir(&["tmp", "depot", "log"])?;
+        ensure_dir(&["tmp", &tdepot])?;
+        let logdir = ensure_dir(&["tmp", &tdepot, "log"])?;
         let mut access = logdir.clone();
         access.push("access");
-        let rootdir = ensure_dir(&["tmp", "depot", "root"])?;
+        let rootdir = ensure_dir(&["tmp", &tdepot, "root"])?;
 
         info!(log, "access log file is {:?}", &access);
         info!(log, "listening on port {}", port);
@@ -601,7 +821,7 @@ fn cmd_illumos_onu(ca: &CommandArg) -> Result<()> {
     info!(log, "installing packages...");
     let onu = top_path(&["projects", "illumos", "usr", "src",
         "tools", "proto", "root_i386-nd", "opt", "onbld", "bin", "onu"])?;
-    let onu_dir = top_path(&["tmp", "onu"])?;
+    let onu_dir = top_path(&["tmp", &tonu])?;
     ensure::run(log, &["pfexec", &onu.to_str().unwrap(), "-v",
         "-d", &onu_dir.to_str().unwrap(),
         "-t", &bename])?;
@@ -630,11 +850,7 @@ fn cmd_illumos_genenv(ca: &CommandArg) -> Result<()> {
     }
 
     let gate = if let Some(gate) = res.opt_str("g") {
-        let gate = PathBuf::from(gate);
-        if !gate.is_absolute() {
-            bail!("specify an absolute path for -g");
-        }
-        gate
+        abs_path(gate)?
     } else {
         top_path(&["projects", "illumos"])?
     };
@@ -642,6 +858,7 @@ fn cmd_illumos_genenv(ca: &CommandArg) -> Result<()> {
     regen_illumos_sh(ca.log, &gate, BuildType::Quick)?;
     regen_illumos_sh(ca.log, &gate, BuildType::QuickDebug)?;
     regen_illumos_sh(ca.log, &gate, BuildType::Full)?;
+    regen_illumos_sh(ca.log, &gate, BuildType::Release)?;
 
     info!(ca.log, "ok");
     Ok(())
@@ -655,6 +872,7 @@ fn cmd_illumos_bldenv(ca: &CommandArg) -> Result<()> {
     let mut opts = baseopts();
     opts.optflag("q", "quick", "quick build (no shadows, no DEBUG)");
     opts.optflag("d", "debug", "build a debug build");
+    opts.optflag("r", "release", "build a release build");
 
     let usage = || {
         println!("{}", opts.usage("Usage: helios [OPTIONS] bldenv [OPTIONS]"));
@@ -671,12 +889,22 @@ fn cmd_illumos_bldenv(ca: &CommandArg) -> Result<()> {
         bail!("unexpected arguments");
     }
 
+    if res.opt_present("q") && res.opt_present("r") {
+        bail!("you cannot request a release build (-r) and a quick build (-q)");
+    }
+
+    if res.opt_present("d") && res.opt_present("r") {
+        bail!("you cannot request a release build (-r) and a debug build (-d)");
+    }
+
     let t = if res.opt_present("q") {
         if res.opt_present("d") {
             BuildType::QuickDebug
         } else {
             BuildType::Quick
         }
+    } else if res.opt_present("r") {
+        BuildType::Release
     } else {
         BuildType::Full
     };
@@ -684,7 +912,7 @@ fn cmd_illumos_bldenv(ca: &CommandArg) -> Result<()> {
     let gate = top_path(&["projects", "illumos"])?;
     regen_illumos_sh(ca.log, &gate, t)?;
 
-	let env = rel_path(Some(&gate), &[t.script_name()])?;
+    let env = rel_path(Some(&gate), &[t.script_name()])?;
     let src = rel_path(Some(&gate), &["usr", "src"])?;
     let bldenv = rel_path(Some(&gate), &["usr", "src",
         "tools", "scripts", "bldenv"])?;
@@ -697,10 +925,10 @@ fn cmd_illumos_bldenv(ca: &CommandArg) -> Result<()> {
      */
     let mut cmd = Command::new(&bldenv);
     if res.opt_present("d") && !res.opt_present("q") {
-		cmd.arg("-d");
+        cmd.arg("-d");
     }
     cmd.arg(env).current_dir(&src);
-	let err = cmd.exec();
+    let err = cmd.exec();
     bail!("exec failure: {:?}", err);
 }
 
@@ -831,419 +1059,461 @@ fn cmd_build_omnios(ca: &CommandArg) -> Result<()> {
     Ok(())
 }
 
-fn cmd_build(ca: &CommandArg) -> Result<()> {
-    let opts = baseopts();
+fn cargo_target_cmd(project: &str, command: &str, debug: bool)
+    -> Result<String>
+{
+    let bin = top_path(&["projects", project, "target",
+        if debug { "debug" } else { "release" }, command])?;
+    if !bin.is_file() {
+        bail!("binary {:?} does not exist.  run \"gmake setup\"?", bin);
+    }
+    Ok(bin.to_str().unwrap().to_string())
+}
+
+fn cmd_image(ca: &CommandArg) -> Result<()> {
+    let mut opts = baseopts();
+    opts.optflag("d", "", "use DEBUG packages");
+    opts.optopt("g", "", "use an external gate directory", "DIR");
+    opts.optopt("s", "", "tempdir name suffix", "SUFFIX");
+    opts.optmulti("F", "", "pass extra image builder features", "KEY[=VAL]");
+    opts.optflag("B", "", "include omicron1 brand");
+    opts.optopt("C", "", "compliance dock location", "DOCK");
+    opts.optflag("X", "", "no tofino?");
+    opts.optflag("", "ddr-testing", "build ROMs for other DDR frequencies");
+    opts.optopt("p", "", "use an external package repository", "PUBLISHER=URL");
 
     let usage = || {
-        println!("{}", opts.usage("Usage: helios [OPTIONS] build [OPTIONS]"));
+        println!("{}",
+            opts.usage("Usage: helios [OPTIONS] experiment-image [OPTIONS]"));
     };
 
     let log = ca.log;
     let res = opts.parse(ca.args)?;
+    let cdock = res.opt_str("C");
+    let brand = res.opt_present("B") || cdock.is_some();
+    let (publisher, extrepo) = if let Some(arg) = res.opt_str("p") {
+        if let Some((key, val)) = arg.split_once('=') {
+            (key.to_string(), Some(val.to_string()))
+        } else {
+            bail!("-p argument must be PUBLISHER=URL");
+        }
+    } else {
+        ("on-nightly".to_string(), None)
+    };
+    let ddr_testing = res.opt_present("ddr-testing");
 
     if res.opt_present("help") {
         usage();
         return Ok(());
     }
 
-    if res.free.is_empty() {
-        bail!("which package should I build?");
-    } else if res.free.len() > 1 {
-        bail!("only one package build at a time right now");
+    if !res.free.is_empty() {
+        bail!("unexpected arguments");
     }
-    let target = &res.free[0];
 
-    build(log, target)?;
-    Ok(())
-}
+    if res.opt_present("d") && extrepo.is_some() {
+        /*
+         * At present, our -d flag attempts to find "nightly" instead of
+         * "nightly-nd" bits.  If we are using an external repository, we'll
+         * have to make sure it has the DEBUG bits under a variant; an exercise
+         * for later.
+         */
+        bail!("-d and -p are mutually exclusive");
+    }
 
-fn userland_gmake<P: AsRef<Path>>(log: &Logger, targetdir: P, target: &str)
-    -> Result<()>
-{
-    let targetdir = targetdir.as_ref();
-    let archive = top_path(&["cache", "userland-archive"])?;
+    /*
+     * Check for the commands we need before we start doing any expensive work.
+     */
+    let builder = cargo_target_cmd("image-builder", "image-builder", true)?;
+    let mkimage = cargo_target_cmd("bootserver", "mkimage", false)?;
+    let pinprick = cargo_target_cmd("pinprick", "pinprick", false)?;
+    let ahib = cargo_target_cmd("amd-host-image-builder",
+        "amd-host-image-builder", true)?;
+    let baseline = "/usr/lib/brand/omicron1/baseline";
+    if brand && !PathBuf::from(baseline).is_file() {
+        bail!("pkg install /system/zones/brand/omicron1/tools");
+    }
 
-    ensure::run_env(log, &[
-        "gmake", "-s", "-C", &targetdir.to_str().unwrap(), target
-    ], vec![
-        ("USERLAND_ARCHIVES", format!("{}/", archive.to_str().unwrap()))
+    /*
+     * Make sure the dataset that we want to use for image construction exists.
+     */
+    let imgds = if let Ok(imgds) = std::env::var("IMAGE_DATASET") {
+        imgds
+    } else if let Ok(logname) = std::env::var("LOGNAME") {
+        format!("rpool/images/{}", logname)
+    } else {
+        bail!("neither LOGNAME nor IMAGE_DATASET present in environment?");
+    };
+    if !zfs::dataset_exists(&imgds)? {
+        bail!("ZFS dataset {:?} does not exist; we need it to create images",
+            imgds);
+    }
+    let mp = zfs::zfs_get(&imgds, "mountpoint")?;
+
+    let gate = if let Some(gate) = res.opt_str("g") {
+        abs_path(gate)?
+    } else {
+        top_path(&["projects", "illumos"])?
+    };
+
+    /*
+     * We want a temporary directory name that does not overlap with other
+     * concurrent usage of this tool.
+     */
+    let timage = if let Some(suffix) = res.opt_str("s") {
+        /*
+         * If the user provides a specific suffix, just use it as-is.
+         */
+        format!("image.{}", suffix)
+    } else if let Some(gate) = res.opt_str("g") {
+        /*
+         * If an external gate is selected, we assume that the base directory
+         * name is unique; e.g., "/ws/ftdi", or "/ws/upstream" would yield
+         * "ftdi" or "upstream".  This allows repeat runs for the same external
+         * workspace to reuse the previous temporary directory.
+         */
+        format!("image.gate-{}", gate_name(gate)?)
+    } else {
+        "image".to_string()
+    };
+
+    let tempdir = ensure_dir(&["tmp", &timage])?;
+
+    let repo = if let Some(extrepo) = &extrepo {
+        /*
+         * If we have been instructed to use a repository URL, we do not need to
+         * do local transformation.  That transformation was done as part of
+         * publishing the packages.
+         */
+        info!(log, "using external package repository {}", extrepo);
+        None
+    } else {
+        /*
+         * In order to install development illumos bits, we first need to elide
+         * any files that would conflict with packages delivered from other
+         * consolidations.  To do this, we create an onu-specific repository:
+         */
+        info!(log, "creating temporary repository...");
+        Some(create_transformed_repo(log, &gate, &tempdir,
+            res.opt_present("d"), false)?)
+    };
+
+    /*
+     * Use the image builder to begin creating the image from locally built OS
+     * packages, plus other packages from the upstream helios-dev repository.
+     */
+    let templates = top_path(&["image", "templates"])?;
+    let extras = rel_path(Some(&gate), &["etc-stlouis", "extras"])?;
+    let brand_extras = rel_path(Some(&tempdir), &["omicron1"])?;
+    std::fs::create_dir_all(&brand_extras)?;
+    let basecmd = || -> Command {
+        let mut cmd = Command::new("pfexec");
+        cmd.arg(&builder);
+        cmd.arg("build");
+        cmd.arg("-d").arg(&imgds);
+        cmd.arg("-g").arg("gimlet");
+        cmd.arg("-T").arg(&templates);
+        if let Some(cdock) = &cdock {
+            cmd.arg("-F").arg("compliance");
+            cmd.arg("-F").arg("stlouis");
+            if !res.opt_present("X") {
+                cmd.arg("-F").arg("tofino");
+            }
+            cmd.arg("-F").arg("stress");
+            cmd.arg("-E").arg(&cdock);
+        }
+        cmd.arg("-E").arg(&extras);
+        cmd.arg("-E").arg(&brand_extras);
+        cmd.arg("-F").arg(format!("repo_publisher={}", publisher));
+        if let Some(url) = &extrepo {
+            cmd.arg("-F").arg(format!("repo_url={}", url));
+        } else if let Some(repo) = &repo {
+            cmd.arg("-F").arg(format!("repo_redist={}",
+                repo.to_str().unwrap()));
+        }
+        cmd.arg("-F").arg("baud=3000000");
+        if brand {
+            cmd.arg("-F").arg("omicron1");
+        }
+        for farg in res.opt_strs("F") {
+            cmd.arg("-F").arg(farg);
+        }
+        cmd
+    };
+
+    info!(log, "image builder template: ramdisk-01-os...");
+    let mut cmd = basecmd();
+    cmd.arg("-n").arg("ramdisk-01-os");
+    cmd.arg("--fullreset");
+    ensure::run2(log, &mut cmd)?;
+
+    let root = format!("{}/work/gimlet/ramdisk", mp);
+    if brand {
+        /*
+         * After we install packages but before we remove unwanted files from
+         * the image (which includes the packaging metadata), we need to
+         * generate the baseline archive the omicron1 zone brand uses to
+         * populate /etc files.
+         */
+        info!(log, "omicron1 baseline generation...");
+
+        ensure::run(log, &[baseline,
+            "-R", &root,
+            &brand_extras.to_str().unwrap()
+        ])?;
+    }
+
+    info!(log, "image builder template: ramdisk-02-trim...");
+    let mut cmd = basecmd();
+    cmd.arg("-n").arg("ramdisk-02-trim");
+    ensure::run2(log, &mut cmd)?;
+
+    let tname = if cdock.is_some() { "zfs-compliance" } else { "zfs" };
+    info!(log, "image builder template: {}...", tname);
+    let mut cmd = basecmd();
+    cmd.arg("-n").arg(tname);
+    ensure::run2(log, &mut cmd)?;
+
+    let raw = format!("{}/output/gimlet-{}.raw", mp, tname);
+
+    /*
+     * Store built image artefacts together.  Ensure the output directory is
+     * empty to begin with.
+     */
+    let outdir = top_path(&["image", "output"])?;
+    if exists_dir(&outdir)? {
+        std::fs::remove_dir_all(&outdir)?;
+    }
+    std::fs::create_dir(&outdir)?;
+    info!(log, "output artefacts stored in: {:?}", outdir);
+
+    /*
+     * Oxide boot images need a header that contains some basic metadata like
+     * the SHA256 hash of the image itself.  This header is consumed by the
+     * kernel boot code when reading the image from an NVMe device, and by the
+     * network boot server.
+     */
+    let zfsimg = rel_path(Some(&outdir), &["zfs.img"])?;
+
+    /*
+     * The CPIO archive also needs to know the image checksum so that we can
+     * boot only a matching ramdisk image.
+     */
+    let csumfile = rel_path(Some(&tempdir), &["boot_image_csum"])?;
+
+    /*
+     * Create the image and extract the checksum:
+     */
+    let target_size = if cdock.is_some() {
+        /*
+         * In the compliance rack we would like to avoid running out of space,
+         * and we have no customer workloads, so using more RAM for the ramdisk
+         * pool is OK.
+         */
+        16 * 1024
+    } else {
+        4 * 1024
+    };
+    info!(log, "creating Oxide boot image...");
+    ensure::run(log, &[mkimage.as_str(),
+        "-i", &raw,
+        "-o", zfsimg.to_str().unwrap(),
+        "-O", csumfile.to_str().unwrap(),
+        "-s", &target_size.to_string(),
     ])?;
 
+    /*
+     * Create the boot archive (CPIO) with the kernel and modules that we need
+     * to boot and mount the ramdisk.
+     * XXX This should be an image-builder feature.
+     */
+    let mkcpio = top_path(&["image", "mkcpio.sh"])?;
+    let cpio = rel_path(Some(&outdir), &["cpio"])?;
+    info!(log, "creating boot archive (CPIO)...");
+    ensure::run(log, &["bash", mkcpio.to_str().unwrap(),
+        &root, cpio.to_str().unwrap(), tempdir.to_str().unwrap()])?;
+
+    /*
+     * Create a compressed CPIO and kernel to be passed to nanobl-rs via XMODEM:
+     */
+    let cpioz = rel_path(Some(&outdir), &["cpio.z"])?;
+    let unix = format!("{}/platform/oxide/kernel/amd64/unix", root);
+    let unixz = rel_path(Some(&outdir), &["unix.z"])?;
+    info!(log, "creating compressed cpio/unix for nanobl-rs...");
+    ensure::run(log, &["bash", "-c",
+        &format!("'{}' '{}' >'{}'", pinprick, unix,
+            unixz.to_str().unwrap())])?;
+    ensure::run(log, &["bash", "-c",
+        &format!("'{}' '{}' >'{}'", pinprick, cpio.to_str().unwrap(),
+            cpioz.to_str().unwrap())])?;
+
+    /*
+     * Create the reset image for the Gimlet SPI ROM:
+     */
+    info!(log, "creating reset image...");
+    ensure::run_in(log, &top_path(&["projects", "phbl"])?,
+        &["cargo", "xtask", "build", "--release",
+        "--cpioz", cpioz.to_str().unwrap()])?;
+    info!(log, "building host image...");
+    let rom = rel_path(Some(&outdir), &["rom"])?;
+    let reset = top_path(&["projects", "phbl", "target",
+        "x86_64-oxide-none-elf", "release", "phbl"])?;
+    let ahibdir = top_path(&["projects", "amd-host-image-builder"])?;
+    ensure::run_in(log, &ahibdir, &[
+        ahib.as_str(),
+        "-B", "amd-firmware/GN/1.0.0.1",
+        "-B", "amd-firmware/GN/1.0.0.6",
+        "--config", "etc/milan-gimlet-b.efs.json5",
+        "--output-file", rom.to_str().unwrap(),
+        "--reset-image", reset.to_str().unwrap(),
+    ])?;
+
+    if ddr_testing {
+        let inputcfg = top_path(&["projects", "amd-host-image-builder",
+            "etc", "milan-gimlet-b.efs.json5"])?;
+
+        /*
+         * The configuration for amd-host-image-builder is stored in JSON5
+         * format.  Read the file as a generic JSON object:
+         */
+        let f = std::fs::read_to_string(&inputcfg)?;
+        let inputcfg: serde_json::Value = json5::from_str(&f)?;
+
+        for limit in [1600, 1866, 2133, 2400, 2667, 2933, 3200] {
+            let rom = rel_path(Some(&outdir), &[&format!("rom.ddr{}", limit)])?;
+
+            /*
+             * Produce a new configuration file with the specified
+             * MemBusFrequencyLimit:
+             */
+            let tmpcfg = rel_path(Some(&tempdir),
+                &[&format!("milan-gimlet-b.ddr{}.efs.json", limit)])?;
+            std::fs::remove_file(&tmpcfg).ok();
+            mk_rom_config(inputcfg.clone(), &tmpcfg, limit)?;
+
+            /*
+             * Build the frequency-specific ROM file for this frequency limit:
+             */
+            ensure::run_in(log, &ahibdir, &[
+                ahib.as_str(),
+                "-B", "amd-firmware/GN/1.0.0.1",
+                "-B", "amd-firmware/GN/1.0.0.6",
+                "--config", tmpcfg.to_str().unwrap(),
+                "--output-file", rom.to_str().unwrap(),
+                "--reset-image", reset.to_str().unwrap(),
+            ])?;
+        }
+    }
+
+    info!(log, "image complete! materials are in {:?}", outdir);
+    std::fs::remove_dir_all(&tempdir).ok();
     Ok(())
 }
 
-fn build(log: &Logger, target: &str) -> Result<()> {
-    info!(log, "BUILD: {}", target);
+fn mk_rom_config(mut input: serde_json::Value, output: &Path, ddr_speed: u32)
+    -> Result<()>
+{
 
-    let zones = illumos::zone_list()?;
-    if !zones.exists("helios-template") {
-        bail!("create helios-template zone first");
-    }
+    let Some(bhd) = input.get_mut("bhd") else {
+        bail!("could not find bhd");
+    };
+    let Some(dir) = bhd.get_mut("BhdDirectory") else {
+        bail!("could not find BhdDirectory");
+    };
+    let Some(entries) = dir.get_mut("entries") else {
+        bail!("could not find entries");
+    };
+    let Some(entries) = entries.as_array_mut() else {
+        bail!("entries is not an array");
+    };
 
-    /*
-     * Tear down any existing zone, to make sure we are not racing with a prior
-     * build that may still be running.
-     */
-    let bzn = "helios-build";
-    let bzr = format!("/zones/{}/root", bzn); /* XXX */
-    if zones.exists(bzn) {
-        let z = zones.by_name(bzn)?;
+    for e in entries.iter_mut() {
+        #[derive(Deserialize)]
+        struct EntryTarget {
+            #[serde(rename = "type")]
+            type_: String,
+        }
 
-        /*
-         * Destroy the existing zone.
-         */
-        let (unmount, halt, uninstall, delete) = match z.state.as_str() {
-            "mounted" => (true, false, true, true),
-            "running" => (false, true, true, true),
-            "installed" => (false, false, true, true),
-            "incomplete" => (false, false, true, true),
-            "configured" => (false, false, false, true),
-            n => bail!("unexpected zone state: {}", n),
+        #[derive(Deserialize)]
+        struct Entry {
+            target: EntryTarget,
+        }
+
+        let ee: Entry= serde_json::from_value(e.clone())?;
+        if ee.target.type_ != "ApcbBackup" {
+            continue;
+        }
+
+        let Some(src) = e.get_mut("source") else {
+            bail!("could not find source");
+        };
+        let Some(apcb) = src.get_mut("ApcbJson") else {
+            bail!("could not find ApcbJson");
+        };
+        let Some(entries) = apcb.get_mut("entries") else {
+            bail!("could not find entries");
+        };
+        let Some(entries) = entries.as_array_mut() else {
+            bail!("entries is not an array");
         };
 
-        if unmount {
-            info!(log, "unmounting...");
-            illumos::zone_unmount(&z.name)?;
-        }
-        if halt {
-            info!(log, "halting...");
-            illumos::zone_halt(&z.name)?;
-        }
-        if uninstall {
-            info!(log, "uninstalling...");
-            illumos::zone_uninstall(&z.name)?;
-        }
-        if delete {
-            info!(log, "deleting...");
-            illumos::zone_delete(&z.name)?;
-        }
-    }
-
-    /*
-     * Download any required components for this build.
-     */
-    let targetdir = top_path(&["projects", "userland", "components",
-        &target])?;
-    userland_gmake(log, &targetdir, "download")?;
-
-    /*
-     * Make sure the metadata is up-to-date for this component.
-     */
-    let umd = read_metadata(log, &target)?;
-
-    info!(log, "creating...");
-    illumos::zone_create(bzn, format!("/zones/{}", bzn), "nlipkg")?;
-
-    let top = top()?;
-    println!("helios repository root is: {}", top.display());
-
-    info!(log, "adding lofs...");
-    illumos::zone_add_lofs(bzn, &top, &top)?;
-
-    info!(log, "cloning...");
-    illumos::zone_clone(bzn, "helios-template")?;
-
-    /*
-     * Before booting the zone, we must make sure that we have installed all of
-     * the required packages for this build.
-     *
-     * First, add our local build repository to the ephemeral zone so that we
-     * are preferring packages we may have rebuilt locally.
-     */
-/* XXX ugh */
-//   let repodir = top_path(&["projects", "userland", "i386", "repo"])?;
-//      ensure::run(log, &["pfexec", "/usr/bin/pkg", "-R", &bzr,
-//        "set-publisher",
-//        "-g", &format!("file://{}", repodir.to_str().unwrap()),
-//        "--sticky",
-//        "--search-first",
-//        "userland"])?;
-//    ensure::run(log, &["pfexec", "/usr/bin/pkg", "-R", &bzr,
-//        "set-publisher",
-//        "--non-sticky",
-//        "openindiana.org"])?;
-    ensure::run(log, &["pfexec", "/usr/bin/pkg", "-R", &bzr,
-        "uninstall",
-        "userland-incorporation",
-        "entire"])?;
-
-    let mut install = Vec::new();
-    for dep in umd.dependencies.iter() {
-        info!(log, "checking for {}...", dep);
-        let out = Command::new("pfexec")
-            .env_clear()
-            .arg("/usr/bin/pkg")
-            .arg("-R")
-            .arg(&bzr)
-            .arg("info")
-            .arg("-q")
-            .arg(format!("{}", dep))
-            .output()?;
-
-        if !out.status.success() {
-            install.push(dep);
-        }
-    }
-
-    if !install.is_empty() {
-        info!(log, "installing packages in zone: {:?}", install);
-        let mut args = vec!["pfexec", "/usr/bin/pkg", "-R", &bzr, "install"];
-        let mut argstorage = Vec::new();
-        for i in install.iter() {
-            if i.starts_with("pkg:") {
-                bail!("not expecting full FMRI: {}", i);
+        for e in entries.iter_mut() {
+            #[derive(Deserialize)]
+            struct Header {
+                group_id: u32,
+                entry_id: u32,
+                instance_id: u32,
             }
-            if i.starts_with("/") {
-                argstorage.push(i.to_string());
-            } else {
-                argstorage.push(format!("/{}", i));
+
+            let Some(h) = e.get("header") else {
+                bail!("could not find header");
+            };
+            let h: Header = serde_json::from_value(h.clone())?;
+
+            if h.group_id != 0x3000 || h.entry_id != 0x0004 ||
+                h.instance_id != 0
+            {
+                continue;
             }
-        }
-        for arg in argstorage.iter() {
-            args.push(arg.as_str());
-        }
-        ensure::run(log, &args)?;
-    }
 
-    /*
-     * We want to create a user account in the zone that has the same
-     * credentials as the user in the global, so that we don't mess up the file
-     * system permissions on the workspace.
-     */
-    let uid = unsafe { libc::getuid() };
-    let gid = unsafe { libc::getgid() };
-    if uid != 0 {
-        info!(log, "uid {} gid {}", uid, gid);
+            let Some(tokens) = e.get_mut("tokens") else {
+                bail!("could not get tokens");
+            };
+            let Some(tokens) = tokens.as_array_mut() else {
+                bail!("tokens is not an array");
+            };
 
-        info!(log, "mounting...");
-        illumos::zone_mount(bzn)?;
-
-        /*
-         * When mounted, we are able to execute programs in the zone in a safe
-         * fashion.  The zone root will be mounted at "/a" in the context we
-         * enter here:
-         */
-        illumos::zoneinstall_mkdir(bzn, "/a/export/home/build", uid, gid)?;
-
-        let passwd = format!("build:x:{}:{}:Build User\
-            :/export/home/build:/bin/bash\n", uid, gid);
-        let shadow = format!("build:NP:18494::::::\n");
-        illumos::zoneinstall_append(bzn, "/a/etc/passwd", passwd)?;
-        illumos::zoneinstall_append(bzn, "/a/etc/shadow", shadow)?;
-
-        illumos::zone_unmount(bzn)?;
-    }
-
-    info!(log, "booting...");
-    illumos::zone_boot(bzn)?;
-    illumos::zone_milestone_wait(log, bzn,
-        "svc:/milestone/multi-user-server:default")?;
-
-    let archive = top_path(&["cache", "userland-archive"])?;
-    let buildscript = format!("#!/bin/bash\n\
-        set -o errexit\n\
-        set -o pipefail\n\
-        set -o xtrace\n\
-        export USERLAND_ARCHIVES='{}/'\n\
-        export COMPONENT_BUILD_ARGS='-j10'\n\
-        cd '{}'\n\
-        /usr/bin/gmake publish\n
-        /usr/bin/gmake sample-manifest\n",
-        archive.to_str().unwrap(),
-        targetdir.to_str().unwrap());
-    let spath = illumos::zone_deposit_script(bzn, &buildscript)?;
-    ensure::run(log, &["pfexec", "zlogin", "-l", "build", bzn, &spath])?;
-
-    info!(log, "ok");
-    Ok(())
-}
-
-fn cmd_zone(ca: &CommandArg) -> Result<()> {
-    let opts = baseopts();
-
-    let usage = || {
-        println!("{}", opts.usage("Usage: helios [OPTIONS] zone [OPTIONS]"));
-    };
-
-    let res = opts.parse(ca.args)?;
-
-    if res.opt_present("help") {
-        usage();
-        return Ok(());
-    }
-
-    // let top = top()?;
-    // println!("helios repository root is: {}", top.display());
-
-    let zones = illumos::zone_list()?;
-    println!("zones: {:#?}", zones);
-    let mut install = false;
-
-    if !zones.exists("helios-template") {
-        /*
-         * Create the template zone!
-         */
-        illumos::zone_create("helios-template", "/zones/helios-template",
-            "nlipkg")?;
-        install = true;
-    } else {
-        let z = zones.by_name("helios-template")?;
-
-        if z.state == "configured" {
-            install = true;
-        }
-    }
-
-    if install {
-        println!("installing zone!");
-        illumos::zone_install("helios-template", &["build-essential"])?;
-    }
-
-    Ok(())
-}
-
-fn cmd_archive(ca: &CommandArg) -> Result<()> {
-    let opts = baseopts();
-
-    let usage = || {
-        println!("{}", opts.usage("Usage: helios [OPTIONS] setup [OPTIONS]"));
-    };
-
-    let res = opts.parse(ca.args)?;
-    if res.opt_present("help") {
-        usage();
-        return Ok(());
-    }
-
-    let datafile = top_path(&["cache", "assets.json"])?;
-    let data: BTreeMap<String, Asset> =
-        serde_json::from_reader(File::open(&datafile)?)?;
-
-    let mut missing = Vec::new();
-
-    for a in data.values() {
-        let p = top_path(&["cache", "userland-archive", &a.file])?;
-
-        if !exists_file(&p)? {
-            missing.push(p);
-        }
-    }
-
-    for m in missing.iter() {
-        println!("MISSING: {}", m.display());
-    }
-
-    let mut d = std::fs::read_dir(&top_path(&["cache", "userland-archive"])?)?;
-    while let Some(ent) = d.next().transpose()? {
-        if ent.file_type().unwrap().is_file() {
-            let name = ent.file_name().into_string().unwrap();
-            if !data.contains_key(&name) {
-                println!("SUPERFLUOUS: {}", name);
+            for t in tokens.iter_mut() {
+                let Some(dword) = t.get_mut("Dword") else {
+                    continue;
+                };
+                let Some(dword) = dword.as_object_mut() else {
+                    continue;
+                };
+                {
+                    let keys = dword.keys().collect::<Vec<_>>();
+                    if keys.len() != 1 {
+                        bail!("too many keys? {:?}", keys);
+                    }
+                    if keys[0] != "MemBusFrequencyLimit" {
+                        continue;
+                    }
+                }
+                dword.insert("MemBusFrequencyLimit".to_string(),
+                    serde_json::Value::String(format!("Ddr{}", ddr_speed)));
             }
         }
     }
 
-    Ok(())
-}
-
-#[derive(Serialize, Deserialize)]
-struct Asset {
-    file: String,
-    url: String,
-    sigurl: Option<String>,
-    hash: Option<String>,
-    src_dir: String,
-}
-
-fn cmd_download_metadata(ca: &CommandArg) -> Result<()> {
-    let mut opts = baseopts();
-
-    opts.reqopt("", "file", "", "");
-    opts.reqopt("", "url", "", "");
-    opts.optopt("", "sigurl", "", "");
-    opts.optopt("", "hash", "", "");
-    opts.reqopt("", "dir", "", "");
-
-    let usage = || {
-        println!("{}", opts.usage("Usage: helios [OPTIONS] setup [OPTIONS]"));
-    };
-
-    let res = opts.parse(ca.args)?;
-    if res.opt_present("help") {
-        usage();
-        return Ok(());
-    }
-
-    let file = res.opt_str("file").unwrap();
-    let url = res.opt_str("url").unwrap();
-    let hash = res.opt_str("hash");
-    let src_dir = res.opt_str("dir").unwrap();
-    let sigurl = res.opt_str("sigurl");
-
-    ensure_dir(&["cache"])?;
-
-    let datafile = top_path(&["cache", "assets.json"])?;
-
-    let mut data: BTreeMap<String, Asset> =
-        if let Ok(f) = File::open(&datafile) {
-            let r = BufReader::new(f);
-            serde_json::from_reader(r)?
-        } else {
-            BTreeMap::new()
-        };
-
-    data.insert(file.clone(), Asset {
-        file,
-        url,
-        sigurl,
-        hash,
-        src_dir,
-    });
-
-    let f = std::fs::OpenOptions::new()
-        .create(true)
-        .truncate(true)
-        .write(true)
-        .open(&datafile)?;
-    let mut w = BufWriter::new(f);
-    serde_json::to_writer_pretty(&mut w, &data)?;
-    w.flush()?;
+    /*
+     * Write the file to the target path as JSON.  Note that we are not using
+     * JSON5 here, but that ostensibly doesn't matter as JSON5 is a superset of
+     * JSON.
+     */
+    let s = serde_json::to_string_pretty(&input)?;
+    std::fs::write(output, &s)?;
 
     Ok(())
-}
-
-#[derive(Debug, Deserialize)]
-struct UserlandMapping {
-    fmri: String,
-    name: String,
-    path: String,
-    repo: Option<String>,
-}
-
-fn read_metadata(log: &Logger, target: &str) -> Result<UserlandMetadata> {
-    let targetdir = top_path(&["projects", "userland", "components",
-        &target])?;
-    ensure::run_utf8(log, &["/usr/bin/gmake", "-s",
-        "-C", targetdir.to_str().unwrap(),
-        "update-metadata"])?;
-    let mut mdf = targetdir.clone();
-    mdf.push("pkg5");
-    let f = File::open(&mdf)?;
-    Ok(serde_json::from_reader(&f)?)
-}
-
-#[derive(Debug, Deserialize)]
-struct PkgRepoList {
-    branch: String,
-    #[serde(rename = "build-release")]
-    build_release: String,
-    name: String,
-    publisher: String,
-    release: String,
-    timestamp: String,
-    version: String,
-    #[serde(rename = "pkg.fmri")]
-    fmri: String,
 }
 
 fn git_commit_count<P: AsRef<Path>>(path: P) -> Result<u32> {
@@ -1261,345 +1531,6 @@ fn git_commit_count<P: AsRef<Path>>(path: P) -> Result<u32> {
 
     let res = String::from_utf8(out.stdout)?;
     Ok(res.trim().parse()?)
-}
-
-fn repo_contains(log: &Logger, fmri: &str) -> Result<bool> {
-    let repodir = top_path(&["projects", "userland", "i386", "repo"])?;
-
-    info!(log, "checking build for {}...", fmri);
-    let out = Command::new("/usr/bin/pkgrepo")
-        .env_clear()
-        .arg("list")
-        .arg("-F")
-        .arg("json-formatted")
-        .arg("-s")
-        .arg(&repodir.to_str().unwrap())
-        .arg(fmri)
-        .output()?;
-
-    if !out.status.success() {
-        let err = String::from_utf8_lossy(&out.stderr);
-        if !err.contains("did not match any packages") {
-            bail!("pkgrepo list failed: {}", out.info());
-        }
-    }
-
-    let pkgs: Vec<PkgRepoList> = serde_json::from_slice(&out.stdout)?;
-
-    if pkgs.is_empty() {
-        info!(log, "found no versions");
-        Ok(false)
-    } else {
-        for pkg in pkgs.iter() {
-            info!(log, "found version {}", pkg.version);
-        }
-        Ok(true)
-    }
-}
-
-fn repo_contents(log: &Logger, fmri: &str) -> Result<Vec<Action>> {
-    let repodir = top_path(&["projects", "userland", "i386", "repo"])?;
-
-    info!(log, "checking contents for {}...", fmri);
-    let out = Command::new("/usr/bin/pkgrepo")
-        .env_clear()
-        .arg("contents")
-        .arg("-m")
-        .arg("-s")
-        .arg(&repodir.to_str().unwrap())
-        .arg(fmri)
-        .output()?;
-
-    if !out.status.success() {
-        bail!("pkgrepo contents failed: {}", out.info());
-    }
-
-    /*
-     * Parse the output manifest lines...
-     */
-    Ok(ips::parse_manifest(&String::from_utf8(out.stdout)?)?)
-}
-
-fn cmd_userland_promote(ca: &CommandArg) -> Result<()> {
-    let opts = baseopts();
-
-    let usage = || {
-        println!("{}", opts.usage("Usage: helios [OPTIONS] \
-            userland-promote [OPTIONS]"));
-    };
-
-    let log = ca.log;
-    let res = opts.parse(ca.args)?;
-
-    if res.opt_present("help") {
-        usage();
-        return Ok(());
-    }
-
-    if !res.free.is_empty() {
-        bail!("unexpected arguments");
-    }
-
-    let top = top()?;
-    println!("helios repository root is: {}", top.display());
-
-    /*
-     * Rebuild the IPS repository:
-     */
-    let repo = top_path(&["projects", "userland", "i386", "repo"])?;
-    ensure::run(log, &["/usr/bin/pkgrepo", "rebuild", "-s",
-        &repo.to_str().unwrap()])?;
-
-    /*
-     * Generate the userland-incorporation:
-     *
-     * XXX It seems like this should really be generated as part of a final
-     * publish of new packages, as it depends on the full repository contents
-     * being available -- but we will really only have the packages we are
-     * rebuilding.
-     */
-    let compdir = top_path(&["projects", "userland", "components"])?;
-    userland_gmake(log, &compdir, "incorporation")?;
-
-    ensure::run(log, &["/usr/bin/pkgrepo", "refresh", "-s",
-        &repo.to_str().unwrap()])?;
-
-    /*
-     * Promote the latest version of each package in the userland dock,
-     * transforming the publisher as we go:
-     */
-    let dock = top_path(&["packages", "repo"])?;
-    let mog_publisher = top_path(&["packages", "publisher.mogrify"])?;
-    ensure::run(log, &[PKGRECV,
-        "-s", &repo.to_str().unwrap(),
-        "-d", &dock.to_str().unwrap(),
-        "--mog-file", &mog_publisher.to_str().unwrap(),
-        "-m", "latest",
-        "-r",
-        "-v",
-        "*"])?;
-
-    ensure::run(log, &["/usr/bin/pkgrepo", "refresh", "-s",
-        &dock.to_str().unwrap()])?;
-
-    Ok(())
-}
-
-#[derive(Serialize, Deserialize)]
-struct MemoQueueEntry {
-    fmri: String,
-    optional: bool,
-}
-
-#[derive(Serialize, Deserialize)]
-struct Memo {
-    seen: BTreeSet<String>,
-    q: VecDeque<MemoQueueEntry>,
-    #[serde(default)]
-    fails: VecDeque<MemoQueueEntry>,
-}
-
-fn memo_load<T>(_log: &Logger, mdf: &str) -> Result<Option<T>>
-    where for<'de> T: Deserialize<'de>,
-{
-    let f = match File::open(&mdf) {
-        Ok(f) => f,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
-        Err(e) => bail!("could not load memo file: {:?}", e),
-    };
-    Ok(serde_json::from_reader(&f)?)
-}
-
-fn memo_store<T>(_log: &Logger, mdf: &str, t: T) -> Result<()>
-    where T: Serialize,
-{
-    let mut f = std::fs::OpenOptions::new()
-        .write(true)
-        .truncate(true)
-        .create(true)
-        .open(&mdf)?;
-    serde_json::to_writer_pretty(&mut f, &t)?;
-    Ok(())
-}
-
-fn cmd_userland_plan(ca: &CommandArg) -> Result<()> {
-    let mut opts = baseopts();
-
-    opts.optopt("m", "", "memo file for build progress", "MEMOFILE");
-    opts.optflag("F", "", "skip failures");
-
-    let usage = || {
-        println!("{}", opts.usage("Usage: helios [OPTIONS] \
-            userland-plan [OPTIONS]"));
-    };
-
-    let log = ca.log;
-    let res = opts.parse(ca.args)?;
-
-    if res.opt_present("help") {
-        usage();
-        return Ok(());
-    }
-
-    let skip_failures = res.opt_present("F");
-
-    let memo: Option<Memo> = if let Some(mf) = res.opt_str("m") {
-        memo_load(log, &mf)?
-    } else {
-        None
-    };
-
-    if res.free.is_empty() {
-        bail!("provide package names");
-    }
-
-    let top = top()?;
-    println!("helios repository root is: {}", top.display());
-
-    /*
-     * Load the FMRI-to-path mapping file:
-     */
-    let mdf = top_path(&["projects", "userland", "components",
-        "mapping.json"])?;
-    ensure::removed(log, &mdf.to_str().unwrap())?;
-    let compdir = top_path(&["projects", "userland", "components"])?;
-    userland_gmake(log, &compdir, "mapping.json")?;
-    let f = File::open(&mdf)?;
-    let um: Vec<UserlandMapping> = serde_json::from_reader(&f)?;
-
-    let mut memo = if let Some(memo) = memo {
-        memo
-    } else {
-        let mut q: VecDeque<MemoQueueEntry> = VecDeque::new();
-
-        for pkg in res.free.iter() {
-            q.push_back(MemoQueueEntry {
-                fmri: pkg.clone(),
-                optional: false
-            });
-        }
-
-        Memo {
-            q,
-            fails: VecDeque::new(),
-            seen: BTreeSet::new(),
-        }
-    };
-
-    loop {
-        if let Some(mf) = res.opt_str("m") {
-            memo_store(log, &mf, &memo)?;
-        }
-
-        let mqe = if let Some(mqe) = memo.q.pop_front() {
-            mqe
-        } else {
-            break;
-        };
-
-        /*
-         * Remove the pkg:/ prefix if present.
-         */
-        let pkg = mqe.fmri.trim_start_matches("pkg:/");
-
-        if memo.seen.contains(pkg) {
-            continue;
-        }
-        memo.seen.insert(pkg.to_string());
-
-        info!(log, "planning: {} (optional? {:?}", pkg, mqe.optional);
-
-        let mats: Vec<_> = um.iter()
-            .filter(|m| &m.fmri == pkg)
-            .filter(|m| m.repo.as_deref()
-                .map(|repo| !repo.contains("encumbered"))
-                .unwrap_or(true))
-            .collect();
-
-        if mats.is_empty() {
-            if mqe.optional {
-                warn!(log, "no match for optional FMRI {} (skipping)", pkg);
-                continue;
-            }
-
-            bail!("no match for FMRI {}", pkg);
-        } else if mats.len() > 1 {
-            bail!("{} matches for FMRI {}: {:?}", mats.len(), pkg, mats);
-        }
-
-        info!(log, "match: {:?}", mats[0]);
-
-        /*
-         * Check for this package in the build repository...
-         * XXX Do not build gate packages this way for now...
-         */
-        if mats[0].name != "illumos-gate" &&
-            !repo_contains(log, &format!("pkg:/{}", pkg))?
-        {
-            let p = &mats[0].path;
-
-            if let Err(e) = build(log, p) {
-                if skip_failures {
-                    error!(log, "building {} in {} failed: {:?}", pkg, p, e);
-                    memo.fails.push_back(mqe);
-                    continue;
-                }
-
-                bail!("building {} in {} failed: {:?}", pkg, p, e);
-            }
-        }
-
-        /*
-         * Get the dependencies for this package and put them in the queue...
-         */
-        let contents = repo_contents(log, &format!("pkg:/{}", pkg))?;
-
-        for a in contents.iter() {
-            match &a {
-                Action::Depend(ad) => {
-                    match ad.type_() {
-                        DependType::Incorporate => {
-                            /*
-                             * Incorporated dependencies constrain versions, but
-                             * do not themselves require installation.
-                             */
-                            continue;
-                        }
-                        DependType::Require
-                            | DependType::RequireAny
-                            | DependType::Group
-                            | DependType::GroupAny
-                            | DependType::Optional
-                            | DependType::Conditional => {}
-                    }
-
-                    for dep in ad.fmris().iter() {
-                        let dep = dep.trim_start_matches("pkg:/");
-                        let dep = if let Some(idx) = dep.find('@') {
-                            &dep[0..idx]
-                        } else {
-                            dep
-                        };
-
-                        if memo.seen.contains(dep) {
-                            continue;
-                        }
-
-                        info!(log, "adding ({:?}): {} -> {}", ad.type_(), pkg,
-                            dep);
-                        let depopt = ad.type_() == DependType::Optional;
-                        memo.q.push_back(MemoQueueEntry {
-                            fmri: dep.to_string(),
-                            optional: depopt
-                        });
-                    }
-                }
-                _ => {}
-            }
-        }
-    }
-
-    Ok(())
 }
 
 fn cmd_setup(ca: &CommandArg) -> Result<()> {
@@ -1637,11 +1568,71 @@ fn cmd_setup(ca: &CommandArg) -> Result<()> {
 
         if exists_dir(&path)? {
             println!("clone {} exists already at {}", url, path.display());
+            if project.auto_update {
+                println!("fetching updates for clone ...");
+                let mut child = if let Some(commit) = &project.commit {
+                    Command::new("git")
+                        .current_dir(&path)
+                        .arg("fetch")
+                        .arg("origin")
+                        .arg(commit)
+                        .spawn()?
+                } else {
+                    Command::new("git")
+                        .current_dir(&path)
+                        .arg("fetch")
+                        .spawn()?
+                };
+
+                let exit = child.wait()?;
+                if !exit.success() {
+                    bail!("fetch in {} failed", path.display());
+                }
+
+                if let Some(commit) = &project.commit {
+                    println!("pinning to commit {}...", commit);
+                    let mut child = Command::new("git")
+                        .current_dir(&path)
+                        .arg("checkout")
+                        .arg(commit)
+                        .spawn()?;
+
+                    let exit = child.wait()?;
+                    if !exit.success() {
+                        bail!("update merge in {} failed", path.display());
+                    }
+                } else {
+                    println!("rolling branch forward...");
+                    let mut child = Command::new("git")
+                        .current_dir(&path)
+                        .arg("merge")
+                        .arg("--ff-only")
+                        .spawn()?;
+
+                    let exit = child.wait()?;
+                    if !exit.success() {
+                        bail!("update merge in {} failed", path.display());
+                    }
+                }
+
+                println!("updating submodules...");
+                let mut child = Command::new("git")
+                    .current_dir(&path)
+                    .arg("submodule")
+                    .arg("update")
+                    .arg("--recursive")
+                    .spawn()?;
+
+                let exit = child.wait()?;
+                if !exit.success() {
+                    bail!("submodule update in {} failed", path.display());
+                }
+            }
         } else {
             println!("cloning {} at {}...", url, path.display());
-
             let mut child = Command::new("git")
                 .arg("clone")
+                .arg("--recurse-submodules")
                 .arg(&url)
                 .arg(&path)
                 .spawn()?;
@@ -1649,6 +1640,46 @@ fn cmd_setup(ca: &CommandArg) -> Result<()> {
             let exit = child.wait()?;
             if !exit.success() {
                 bail!("clone of {} to {} failed", url, path.display());
+            }
+
+            if let Some(commit) = &project.commit {
+                println!("fetching commit {} for clone ...", commit);
+                let mut child = Command::new("git")
+                    .current_dir(&path)
+                    .arg("fetch")
+                    .arg("origin")
+                    .arg(commit)
+                    .spawn()?;
+
+                let exit = child.wait()?;
+                if !exit.success() {
+                    bail!("fetch in {} failed", path.display());
+                }
+
+                println!("pinning to commit {}...", commit);
+                let mut child = Command::new("git")
+                    .current_dir(&path)
+                    .arg("checkout")
+                    .arg(commit)
+                    .spawn()?;
+
+                let exit = child.wait()?;
+                if !exit.success() {
+                    bail!("update merge in {} failed", path.display());
+                }
+
+                println!("updating submodules...");
+                let mut child = Command::new("git")
+                    .current_dir(&path)
+                    .arg("submodule")
+                    .arg("update")
+                    .arg("--recursive")
+                    .spawn()?;
+
+                let exit = child.wait()?;
+                if !exit.success() {
+                    bail!("submodule update in {} failed", path.display());
+                }
             }
 
             println!("clone ok!");
@@ -1688,21 +1719,7 @@ fn cmd_setup(ca: &CommandArg) -> Result<()> {
         create_ips_repo(log, &repo_path, &publisher, false)?;
     }
 
-    /*
-     * Create the pkgmogrify template that we need to replace the pkg(5)
-     * publisher name when promoting packages from a build repository to the
-     * central repository.
-     */
-    let mog = format!("<transform set name=pkg.fmri -> \
-        edit value pkg://[^/]+/ pkg://{}/>\n", publisher);
-    let mogpath = top_path(&["packages", "publisher.mogrify"])?;
-    ensure::file_str(log, &mog, &mogpath, 0o644, ensure::Create::Always)?;
-
-    let mog = format!("<transform depend fmri=.*-151035.0$ -> \
-        edit fmri 151035.0$ {}.{}>\n", RELVER, DASHREV);
-    let mogpath = top_path(&["packages", "osver.mogrify"])?;
-    ensure::file_str(log, &mog, &mogpath, 0o644, ensure::Create::Always)?;
-
+    regen_publisher_mog(log, NO_PATH, publisher)?;
     for mog in &["os-conflicts", "os-deps"] {
         let mogpath = top_path(&["packages", &format!("{}.mogrify", mog)])?;
         ensure::symlink(log, &mogpath,
@@ -1713,16 +1730,23 @@ fn cmd_setup(ca: &CommandArg) -> Result<()> {
     regen_illumos_sh(log, &gate, BuildType::Full)?;
     regen_illumos_sh(log, &gate, BuildType::QuickDebug)?;
     regen_illumos_sh(log, &gate, BuildType::Quick)?;
+    regen_illumos_sh(log, &gate, BuildType::Release)?;
 
     /*
-     * Perform setup in userland repository.
+     * Perform setup in project repositories that require it.
      */
-    // let userland_path = top_path(&["projects", "userland"])?;
-    // if exists_dir(&userland_path)? {
-    //     let p = userland_path.to_str().unwrap(); /* XXX */
-
-    //     ensure::run(log, &["/usr/bin/gmake", "-C", &p, "setup"])?;
-    // }
+    for (name, project) in p.project.iter().filter(|p| p.1.cargo_build) {
+        let path = top_path(&["projects", &name])?;
+        info!(log, "building project {:?} at {}", name, path.display());
+        let start = Instant::now();
+        let mut args = vec!["cargo", "build", "--locked"];
+        if !project.use_debug {
+            args.push("--release");
+        }
+        ensure::run_in(log, &path, &args)?;
+        let delta = Instant::now().saturating_duration_since(start).as_secs();
+        info!(log, "building project {:?} ok ({} seconds)", name, delta);
+    }
 
     Ok(())
 }
@@ -1750,13 +1774,6 @@ fn main() -> Result<()> {
         desc: "clone required repositories and run setup tasks".into(),
         func: cmd_setup,
         hide: false,
-        blank: false,
-    });
-    handlers.push(CommandInfo {
-        name: "zone".into(),
-        desc: "zone".into(),
-        func: cmd_zone,
-        hide: true,
         blank: false,
     });
     handlers.push(CommandInfo {
@@ -1790,16 +1807,9 @@ fn main() -> Result<()> {
     handlers.push(CommandInfo {
         name: "merge-illumos".into(),
         desc: "merge DEBUG and non-DEBUG packages into one repository".into(),
-        func: cmd_promote_illumos,
+        func: cmd_merge_illumos,
         hide: false,
         blank: false,
-    });
-    handlers.push(CommandInfo {
-        name: "build".into(),
-        desc: "build".into(),
-        func: cmd_build,
-        hide: true,
-        blank: true,
     });
     handlers.push(CommandInfo {
         name: "build-omnios".into(),
@@ -1809,31 +1819,10 @@ fn main() -> Result<()> {
         blank: false,
     });
     handlers.push(CommandInfo {
-        name: "download_metadata".into(),
-        desc: "download_metadata".into(),
-        func: cmd_download_metadata,
-        hide: true,
-        blank: false,
-    });
-    handlers.push(CommandInfo {
-        name: "archive".into(),
-        desc: "archive".into(),
-        func: cmd_archive,
-        hide: true,
-        blank: false,
-    });
-    handlers.push(CommandInfo {
-        name: "userland-plan".into(),
-        desc: "userland-plan".into(),
-        func: cmd_userland_plan,
-        hide: true,
-        blank: false,
-    });
-    handlers.push(CommandInfo {
-        name: "userland-promote".into(),
-        desc: "userland-promote".into(),
-        func: cmd_userland_promote,
-        hide: true,
+        name: "experiment-image".into(),
+        desc: "experimental image construction for Gimlets".into(),
+        func: cmd_image,
+        hide: false,
         blank: false,
     });
 
