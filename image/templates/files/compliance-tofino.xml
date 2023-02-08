@@ -20,7 +20,7 @@
   </dependency>
 
   <exec_method type='method' name='start'
-    exec='/usr/lib/compliance-tofino' timeout_seconds='3600' />
+    exec='/usr/bin/pilot dendrite create -w' timeout_seconds='3600' />
 
   <exec_method type='method' name='stop' exec=':true' timeout_seconds='30' />
 
