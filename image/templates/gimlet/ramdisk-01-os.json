@@ -54,6 +54,7 @@
             "/system/extended-system-utilities",
             "/web/curl",
             "/text/less",
+            "/system/watch",
             "/editor/vim",
             "/terminal/resize",
             "/system/data/urxvt-terminfo",
@@ -68,6 +69,7 @@
             "/system/gpio",
             "/system/bhyve",
             "/system/library/bhyve",
+            "/service/network/chrony",
 
             "/network/openssh-server"
         ] },

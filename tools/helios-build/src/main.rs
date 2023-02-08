@@ -1040,7 +1040,7 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
     opts.optmulti("F", "", "pass extra image builder features", "KEY[=VAL]");
     opts.optflag("B", "", "include omicron1 brand");
     opts.optopt("C", "", "compliance dock location", "DOCK");
-    opts.optflag("X", "", "no tofino?");
+    opts.optmulti("X", "", "skip this phase", "PHASE");
     opts.optflag("", "ddr-testing", "build ROMs for other DDR frequencies");
     opts.optopt("p", "", "use an external package repository", "PUBLISHER=URL");
 
@@ -1063,6 +1063,7 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
         ("on-nightly".to_string(), None)
     };
     let ddr_testing = res.opt_present("ddr-testing");
+    let skips = res.opt_strs("X");
 
     if res.opt_present("help") {
         usage();
@@ -1179,9 +1180,6 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
         if let Some(cdock) = &cdock {
             cmd.arg("-F").arg("compliance");
             cmd.arg("-F").arg("stlouis");
-            if !res.opt_present("X") {
-                cmd.arg("-F").arg("tofino");
-            }
             cmd.arg("-F").arg("stress");
             cmd.arg("-E").arg(&cdock);
         }
@@ -1205,32 +1203,36 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
         cmd
     };
 
-    info!(log, "image builder template: ramdisk-01-os...");
-    let mut cmd = basecmd();
-    cmd.arg("-n").arg("ramdisk-01-os");
-    cmd.arg("--fullreset");
-    ensure::run2(log, &mut cmd)?;
-
     let root = format!("{}/work/gimlet/ramdisk", mp);
-    if brand {
-        /*
-         * After we install packages but before we remove unwanted files from
-         * the image (which includes the packaging metadata), we need to
-         * generate the baseline archive the omicron1 zone brand uses to
-         * populate /etc files.
-         */
-        info!(log, "omicron1 baseline generation...");
+    if !skips.iter().any(|s| s == "install") {
+        info!(log, "image builder template: ramdisk-01-os...");
+        let mut cmd = basecmd();
+        cmd.arg("-n").arg("ramdisk-01-os");
+        cmd.arg("--fullreset");
+        ensure::run2(log, &mut cmd)?;
 
-        ensure::run(log, &[baseline,
-            "-R", &root,
-            &brand_extras.to_str().unwrap()
-        ])?;
+        if brand {
+            /*
+             * After we install packages but before we remove unwanted files
+             * from the image (which includes the packaging metadata), we need
+             * to generate the baseline archive the omicron1 zone brand uses to
+             * populate /etc files.
+             */
+            info!(log, "omicron1 baseline generation...");
+
+            ensure::run(log, &[baseline,
+                "-R", &root,
+                &brand_extras.to_str().unwrap()
+            ])?;
+        }
+
+        info!(log, "image builder template: ramdisk-02-trim...");
+        let mut cmd = basecmd();
+        cmd.arg("-n").arg("ramdisk-02-trim");
+        ensure::run2(log, &mut cmd)?;
+    } else {
+        info!(log, "skipping installation phase, using existing archive");
     }
-
-    info!(log, "image builder template: ramdisk-02-trim...");
-    let mut cmd = basecmd();
-    cmd.arg("-n").arg("ramdisk-02-trim");
-    ensure::run2(log, &mut cmd)?;
 
     let tname = if cdock.is_some() { "zfs-compliance" } else { "zfs" };
     info!(log, "image builder template: {}...", tname);

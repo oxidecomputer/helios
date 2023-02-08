@@ -32,8 +32,8 @@
             "src": "default_init",
             "owner": "root", "group": "root", "mode": "644" },
 
-        { "t": "ensure_file", "file": "/etc/inet/ntp.conf",
-            "src": "ntp.conf",
+        { "t": "ensure_file", "file": "/etc/inet/chrony.conf",
+            "src": "chrony.conf",
             "owner": "root", "group": "root", "mode": "644" },
 
         { "t": "ensure_file", "file": "/etc/ssh/sshd_config",
@@ -72,9 +72,10 @@
             "owner": "root", "group": "bin", "mode": "0644" },
 
         { "t": "ensure_file",
-            "file": "/usr/lib/compliance-tofino",
-            "src": "compliance-tofino.sh",
-            "owner": "root", "group": "bin", "mode": "0755" },
+            "file": "/lib/svc/manifest/site/compliance-time.xml",
+            "src": "compliance-time.xml",
+            "owner": "root", "group": "bin", "mode": "0644" },
+
         { "t": "ensure_file",
             "file": "/lib/svc/manifest/site/compliance-tofino.xml",
             "src": "compliance-tofino.xml",
@@ -91,7 +92,7 @@
 
         { "t": "ensure_file",
             "file": "/var/svc/profile/site.xml",
-            "src": "site.xml",
+            "src": "site-compliance.xml",
             "owner": "root", "group": "root", "mode": "644" },
 
         { "t": "ensure_file", "with": "stress",
