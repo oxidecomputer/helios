@@ -44,6 +44,20 @@
             "src": "bootparams.sh",
             "owner": "root", "group": "bin", "mode": "0755" },
 
+        { "t": "ensure_dir", "with": "stlouis",
+            "dir": "/platform/Oxide,Gimlet/firmware",
+            "owner": "root", "group": "sys", "mode": "0755" },
+
+        { "t": "ensure_file", "with": "stlouis",
+            "file": "/platform/Oxide,Gimlet/firmware/Oxide_t6_2x100Gbase_kr_nomemory_v8C_6_26_10.bin",
+            "extsrc": "chelsio-t6-roms/srom/bins/Oxide_t6_2x100Gbase_kr_nomemory_v8C_6_26_10.bin",
+            "owner": "root", "group": "sys", "mode": "0555" },
+
+        { "t": "ensure_symlink", "with": "stlouis",
+            "link": "/platform/Oxide,Gimlet/firmware/t6srom.bin",
+            "target": "Oxide_t6_2x100Gbase_kr_nomemory_v8C_6_26_10.bin",
+            "owner": "root", "group": "root" },
+
         { "t": "ensure_file", "without": "mfg",
             "file": "/usr/lib/postboot",
             "src": "gimlet-postboot.sh",
@@ -51,15 +65,6 @@
         { "t": "ensure_file", "without": "mfg",
             "file": "/lib/svc/manifest/site/postboot.xml",
             "src": "gimlet-postboot.xml",
-            "owner": "root", "group": "bin", "mode": "0644" },
-
-        { "t": "ensure_file", "with": "stlouis",
-            "file": "/lib/svc/method/mission-t6",
-            "extsrc": "lib/svc/method/mission-t6",
-            "owner": "root", "group": "bin", "mode": "0755" },
-        { "t": "ensure_file", "with": "stlouis",
-            "file": "/lib/svc/manifest/system/mission-t6.xml",
-            "extsrc": "lib/svc/manifest/system/mission-t6.xml",
             "owner": "root", "group": "bin", "mode": "0644" },
 
         { "t": "ensure_file",
