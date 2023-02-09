@@ -14,7 +14,7 @@
     "steps": [
         { "t": "create_be" },
 
-        { "t": "unpack_tar", "name": "gimlet-ramdisk.tar.gz" },
+        { "t": "unpack_tar", "name": "gimlet-ramdisk.tar" },
 
         { "t": "include", "name": "devfs" },
 
