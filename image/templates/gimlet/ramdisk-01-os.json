@@ -71,6 +71,10 @@
             "/system/library/bhyve",
             "/service/network/chrony",
 
+            "/driver/misc/tofino",
+            "/library/expat",
+            "/system/library/pcap",
+
             "/network/openssh-server"
         ] },
 
@@ -86,12 +90,6 @@
 
         { "t": "pkg_install", "with": "optever", "pkgs": [
             "/driver/network/opte@${optever}"
-        ] },
-
-        { "t": "pkg_install", "with": "tofino", "pkgs": [
-            "/driver/misc/tofino",
-            "/library/expat",
-            "/system/library/pcap"
         ] },
 
         { "t": "pkg_install", "with": "mfg", "pkgs": [
