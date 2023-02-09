@@ -95,11 +95,7 @@
             "src": "xde.conf",
             "owner": "root", "group": "sys", "mode": "0644" },
 
-        { "t": "shadow", "username": "root", "password": "" },
-        { "t": "ensure_file",
-            "file": "/etc/default/login",
-            "src": "mfg_default_login",
-            "owner": "root", "group": "sys", "mode": "0644" },
+        { "t": "include", "name": "root-noauth" },
 
         { "t": "ensure_dir",
             "dir": "/usr/share/compliance",

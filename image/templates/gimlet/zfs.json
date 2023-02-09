@@ -63,10 +63,8 @@
             "src": "xde.conf",
             "owner": "root", "group": "sys", "mode": "0644" },
 
-        { "t": "ensure_file", "with": "mfg",
-            "file": "/etc/default/login",
-            "src": "mfg_default_login",
-            "owner": "root", "group": "sys", "mode": "0644" },
+        { "t": "include", "name": "root-noauth" },
+
         { "t": "ensure_file", "with": "mfg",
             "file": "/lib/svc/method/mfg",
             "src": "mfg.sh",
