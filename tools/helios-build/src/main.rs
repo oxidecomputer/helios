@@ -1037,6 +1037,7 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
     opts.optflag("d", "", "use DEBUG packages");
     opts.optopt("g", "", "use an external gate directory", "DIR");
     opts.optopt("s", "", "tempdir name suffix", "SUFFIX");
+    opts.optopt("o", "", "output directory for image", "DIR");
     opts.optmulti("F", "", "pass extra image builder features", "KEY[=VAL]");
     opts.optflag("B", "", "include omicron1 brand");
     opts.optopt("C", "", "compliance dock location", "DOCK");
@@ -1249,7 +1250,17 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
      * Store built image artefacts together.  Ensure the output directory is
      * empty to begin with.
      */
-    let outdir = top_path(&["image", "output"])?;
+    let outdir = if let Some(dir) = res.opt_str("o") {
+        /*
+         * If the user provides an output directory path, use it uncritically:
+         */
+        PathBuf::from(dir)
+    } else {
+        /*
+         * Otherwise, make one relative to the repository:
+         */
+        top_path(&["image", "output"])?
+    };
     if exists_dir(&outdir)? {
         std::fs::remove_dir_all(&outdir)?;
     }
