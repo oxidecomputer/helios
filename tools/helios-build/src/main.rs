@@ -1181,7 +1181,6 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
         cmd.arg("-T").arg(&templates);
         if let Some(cdock) = &cdock {
             cmd.arg("-F").arg("compliance");
-            cmd.arg("-F").arg("stlouis");
             cmd.arg("-F").arg("stress");
             cmd.arg("-E").arg(&cdock);
         }

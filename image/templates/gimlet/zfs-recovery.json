@@ -44,6 +44,8 @@
             "src": "bootparams.sh",
             "owner": "root", "group": "bin", "mode": "0755" },
 
+        { "t": "include", "name": "t6-firmware" },
+
         { "t": "ensure_file",
             "file": "/usr/lib/compliance-hostname",
             "src": "compliance-hostname.sh",
@@ -52,11 +54,6 @@
             "file": "/lib/svc/manifest/site/compliance-hostname.xml",
             "src": "compliance-hostname.xml",
             "owner": "root", "group": "bin", "mode": "0644" },
-
-        { "t": "ensure_file", "with": "stlouis",
-            "file": "/lib/svc/method/mission-t6",
-            "extsrc": "lib/svc/method/mission-t6",
-            "owner": "root", "group": "bin", "mode": "0755" },
 
         { "t": "ensure_file",
             "file": "/var/svc/profile/site.xml",
@@ -85,18 +82,6 @@
             "file": "/usr/share/compliance/pilot.toml",
             "extsrc": "pilot/${pilot_profile}.toml",
             "owner": "root", "group": "bin", "mode": "0644" },
-
-        { "t": "ensure_dir",
-            "dir": "/usr/share/chelsio",
-            "owner": "root", "group": "sys", "mode": "0755" },
-        { "t": "ensure_file",
-            "file": "/usr/share/chelsio/srom.bin",
-            "extsrc": "chelsio-t6-roms/srom/bins/Oxide_t6_2x100Gbase_kr_nomemory_v8C_6_26_10.bin",
-            "owner": "root", "group": "sys", "mode": "0644" },
-        { "t": "ensure_file",
-            "file": "/usr/share/chelsio/firmware.bin",
-            "extsrc": "chelsio-t6-roms/fw/t6fw-1.26.6.0.bin",
-            "owner": "root", "group": "sys", "mode": "0644" },
 
         { "t": "seed_smf", "apply_site": true }
     ]

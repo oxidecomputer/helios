@@ -44,6 +44,8 @@
             "src": "bootparams.sh",
             "owner": "root", "group": "bin", "mode": "0755" },
 
+        { "t": "include", "name": "t6-firmware" },
+
         { "t": "ensure_file",
             "file": "/usr/lib/postboot",
             "src": "compliance-postboot.sh",
@@ -79,15 +81,6 @@
         { "t": "ensure_file",
             "file": "/lib/svc/manifest/site/compliance-tofino.xml",
             "src": "compliance-tofino.xml",
-            "owner": "root", "group": "bin", "mode": "0644" },
-
-        { "t": "ensure_file", "with": "stlouis",
-            "file": "/lib/svc/method/mission-t6",
-            "extsrc": "lib/svc/method/mission-t6",
-            "owner": "root", "group": "bin", "mode": "0755" },
-        { "t": "ensure_file", "with": "stlouis",
-            "file": "/lib/svc/manifest/system/mission-t6.xml",
-            "extsrc": "lib/svc/manifest/system/mission-t6.xml",
             "owner": "root", "group": "bin", "mode": "0644" },
 
         { "t": "ensure_file",

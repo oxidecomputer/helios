@@ -1,0 +1,17 @@
+{
+    "steps": [
+        { "t": "ensure_dir",
+            "dir": "/platform/Oxide,Gimlet/firmware",
+            "owner": "root", "group": "sys", "mode": "0755" },
+
+        { "t": "ensure_file",
+            "file": "/platform/Oxide,Gimlet/firmware/Oxide_t6_2x100Gbase_kr_nomemory_v8C_6_26_10.bin",
+            "extsrc": "chelsio-t6-roms/srom/bins/Oxide_t6_2x100Gbase_kr_nomemory_v8C_6_26_10.bin",
+            "owner": "root", "group": "sys", "mode": "0555" },
+
+        { "t": "ensure_symlink",
+            "link": "/platform/Oxide,Gimlet/firmware/t6srom.bin",
+            "target": "Oxide_t6_2x100Gbase_kr_nomemory_v8C_6_26_10.bin",
+            "owner": "root", "group": "root" }
+    ]
+}
