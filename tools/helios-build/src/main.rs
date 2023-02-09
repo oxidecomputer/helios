@@ -1040,6 +1040,7 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
     opts.optmulti("F", "", "pass extra image builder features", "KEY[=VAL]");
     opts.optflag("B", "", "include omicron1 brand");
     opts.optopt("C", "", "compliance dock location", "DOCK");
+    opts.optflag("R", "", "recovery image");
     opts.optmulti("X", "", "skip this phase", "PHASE");
     opts.optflag("", "ddr-testing", "build ROMs for other DDR frequencies");
     opts.optopt("p", "", "use an external package repository", "PUBLISHER=URL");
@@ -1064,6 +1065,7 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
     };
     let ddr_testing = res.opt_present("ddr-testing");
     let skips = res.opt_strs("X");
+    let recovery = res.opt_present("R");
 
     if res.opt_present("help") {
         usage();
@@ -1234,7 +1236,9 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
         info!(log, "skipping installation phase, using existing archive");
     }
 
-    let tname = if cdock.is_some() { "zfs-compliance" } else { "zfs" };
+    let tname = if recovery { "zfs-recovery" }
+        else if cdock.is_some() { "zfs-compliance" }
+        else { "zfs" };
     info!(log, "image builder template: {}...", tname);
     let mut cmd = basecmd();
     cmd.arg("-n").arg(tname);
@@ -1281,12 +1285,15 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
         4 * 1024
     };
     info!(log, "creating Oxide boot image...");
-    ensure::run(log, &[mkimage.as_str(),
-        "-i", &raw,
-        "-o", zfsimg.to_str().unwrap(),
-        "-O", csumfile.to_str().unwrap(),
-        "-s", &target_size.to_string(),
-    ])?;
+    let mut cmd = Command::new(&mkimage);
+    cmd.arg("-i").arg(&raw);
+    cmd.arg("-o").arg(zfsimg.to_str().unwrap());
+    cmd.arg("-O").arg(csumfile.to_str().unwrap());
+    cmd.arg("-s").arg(&target_size.to_string());
+    if recovery {
+        cmd.arg("-z");
+    }
+    ensure::run2(log, &mut cmd)?;
 
     /*
      * Create the boot archive (CPIO) with the kernel and modules that we need
