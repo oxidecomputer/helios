@@ -81,15 +81,6 @@
             "src": "compliance-tofino.xml",
             "owner": "root", "group": "bin", "mode": "0644" },
 
-        { "t": "ensure_file", "with": "stlouis",
-            "file": "/lib/svc/method/mission-t6",
-            "extsrc": "lib/svc/method/mission-t6",
-            "owner": "root", "group": "bin", "mode": "0755" },
-        { "t": "ensure_file", "with": "stlouis",
-            "file": "/lib/svc/manifest/system/mission-t6.xml",
-            "extsrc": "lib/svc/manifest/system/mission-t6.xml",
-            "owner": "root", "group": "bin", "mode": "0644" },
-
         { "t": "ensure_file",
             "file": "/var/svc/profile/site.xml",
             "src": "site-compliance.xml",
