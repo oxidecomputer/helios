@@ -38,3 +38,4 @@ regex = "1.4"
 #
 openssl = { version = "0.10", optional = true }
 json5 = "0.4.1"
+time = { version = "0.3", feature = ["formatting"] }

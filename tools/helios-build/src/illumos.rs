@@ -238,6 +238,15 @@ impl Group {
     }
 }
 
+pub fn get_username() -> Result<Option<String>> {
+    let uid = unsafe { libc::getuid() };
+    if let Some(pw) = get_passwd_by_id(uid)? {
+        Ok(pw.name)
+    } else {
+        Ok(None)
+    }
+}
+
 pub fn get_passwd_by_id(uid: u32) -> Result<Option<Passwd>> {
     clear_errno();
     let p = unsafe { libc::getpwuid(uid) };
