@@ -8,9 +8,10 @@ use std::process::Command;
 use std::os::unix::process::CommandExt;
 use std::io::{BufReader, Read};
 use std::fs::File;
-use std::time::Instant;
+use std::time::{Instant,SystemTime};
 use slog::Logger;
 use std::path::Path;
+use time::{format_description, OffsetDateTime};
 use walkdir::{WalkDir, DirEntry};
 use regex::Regex;
 
@@ -25,6 +26,9 @@ const PKGDEPOTD: &str = "/usr/lib/pkg.depotd";
 
 const RELVER: u32 = 1;
 const DASHREV: u32 = 0;
+
+const DATE_FORMAT_STR: &'static str =
+    "[year]-[month]-[day] [hour]:[minute]:[second]";
 
 fn baseopts() -> getopts::Options {
     let mut opts = getopts::Options::new();
@@ -1041,6 +1045,7 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
     opts.optmulti("F", "", "pass extra image builder features", "KEY[=VAL]");
     opts.optflag("B", "", "include omicron1 brand");
     opts.optopt("C", "", "compliance dock location", "DOCK");
+    opts.optopt("N", "name", "image name", "NAME");
     opts.optflag("R", "", "recovery image");
     opts.optmulti("X", "", "skip this phase", "PHASE");
     opts.optflag("", "ddr-testing", "build ROMs for other DDR frequencies");
@@ -1067,6 +1072,15 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
     let ddr_testing = res.opt_present("ddr-testing");
     let skips = res.opt_strs("X");
     let recovery = res.opt_present("R");
+
+    let user = illumos::get_username()?.unwrap_or("unknown".to_string());
+
+    let image_name = res.opt_str("N").unwrap_or_else(|| {
+        let now: OffsetDateTime = SystemTime::now().into();
+        let dt_fmt = format_description::parse(DATE_FORMAT_STR).unwrap();
+        format!("{}@{}: {}", user, illumos::nodename(),
+            now.format(&dt_fmt).unwrap())
+    });
 
     if res.opt_present("help") {
         usage();
@@ -1297,6 +1311,7 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
     info!(log, "creating Oxide boot image...");
     let mut cmd = Command::new(&mkimage);
     cmd.arg("-i").arg(&raw);
+    cmd.arg("-N").arg(&image_name);
     cmd.arg("-o").arg(zfsimg.to_str().unwrap());
     cmd.arg("-O").arg(csumfile.to_str().unwrap());
     cmd.arg("-s").arg(&target_size.to_string());
