@@ -13,12 +13,6 @@
     <service_fmri value='svc:/milestone/multi-user-server' />
   </dependency>
 
-  <!-- ... and make sure we run after the T6 has been configured. -->
-  <dependency name='t6init' grouping='require_all' restart_on='none'
-    type='service'>
-    <service_fmri value='svc:/system/t6init' />
-  </dependency>
-
   <exec_method type='method' name='start'
     exec='/usr/bin/pilot dendrite create -w' timeout_seconds='3600' />
 

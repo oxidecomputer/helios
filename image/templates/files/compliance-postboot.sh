@@ -18,6 +18,31 @@ if (( ${#nics[@]} == 0 )); then
 	exit 1
 fi
 
+#
+# First, ensure any Chelsio NICs are configured to allow for jumbo frames.
+#
+for (( i = 0; i < ${#nics[@]}; i++ )); do
+	nic=${nics[$i]}
+
+	if [[ $nic != cxgbe* ]]; then
+		continue
+	fi
+
+	if ! mtu=$(dladm show-linkprop -o value -c -p mtu "$nic"); then
+		printf 'WARNING: could not get MTU for %s?\n' "$nic" >&2
+		continue
+	fi
+
+	want=9000
+	if [[ $mtu == $want ]]; then
+		continue
+	fi
+
+	if ! dladm set-linkprop -p "mtu=$want" "$nic"; then
+		printf 'WARNING: could not set MTU for %s?\n' "$nic" >&2
+	fi
+done
+
 fail=no
 for (( i = 0; i < ${#nics[@]}; i++ )); do
 	nic=${nics[$i]}
