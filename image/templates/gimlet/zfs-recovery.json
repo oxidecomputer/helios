@@ -27,6 +27,9 @@
         { "t": "ensure_file", "file": "/etc/ttydefs",
             "src": "ttydefs.${baud}",
             "owner": "root", "group": "sys", "mode": "644" },
+        { "t": "ensure_file", "file": "/etc/iu.ap",
+            "src": "iu.ap",
+            "owner": "root", "group": "sys", "mode": "644" },
 
         { "t": "ensure_file", "file": "/etc/default/init",
             "src": "default_init",
