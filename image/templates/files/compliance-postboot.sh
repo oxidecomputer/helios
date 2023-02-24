@@ -53,8 +53,8 @@ for (( i = 0; i < ${#nics[@]}; i++ )); do
 			continue
 		fi
 	fi
-	if ! ipadm show-addr "$nic/v6" >/dev/null 2>&1; then
-		if ! ipadm create-addr -T addrconf -t "$nic/v6" >&2; then
+	if ! ipadm show-addr "$nic/ll" >/dev/null 2>&1; then
+		if ! ipadm create-addr -T addrconf -t "$nic/ll" >&2; then
 			fail=yes
 			continue
 		fi
