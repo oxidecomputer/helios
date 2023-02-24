@@ -15,6 +15,9 @@
         { "t": "pkg_set_publisher",
             "publisher": "helios-dev",
             "uri": "https://pkg.oxide.computer/helios-dev/" },
+        { "t": "pkg_set_publisher", "with": "repo_redist",
+            "publisher": "helios-netdev",
+            "uri": "https://pkg.oxide.computer/helios-netdev/" },
 
         { "t": "pkg_change_variant", "variant": "opensolaris.zone",
             "value": "global" },
