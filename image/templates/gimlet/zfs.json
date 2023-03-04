@@ -77,6 +77,19 @@
             "src": "mfg.xml",
             "owner": "root", "group": "sys", "mode": "0644" },
 
+        { "t": "ensure_dir",
+            "dir": "/opt/oxide/sled-agent",
+            "extsrc": "sled-agent",
+            "owner": "root", "group": "sys", "mode": "0644" },
+        { "t": "ensure_dir",
+            "dir": "/opt/oxide/mg-ddm",
+            "extsrc": "mg-ddm",
+            "owner": "root", "group": "sys", "mode": "0644" },
+        { "t": "ensure_file", "with": "mfg",
+            "file": "/lib/svc/manifest/site/sled-agent.xml",
+            "extsrc": "sled-agent/pkg/manifest.xml",
+            "owner": "root", "group": "sys", "mode": "0644" },
+
         { "t": "include", "name": "smf-reduce" },
         { "t": "seed_smf", "apply_site": true, "skip_seed": true }
     ]
