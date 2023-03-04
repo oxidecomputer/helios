@@ -1633,7 +1633,7 @@ fn git_commit_count<P: AsRef<Path>>(path: P) -> Result<u32> {
     Ok(res.trim().parse()?)
 }
 
-// Calculates the SHA256 digest of a single file file.
+// Calculates the SHA256 digest of a single file.
 fn get_sha256_digest<P: AsRef<Path>>(path: P) -> Result<Vec<u8>> {
     let mut reader = std::io::BufReader::new(
         std::fs::File::open(&path)?
