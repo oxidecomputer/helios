@@ -1410,7 +1410,6 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
      * packages, plus other packages from the upstream helios-dev repository.
      */
     let templates = top_path(&["image", "templates"])?;
-    let omicron = top_path(&["tmp", "omicron", "global-zone-packages"])?;
     let brand_extras = rel_path(Some(&tempdir), &["omicron1"])?;
     let projects_extras = top_path(&["projects"])?;
     std::fs::create_dir_all(&brand_extras)?;
@@ -1431,7 +1430,6 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
             cmd.arg("-F").arg("stress");
             cmd.arg("-E").arg(&cdock);
         }
-        cmd.arg("-E").arg(&omicron);
         cmd.arg("-E").arg(&brand_extras);
         cmd.arg("-E").arg(&projects_extras);
         cmd.arg("-F").arg(format!("repo_publisher={}", publisher));

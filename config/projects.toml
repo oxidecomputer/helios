@@ -10,7 +10,7 @@ github = "oxidecomputer/omicron"
 commit = "508bbd8a0ec6461300bc625289c00d4b6c77f97f"
 [[project.omicron.prebuilts]]
 name = "global-zone-packages.tar.gz"
-sha2 = "492360eef1cb52f07a3e4134dd3effb60f71c3cfe6144c393e3bcfb94f7225bd"
+sha2 = "7f7e0ad1e6f20a7a5743ce5245abb8abf60e41bf483ac730382f7a5053275209"
 unpack = true
 
 [project.omnios-build]
