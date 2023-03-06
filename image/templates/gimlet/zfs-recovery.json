@@ -63,24 +63,22 @@
             "src": "site-compliance.xml",
             "owner": "root", "group": "root", "mode": "644" },
 
-        { "t": "ensure_file", "with": "opte",
-            "file": "/kernel/drv/xde.conf",
-            "src": "xde.conf",
-            "owner": "root", "group": "sys", "mode": "0644" },
-
         { "t": "include", "name": "root-noauth" },
 
-        { "t": "ensure_dir",
+        { "t": "ensure_dir", "with": "compliance",
             "dir": "/usr/share/compliance",
             "owner": "root", "group": "sys", "mode": "0755" },
-        { "t": "ensure_file",
+        { "t": "ensure_file", "with": "compliance",
             "file": "/usr/bin/pilot",
             "extsrc": "pilot/pilot",
             "owner": "root", "group": "bin", "mode": "0755" },
-        { "t": "ensure_file",
+        { "t": "ensure_file", "with": "compliance",
             "file": "/usr/share/compliance/pilot.toml",
             "extsrc": "pilot/${pilot_profile}.toml",
             "owner": "root", "group": "bin", "mode": "0644" },
+
+        { "t": "include", "with": "genproto",
+            "name": "genproto", "file": "${genproto}" },
 
         { "t": "seed_smf", "apply_site": true }
     ]

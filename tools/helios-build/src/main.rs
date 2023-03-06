@@ -5,9 +5,10 @@ use anyhow::{Result, Context, anyhow, bail};
 use serde::Deserialize;
 use sha2::Digest;
 use std::collections::HashMap;
+use std::os::unix::fs::PermissionsExt;
 use std::process::Command;
 use std::os::unix::process::CommandExt;
-use std::io::{BufReader, Read};
+use std::io::{BufReader, Read, Write};
 use std::fs::File;
 use std::time::{Instant,SystemTime};
 use slog::Logger;
@@ -1107,10 +1108,6 @@ fn cmd_build_omnios(ca: &CommandArg) -> Result<()> {
         return Ok(());
     }
 
-    // if res.free.is_empty() {
-    //     bail!("which package should I build?");
-    // }
-
     let dir = top_path(&["projects", "omnios-build", "build"])?;
 
     let mut pkgs = extract_pkgs(log, &dir)?;
@@ -1136,6 +1133,106 @@ fn cargo_target_cmd(project: &str, command: &str, debug: bool)
     Ok(bin.to_str().unwrap().to_string())
 }
 
+/*
+ * If we have been provided an extra proto directory, we want to include all of
+ * the files and directories and symbolic links that have been assembled in that
+ * proto area in the final image.  The image-builder tool cannot do this
+ * natively because there is no way to know what metadata to use for the files
+ * without some kind of explicit manifest provided as input to ensure_*
+ * directives.
+ *
+ * For our purposes here, it seems sufficient to use the mode bits as-is and
+ * just request that root own the files in the resultant image.  We generate a
+ * partial template by walking the proto area, for inclusion when the "genproto"
+ * feature is also enabled in our main template.
+ */
+fn genproto(proto: &Path, output_template: &Path) -> Result<()> {
+    let rootdir = PathBuf::from("/");
+    let mut steps: Vec<serde_json::Value> = Default::default();
+
+    for ent in WalkDir::new(proto).min_depth(1).into_iter() {
+        let ent = ent?;
+
+        let relpath = unprefix(proto, ent.path())?;
+        if relpath == PathBuf::from("bin") {
+            /*
+             * On illumos, /bin is always a symbolic link to /usr/bin.
+             */
+            bail!("proto {:?} contains a /bin directory; should use /usr/bin",
+                proto);
+        }
+
+        /*
+         * Use the relative path within the proto area as the absolute path
+         * in the image; e.g., "proto/bin/id" would become "/bin/id" in the
+         * image.
+         */
+        let path = reprefix(proto, ent.path(), &rootdir)?;
+        let path = path.to_str().unwrap();
+
+        let md = ent.metadata()?;
+        let mode = format!("{:o}", md.permissions().mode() & 0o777);
+        if md.file_type().is_symlink() {
+            let target = std::fs::read_link(ent.path())?;
+
+            steps.push(serde_json::json!({
+                "t": "ensure_symlink", "link": path, "target": target,
+                "owner": "root", "group": "root",
+            }));
+        } else if md.file_type().is_dir() {
+            /*
+             * Some system directories are owned by groups other than "root".
+             * The rules are not exact; this is an approximation to reduce
+             * churn:
+             */
+            let group = if relpath.starts_with("var")
+                || relpath.starts_with("etc")
+                || relpath.starts_with("lib/svc/manifest")
+                || relpath.starts_with("platform")
+                || relpath.starts_with("kernel")
+                || relpath == PathBuf::from("usr")
+                || relpath == PathBuf::from("usr/share")
+                || relpath.starts_with("usr/platform")
+                || relpath.starts_with("usr/kernel")
+                || relpath == PathBuf::from("opt")
+            {
+                "sys"
+            } else if relpath.starts_with("lib")
+                || relpath.starts_with("usr")
+            {
+                "bin"
+            } else {
+                "root"
+            };
+
+            steps.push(serde_json::json!({
+                "t": "ensure_dir", "dir": path,
+                "owner": "root", "group": group, "mode": mode,
+            }));
+        } else if md.file_type().is_file() {
+            steps.push(serde_json::json!({
+                "t": "ensure_file", "file": path, "extsrc": relpath,
+                "owner": "root", "group": "root", "mode": mode,
+            }));
+        } else {
+            bail!("unhandled file type at {:?}", ent.path());
+        }
+    }
+
+    let out = serde_json::to_vec_pretty(&serde_json::json!({
+        "steps": steps,
+    }))?;
+    let mut f = std::fs::OpenOptions::new()
+        .write(true)
+        .create(true)
+        .truncate(true)
+        .open(output_template)?;
+    f.write_all(&out)?;
+    f.flush()?;
+
+    Ok(())
+}
+
 fn cmd_image(ca: &CommandArg) -> Result<()> {
     let mut opts = baseopts();
     opts.optflag("d", "", "use DEBUG packages");
@@ -1150,6 +1247,7 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
     opts.optmulti("X", "", "skip this phase", "PHASE");
     opts.optflag("", "ddr-testing", "build ROMs for other DDR frequencies");
     opts.optopt("p", "", "use an external package repository", "PUBLISHER=URL");
+    opts.optopt("P", "", "include all files from extra proto area", "DIR");
 
     let usage = || {
         println!("{}",
@@ -1172,6 +1270,16 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
     let ddr_testing = res.opt_present("ddr-testing");
     let skips = res.opt_strs("X");
     let recovery = res.opt_present("R");
+
+    let extra_proto = if let Some(dir) = res.opt_str("P") {
+        let dir = PathBuf::from(dir);
+        if !dir.is_dir() {
+            bail!("-P must specify a proto area directory");
+        }
+        Some(dir)
+    } else {
+        None
+    };
 
     let user = illumos::get_username()?.unwrap_or("unknown".to_string());
 
@@ -1259,6 +1367,25 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
 
     let tempdir = ensure_dir(&["tmp", &timage])?;
 
+    let genproto = {
+        let p = rel_path(Some(&tempdir), &["genproto.json"])?;
+        if p.exists() {
+            /*
+             * Remove the old template file to ensure we do not accidentally use
+             * a stale copy later.
+             */
+            std::fs::remove_file(&p)?;
+        }
+
+        if let Some(dir) = extra_proto.as_deref() {
+            genproto(dir, &p)?;
+            info!(log, "generated template {:?} for extra proto {:?}", p, dir);
+            Some(p)
+        } else {
+            None
+        }
+    };
+
     let repo = if let Some(extrepo) = &extrepo {
         /*
          * If we have been instructed to use a repository URL, we do not need to
@@ -1283,7 +1410,6 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
      * packages, plus other packages from the upstream helios-dev repository.
      */
     let templates = top_path(&["image", "templates"])?;
-    let extras = rel_path(Some(&gate), &["etc-stlouis", "extras"])?;
     let omicron = top_path(&["tmp", "omicron", "global-zone-packages"])?;
     let brand_extras = rel_path(Some(&tempdir), &["omicron1"])?;
     let projects_extras = top_path(&["projects"])?;
@@ -1295,13 +1421,17 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
         cmd.arg("-d").arg(&imgds);
         cmd.arg("-g").arg("gimlet");
         cmd.arg("-T").arg(&templates);
+        if let Some(genproto) = &genproto {
+            cmd.arg("-E").arg(extra_proto.as_deref().unwrap());
+            cmd.arg("-F").arg(&format!("genproto={}",
+                genproto.to_str().unwrap()));
+        }
         if let Some(cdock) = &cdock {
             cmd.arg("-F").arg("compliance");
             cmd.arg("-F").arg("stress");
             cmd.arg("-E").arg(&cdock);
         }
         cmd.arg("-E").arg(&omicron);
-        cmd.arg("-E").arg(&extras);
         cmd.arg("-E").arg(&brand_extras);
         cmd.arg("-E").arg(&projects_extras);
         cmd.arg("-F").arg(format!("repo_publisher={}", publisher));
@@ -1669,14 +1799,13 @@ fn cmd_setup(ca: &CommandArg) -> Result<()> {
     }
 
     let top = top()?;
-    println!("helios repository root is: {}", top.display());
+    info!(log, "helios repository root is: {}", top.display());
 
     /*
      * Read the projects file which contains the URLs of the repositories we
      * need to clone.
      */
     let p: Projects = read_toml(top_path(&["config", "projects.toml"])?)?;
-    println!("{:#?}", p);
 
     ensure_dir(&["projects"])?;
     ensure_dir(&["tmp"])?;
@@ -1686,11 +1815,13 @@ fn cmd_setup(ca: &CommandArg) -> Result<()> {
         let url = project.url(false)?;
         let tmp = ensure_dir(&["tmp", &name])?;
 
-        // Checkout the repository
+        let log = log.new(o!("project" => name.to_string()));
+        info!(log, "project {name}: {project:?}");
+
         if exists_dir(&path)? {
-            println!("clone {} exists already at {}", url, path.display());
+            info!(log, "clone {url} exists already at {path:?}");
             if project.auto_update {
-                println!("fetching updates for clone ...");
+                info!(log, "fetching updates for clone ...");
                 let mut child = if let Some(commit) = &project.commit {
                     Command::new("git")
                         .current_dir(&path)
@@ -1711,7 +1842,7 @@ fn cmd_setup(ca: &CommandArg) -> Result<()> {
                 }
 
                 if let Some(commit) = &project.commit {
-                    println!("pinning to commit {}...", commit);
+                    info!(log, "pinning to commit {commit}...");
                     let mut child = Command::new("git")
                         .current_dir(&path)
                         .arg("checkout")
@@ -1723,7 +1854,7 @@ fn cmd_setup(ca: &CommandArg) -> Result<()> {
                         bail!("update merge in {} failed", path.display());
                     }
                 } else {
-                    println!("rolling branch forward...");
+                    info!(log, "rolling branch forward...");
                     let mut child = Command::new("git")
                         .current_dir(&path)
                         .arg("merge")
@@ -1736,7 +1867,7 @@ fn cmd_setup(ca: &CommandArg) -> Result<()> {
                     }
                 }
 
-                println!("updating submodules...");
+                info!(log, "updating submodules...");
                 let mut child = Command::new("git")
                     .current_dir(&path)
                     .arg("submodule")
@@ -1750,7 +1881,7 @@ fn cmd_setup(ca: &CommandArg) -> Result<()> {
                 }
             }
         } else {
-            println!("cloning {} at {}...", url, path.display());
+            info!(log, "cloning {url} at {path:?}...");
             let mut child = Command::new("git")
                 .arg("clone")
                 .arg("--recurse-submodules")
@@ -1764,7 +1895,7 @@ fn cmd_setup(ca: &CommandArg) -> Result<()> {
             }
 
             if let Some(commit) = &project.commit {
-                println!("fetching commit {} for clone ...", commit);
+                info!(log, "fetching commit {commit} for clone ...");
                 let mut child = Command::new("git")
                     .current_dir(&path)
                     .arg("fetch")
@@ -1777,7 +1908,7 @@ fn cmd_setup(ca: &CommandArg) -> Result<()> {
                     bail!("fetch in {} failed", path.display());
                 }
 
-                println!("pinning to commit {}...", commit);
+                info!(log, "pinning to commit {commit}...");
                 let mut child = Command::new("git")
                     .current_dir(&path)
                     .arg("checkout")
@@ -1789,7 +1920,7 @@ fn cmd_setup(ca: &CommandArg) -> Result<()> {
                     bail!("update merge in {} failed", path.display());
                 }
 
-                println!("updating submodules...");
+                info!(log, "updating submodules...");
                 let mut child = Command::new("git")
                     .current_dir(&path)
                     .arg("submodule")
@@ -1803,7 +1934,7 @@ fn cmd_setup(ca: &CommandArg) -> Result<()> {
                 }
             }
 
-            println!("clone ok!");
+            info!(log, "clone ok!");
         }
 
         // Download prebuilts from the repository
@@ -1856,7 +1987,7 @@ fn cmd_setup(ca: &CommandArg) -> Result<()> {
             site_sh += &format!("TMPDIR={}\n", &tmp.to_str().unwrap());
             site_sh += "DTMPDIR=$TMPDIR\n";
 
-            ensure::file_str(log, &site_sh, &ssp, 0o644,
+            ensure::file_str(&log, &site_sh, &ssp, 0o644,
                 ensure::Create::Always)?;
         }
     }
@@ -1976,6 +2107,13 @@ fn main() -> Result<()> {
         desc: "experimental image construction for Gimlets".into(),
         func: cmd_image,
         hide: false,
+        blank: false,
+    });
+    handlers.push(CommandInfo {
+        name: "image".into(),
+        desc: "experimental image construction for Gimlets".into(),
+        func: cmd_image,
+        hide: true,
         blank: false,
     });
 

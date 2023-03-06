@@ -613,7 +613,7 @@ pub fn run2(log: &Logger, cmd: &mut Command) -> Result<()> {
     for arg in cmd.get_args() {
         logargs.push(arg.to_owned());
     }
-    info!(log, "exec: {:?}", &logargs);
+    info!(log, "exec: {:?}", &logargs; "pwd" => ?cmd.get_current_dir());
 
     cmd.stdin(Stdio::null());
     cmd.stdout(Stdio::piped());
@@ -644,7 +644,7 @@ pub fn run2(log: &Logger, cmd: &mut Command) -> Result<()> {
 }
 
 fn run_common(log: &Logger, cmd: &mut Command, args: &[&OsStr]) -> Result<()> {
-    info!(log, "exec: {:?}", &args);
+    info!(log, "exec: {:?}", &args; "pwd" => ?cmd.get_current_dir());
 
     cmd.stdin(Stdio::null());
     cmd.stdout(Stdio::piped());

@@ -9,8 +9,6 @@ edition = "2018"
 #
 rust-version = "1.65.0"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [features]
 default = ["vendored-openssl"]
 vendored-openssl = ['openssl/vendored']
@@ -42,4 +40,4 @@ regex = "1.4"
 #
 openssl = { version = "0.10", optional = true }
 json5 = "0.4.1"
-time = { version = "0.3", feature = ["formatting"] }
+time = { version = "0.3" }
