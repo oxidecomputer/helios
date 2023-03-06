@@ -1677,14 +1677,13 @@ fn cmd_setup(ca: &CommandArg) -> Result<()> {
     }
 
     let top = top()?;
-    println!("helios repository root is: {}", top.display());
+    info!(log, "helios repository root is: {}", top.display());
 
     /*
      * Read the projects file which contains the URLs of the repositories we
      * need to clone.
      */
     let p: Projects = read_toml(top_path(&["config", "projects.toml"])?)?;
-    println!("{:#?}", p);
 
     ensure_dir(&["projects"])?;
     ensure_dir(&["tmp"])?;
@@ -1694,10 +1693,13 @@ fn cmd_setup(ca: &CommandArg) -> Result<()> {
         let url = project.url(false)?;
         let tmp = ensure_dir(&["tmp", &name])?;
 
+        let log = log.new(o!("project" => name.to_string()));
+        info!(log, "project {name}: {project:?}");
+
         if exists_dir(&path)? {
-            println!("clone {} exists already at {}", url, path.display());
+            info!(log, "clone {url} exists already at {path:?}");
             if project.auto_update {
-                println!("fetching updates for clone ...");
+                info!(log, "fetching updates for clone ...");
                 let mut child = if let Some(commit) = &project.commit {
                     Command::new("git")
                         .current_dir(&path)
@@ -1718,7 +1720,7 @@ fn cmd_setup(ca: &CommandArg) -> Result<()> {
                 }
 
                 if let Some(commit) = &project.commit {
-                    println!("pinning to commit {}...", commit);
+                    info!(log, "pinning to commit {commit}...");
                     let mut child = Command::new("git")
                         .current_dir(&path)
                         .arg("checkout")
@@ -1730,7 +1732,7 @@ fn cmd_setup(ca: &CommandArg) -> Result<()> {
                         bail!("update merge in {} failed", path.display());
                     }
                 } else {
-                    println!("rolling branch forward...");
+                    info!(log, "rolling branch forward...");
                     let mut child = Command::new("git")
                         .current_dir(&path)
                         .arg("merge")
@@ -1743,7 +1745,7 @@ fn cmd_setup(ca: &CommandArg) -> Result<()> {
                     }
                 }
 
-                println!("updating submodules...");
+                info!(log, "updating submodules...");
                 let mut child = Command::new("git")
                     .current_dir(&path)
                     .arg("submodule")
@@ -1757,7 +1759,7 @@ fn cmd_setup(ca: &CommandArg) -> Result<()> {
                 }
             }
         } else {
-            println!("cloning {} at {}...", url, path.display());
+            info!(log, "cloning {url} at {path:?}...");
             let mut child = Command::new("git")
                 .arg("clone")
                 .arg("--recurse-submodules")
@@ -1771,7 +1773,7 @@ fn cmd_setup(ca: &CommandArg) -> Result<()> {
             }
 
             if let Some(commit) = &project.commit {
-                println!("fetching commit {} for clone ...", commit);
+                info!(log, "fetching commit {commit} for clone ...");
                 let mut child = Command::new("git")
                     .current_dir(&path)
                     .arg("fetch")
@@ -1784,7 +1786,7 @@ fn cmd_setup(ca: &CommandArg) -> Result<()> {
                     bail!("fetch in {} failed", path.display());
                 }
 
-                println!("pinning to commit {}...", commit);
+                info!(log, "pinning to commit {commit}...");
                 let mut child = Command::new("git")
                     .current_dir(&path)
                     .arg("checkout")
@@ -1796,7 +1798,7 @@ fn cmd_setup(ca: &CommandArg) -> Result<()> {
                     bail!("update merge in {} failed", path.display());
                 }
 
-                println!("updating submodules...");
+                info!(log, "updating submodules...");
                 let mut child = Command::new("git")
                     .current_dir(&path)
                     .arg("submodule")
@@ -1810,7 +1812,7 @@ fn cmd_setup(ca: &CommandArg) -> Result<()> {
                 }
             }
 
-            println!("clone ok!");
+            info!(log, "clone ok!");
         }
 
         if project.site_sh {
@@ -1831,7 +1833,7 @@ fn cmd_setup(ca: &CommandArg) -> Result<()> {
             site_sh += &format!("TMPDIR={}\n", &tmp.to_str().unwrap());
             site_sh += "DTMPDIR=$TMPDIR\n";
 
-            ensure::file_str(log, &site_sh, &ssp, 0o644,
+            ensure::file_str(&log, &site_sh, &ssp, 0o644,
                 ensure::Create::Always)?;
         }
     }
