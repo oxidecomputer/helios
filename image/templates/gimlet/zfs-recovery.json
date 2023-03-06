@@ -77,6 +77,9 @@
             "extsrc": "pilot/${pilot_profile}.toml",
             "owner": "root", "group": "bin", "mode": "0644" },
 
+        { "t": "include", "with": "genproto",
+            "name": "genproto", "file": "${genproto}" },
+
         { "t": "seed_smf", "apply_site": true }
     ]
 }

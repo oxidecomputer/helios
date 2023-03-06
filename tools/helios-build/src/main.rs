@@ -4,9 +4,10 @@ use common::*;
 use anyhow::{Result, Context, bail};
 use serde::Deserialize;
 use std::collections::HashMap;
+use std::os::unix::fs::PermissionsExt;
 use std::process::Command;
 use std::os::unix::process::CommandExt;
-use std::io::{BufReader, Read};
+use std::io::{BufReader, Read, Write};
 use std::fs::File;
 use std::time::{Instant,SystemTime};
 use slog::Logger;
@@ -1007,10 +1008,6 @@ fn cmd_build_omnios(ca: &CommandArg) -> Result<()> {
         return Ok(());
     }
 
-    // if res.free.is_empty() {
-    //     bail!("which package should I build?");
-    // }
-
     let dir = top_path(&["projects", "omnios-build", "build"])?;
 
     let mut pkgs = extract_pkgs(log, &dir)?;
@@ -1036,6 +1033,106 @@ fn cargo_target_cmd(project: &str, command: &str, debug: bool)
     Ok(bin.to_str().unwrap().to_string())
 }
 
+/*
+ * If we have been provided an extra proto directory, we want to include all of
+ * the files and directories and symbolic links that have been assembled in that
+ * proto area in the final image.  The image-builder tool cannot do this
+ * natively because there is no way to know what metadata to use for the files
+ * without some kind of explicit manifest provided as input to ensure_*
+ * directives.
+ *
+ * For our purposes here, it seems sufficient to use the mode bits as-is and
+ * just request that root own the files in the resultant image.  We generate a
+ * partial template by walking the proto area, for inclusion when the "genproto"
+ * feature is also enabled in our main template.
+ */
+fn genproto(proto: &Path, output_template: &Path) -> Result<()> {
+    let rootdir = PathBuf::from("/");
+    let mut steps: Vec<serde_json::Value> = Default::default();
+
+    for ent in WalkDir::new(proto).min_depth(1).into_iter() {
+        let ent = ent?;
+
+        let relpath = unprefix(proto, ent.path())?;
+        if relpath == PathBuf::from("bin") {
+            /*
+             * On illumos, /bin is always a symbolic link to /usr/bin.
+             */
+            bail!("proto {:?} contains a /bin directory; should use /usr/bin",
+                proto);
+        }
+
+        /*
+         * Use the relative path within the proto area as the absolute path
+         * in the image; e.g., "proto/bin/id" would become "/bin/id" in the
+         * image.
+         */
+        let path = reprefix(proto, ent.path(), &rootdir)?;
+        let path = path.to_str().unwrap();
+
+        let md = ent.metadata()?;
+        let mode = format!("{:o}", md.permissions().mode() & 0o777);
+        if md.file_type().is_symlink() {
+            let target = std::fs::read_link(ent.path())?;
+
+            steps.push(serde_json::json!({
+                "t": "ensure_symlink", "link": path, "target": target,
+                "owner": "root", "group": "root",
+            }));
+        } else if md.file_type().is_dir() {
+            /*
+             * Some system directories are owned by groups other than "root".
+             * The rules are not exact; this is an approximation to reduce
+             * churn:
+             */
+            let group = if relpath.starts_with("var")
+                || relpath.starts_with("etc")
+                || relpath.starts_with("lib/svc/manifest")
+                || relpath.starts_with("platform")
+                || relpath.starts_with("kernel")
+                || relpath == PathBuf::from("usr")
+                || relpath == PathBuf::from("usr/share")
+                || relpath.starts_with("usr/platform")
+                || relpath.starts_with("usr/kernel")
+                || relpath == PathBuf::from("opt")
+            {
+                "sys"
+            } else if relpath.starts_with("lib")
+                || relpath.starts_with("usr")
+            {
+                "bin"
+            } else {
+                "root"
+            };
+
+            steps.push(serde_json::json!({
+                "t": "ensure_dir", "dir": path,
+                "owner": "root", "group": group, "mode": mode,
+            }));
+        } else if md.file_type().is_file() {
+            steps.push(serde_json::json!({
+                "t": "ensure_file", "file": path, "extsrc": relpath,
+                "owner": "root", "group": "root", "mode": mode,
+            }));
+        } else {
+            bail!("unhandled file type at {:?}", ent.path());
+        }
+    }
+
+    let out = serde_json::to_vec_pretty(&serde_json::json!({
+        "steps": steps,
+    }))?;
+    let mut f = std::fs::OpenOptions::new()
+        .write(true)
+        .create(true)
+        .truncate(true)
+        .open(output_template)?;
+    f.write_all(&out)?;
+    f.flush()?;
+
+    Ok(())
+}
+
 fn cmd_image(ca: &CommandArg) -> Result<()> {
     let mut opts = baseopts();
     opts.optflag("d", "", "use DEBUG packages");
@@ -1050,6 +1147,7 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
     opts.optmulti("X", "", "skip this phase", "PHASE");
     opts.optflag("", "ddr-testing", "build ROMs for other DDR frequencies");
     opts.optopt("p", "", "use an external package repository", "PUBLISHER=URL");
+    opts.optopt("P", "", "include all files from extra proto area", "DIR");
 
     let usage = || {
         println!("{}",
@@ -1072,6 +1170,16 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
     let ddr_testing = res.opt_present("ddr-testing");
     let skips = res.opt_strs("X");
     let recovery = res.opt_present("R");
+
+    let extra_proto = if let Some(dir) = res.opt_str("P") {
+        let dir = PathBuf::from(dir);
+        if !dir.is_dir() {
+            bail!("-P must specify a proto area directory");
+        }
+        Some(dir)
+    } else {
+        None
+    };
 
     let user = illumos::get_username()?.unwrap_or("unknown".to_string());
 
@@ -1159,6 +1267,25 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
 
     let tempdir = ensure_dir(&["tmp", &timage])?;
 
+    let genproto = {
+        let p = rel_path(Some(&tempdir), &["genproto.json"])?;
+        if p.exists() {
+            /*
+             * Remove the old template file to ensure we do not accidentally use
+             * a stale copy later.
+             */
+            std::fs::remove_file(&p)?;
+        }
+
+        if let Some(dir) = extra_proto.as_deref() {
+            genproto(dir, &p)?;
+            info!(log, "generated template {:?} for extra proto {:?}", p, dir);
+            Some(p)
+        } else {
+            None
+        }
+    };
+
     let repo = if let Some(extrepo) = &extrepo {
         /*
          * If we have been instructed to use a repository URL, we do not need to
@@ -1193,6 +1320,11 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
         cmd.arg("-d").arg(&imgds);
         cmd.arg("-g").arg("gimlet");
         cmd.arg("-T").arg(&templates);
+        if let Some(genproto) = &genproto {
+            cmd.arg("-E").arg(extra_proto.as_deref().unwrap());
+            cmd.arg("-F").arg(&format!("genproto={}",
+                genproto.to_str().unwrap()));
+        }
         if let Some(cdock) = &cdock {
             cmd.arg("-F").arg("compliance");
             cmd.arg("-F").arg("stress");
@@ -1819,6 +1951,13 @@ fn main() -> Result<()> {
         desc: "experimental image construction for Gimlets".into(),
         func: cmd_image,
         hide: false,
+        blank: false,
+    });
+    handlers.push(CommandInfo {
+        name: "image".into(),
+        desc: "experimental image construction for Gimlets".into(),
+        func: cmd_image,
+        hide: true,
         blank: false,
     });
 

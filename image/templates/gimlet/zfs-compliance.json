@@ -119,6 +119,9 @@
             "extsrc": "faux-mgs",
             "owner": "root", "group": "bin", "mode": "0755" },
 
+        { "t": "include", "with": "genproto",
+            "name": "genproto", "file": "${genproto}" },
+
         { "t": "seed_smf", "apply_site": true }
     ]
 }

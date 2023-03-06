@@ -10,7 +10,7 @@ use std::sync::Mutex;
 use serde::Deserialize;
 use std::fs::File;
 use std::io::{Read, BufReader};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use anyhow::{Result, bail};
 
 pub use slog::{info, warn, error, debug, trace, o};
@@ -120,4 +120,28 @@ pub fn exists_dir<P: AsRef<Path>>(path: P) -> Result<bool> {
     } else {
         Ok(false)
     }
+}
+
+pub fn unprefix(prefix: &Path, path: &Path) -> Result<PathBuf> {
+    if prefix.is_absolute() != path.is_absolute() {
+        bail!("prefix and path must not be a mix of absolute and relative");
+    }
+
+    let cprefix = prefix.components().collect::<Vec<_>>();
+    let cpath = path.components().collect::<Vec<_>>();
+
+    if let Some(tail) = cpath.strip_prefix(cprefix.as_slice()) {
+        Ok(tail.iter().collect())
+    } else {
+        bail!("{:?} does not start with prefix {:?}", path, prefix);
+    }
+}
+
+pub fn reprefix(prefix: &Path, path: &Path, target: &Path) -> Result<PathBuf> {
+    if !target.is_absolute() {
+        bail!("target must be absolute");
+    }
+    let mut newpath = target.to_path_buf();
+    newpath.push(unprefix(prefix, path)?);
+    Ok(newpath)
 }
