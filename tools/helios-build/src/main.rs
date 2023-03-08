@@ -1,8 +1,9 @@
 mod common;
 use common::*;
 
-use anyhow::{Result, Context, bail};
+use anyhow::{Result, Context, anyhow, bail};
 use serde::Deserialize;
+use sha2::Digest;
 use std::collections::HashMap;
 use std::os::unix::fs::PermissionsExt;
 use std::process::Command;
@@ -137,6 +138,20 @@ struct Projects {
 }
 
 #[derive(Debug, Deserialize)]
+struct Prebuilt {
+    // The name of the file being downloaded
+    name: String,
+
+    // The SHA-256 hash of the downloaded file
+    #[serde(default)]
+    sha2: Option<String>,
+
+    // If set, attempts to unpack prebuilt as a gzip-compressed file
+    #[serde(default)]
+    unpack: bool,
+}
+
+#[derive(Debug, Deserialize)]
 struct Project {
     github: Option<String>,
     url: Option<String>,
@@ -172,6 +187,12 @@ struct Project {
     cargo_build: bool,
     #[serde(default)]
     use_debug: bool,
+
+    /*
+     * Artifacts to be downloaded from buildomat
+     */
+    #[serde(default)]
+    prebuilts: Vec<Prebuilt>,
 }
 
 impl Project {
@@ -187,6 +208,85 @@ impl Project {
         } else {
             bail!("need github or url?");
         }
+    }
+
+    fn should_download_prebuilt(&self, tmp: &Path, prebuilt: &Prebuilt) -> Result<bool> {
+        let prebuilt_path = tmp.join(&prebuilt.name);
+        if !prebuilt_path.exists() {
+            return Ok(true);
+        }
+        // Observe the digest of the downloaded file
+        let digest = get_sha256_digest(&prebuilt_path)?;
+        let Some(prebuilt_sha2) = &prebuilt.sha2 else {
+            eprintln!(
+                "Missing expected sha2. {} has the SHA-2: {}",
+                prebuilt_path.display(),
+                hex::encode(digest),
+            );
+            return Ok(true);
+        };
+
+        let expected_digest = hex::decode(&prebuilt_sha2)?;
+        if digest != expected_digest {
+            eprintln!(
+                "Warning: {} has the SHA-2: {}, but we expected {}",
+                prebuilt_path.display(),
+                hex::encode(digest),
+                prebuilt_sha2,
+            );
+            return Ok(true);
+        }
+        Ok(false)
+    }
+
+    fn download_prebuilt(&self, name: &str, tmp: &Path, prebuilt: &Prebuilt) -> Result<()> {
+        if self.should_download_prebuilt(&tmp, &prebuilt)? {
+            self.download_prebuilt_no_cache(name, &tmp, &prebuilt)?;
+        }
+        Ok(())
+    }
+
+    fn download_prebuilt_no_cache(&self, name: &str, tmp: &Path, prebuilt: &Prebuilt) -> Result<()> {
+        println!("downloading: {}", prebuilt.name);
+        let prebuilt_path = tmp.join(&prebuilt.name);
+        let Some(repo) = &self.github else {
+            bail!("Project '{name}' can only download prebuilts from github");
+        };
+        let Some(commit) = &self.commit else {
+            bail!("Project '{name}' can only download prebuilts from pinned commit");
+        };
+        let url = format!(
+            "https://buildomat.eng.oxide.computer/public/file/{}/image/{}/{}",
+            repo,
+            commit,
+            prebuilt.name,
+        );
+        let mut response = reqwest::blocking::get(&url)?;
+        if !response.status().is_success() {
+            bail!(
+                "Failed to get '{pre}' for '{proj}' from '{url}': {s}",
+                pre = prebuilt.name,
+                proj = name,
+                s = response.status()
+            );
+        }
+        let mut file = std::fs::File::create(&prebuilt_path)?;
+        response.copy_to(&mut file)?;
+
+        if let Some(prebuilt_sha2) = &prebuilt.sha2 {
+            let expected = hex::decode(&prebuilt_sha2)?;
+            let observed = get_sha256_digest(&prebuilt_path)?;
+            if observed != expected {
+                bail!(
+                    "{} has the SHA-2: {}, but we expected {}",
+                    prebuilt_path.display(),
+                    hex::encode(observed),
+                    prebuilt_sha2,
+                );
+            }
+        }
+
+        Ok(())
     }
 }
 
@@ -1661,6 +1761,26 @@ fn git_commit_count<P: AsRef<Path>>(path: P) -> Result<u32> {
     Ok(res.trim().parse()?)
 }
 
+// Calculates the SHA256 digest of a single file.
+fn get_sha256_digest<P: AsRef<Path>>(path: P) -> Result<Vec<u8>> {
+    let mut reader = std::io::BufReader::new(
+        std::fs::File::open(&path)?
+    );
+
+    let mut hasher = sha2::Sha256::new();
+    let mut buffer = [0; 1024];
+
+    loop {
+        let count = reader.read(&mut buffer)?;
+        if count == 0 {
+            break;
+        } else {
+            hasher.update(&buffer[..count]);
+        }
+    }
+    Ok(hasher.finalize().to_vec())
+}
+
 fn cmd_setup(ca: &CommandArg) -> Result<()> {
     let opts = baseopts();
 
@@ -1813,6 +1933,38 @@ fn cmd_setup(ca: &CommandArg) -> Result<()> {
             }
 
             info!(log, "clone ok!");
+        }
+
+        // Download prebuilts from the repository
+        for prebuilt in &project.prebuilts {
+            project.download_prebuilt(&name, &tmp, &prebuilt)?;
+
+            if prebuilt.unpack {
+                println!("Unpacking prebuilt {}", prebuilt.name);
+
+                // Open the prebuilt tarball
+                let prebuilt_path = tmp.join(&prebuilt.name);
+                let gzr = flate2::read::GzDecoder::new(std::fs::File::open(&prebuilt_path)?);
+                let mut archive = tar::Archive::new(gzr);
+
+                // The unpacked path is the path to the tarball, but without
+                // any extensions.
+                //
+                // For example:
+                // - foo.tar.gz -> foo/
+                let filename = prebuilt_path.file_name()
+                    .ok_or_else(|| anyhow!("Invalid filename for {}", prebuilt.name))?
+                    .to_str()
+                    .ok_or_else(|| anyhow!("Invalid unicode for {}", prebuilt.name))?;
+                let prefix = filename.split_once('.')
+                    .ok_or_else(|| anyhow!("No file extension for {filename}"))?
+                    .0;
+                let unpacked_path = tmp.join(prefix);
+
+                // Unpack the tarball
+                let _ = std::fs::remove_dir_all(&unpacked_path);
+                archive.unpack(unpacked_path)?;
+            }
         }
 
         if project.site_sh {

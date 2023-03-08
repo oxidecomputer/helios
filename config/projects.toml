@@ -1,6 +1,18 @@
 [project.illumos]
 github = "illumos/illumos-gate"
 
+# TODO: Before merging, make these values real?
+# For local testing, it's possible to fool the downloading
+# mechanism by placing the tarball with the specified hash
+# in tmp/omicron/global-zone-packages.tar.gz
+[project.omicron]
+github = "oxidecomputer/omicron"
+commit = "508bbd8a0ec6461300bc625289c00d4b6c77f97f"
+[[project.omicron.prebuilts]]
+name = "global-zone-packages.tar.gz"
+sha2 = "7f7e0ad1e6f20a7a5743ce5245abb8abf60e41bf483ac730382f7a5053275209"
+unpack = true
+
 [project.omnios-build]
 github = "oxidecomputer/helios-omnios-build"
 use_ssh = true
