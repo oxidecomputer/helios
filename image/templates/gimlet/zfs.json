@@ -77,6 +77,12 @@
             "src": "mfg.xml",
             "owner": "root", "group": "sys", "mode": "0644" },
 
+        { "t": "ensure_file", "without": "no-pilot",
+            "file": "/usr/bin/pilot",
+            "extsrc": "pilot/target/release/pilot",
+            "owner": "root", "group": "bin", "mode": "0755" },
+        { "t": "include", "without": "no-pilot", "name": "compliance-common" },
+
         { "t": "include", "with": "genproto",
             "name": "genproto", "file": "${genproto}" },
 

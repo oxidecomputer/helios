@@ -51,3 +51,9 @@ github = "oxidecomputer/chelsio-t6-roms"
 use_ssh = true
 cargo_build = false
 auto_update = true
+
+[project.pilot]
+github = "oxidecomputer/compliance-pilot"
+use_ssh = true
+cargo_build = true
+auto_update = true

@@ -1,0 +1,44 @@
+<?xml version="1.0"?>
+<!DOCTYPE service_bundle SYSTEM "/usr/share/lib/xml/dtd/service_bundle.dtd.1">
+
+<service_bundle type='manifest' name='site-compliance-dump'>
+
+<service name='site/compliance/dump' type='service' version='1'>
+  <create_default_instance enabled='true' />
+  <single_instance />
+
+  <!-- Wait for local file systems, like dumpadm does: -->
+  <dependency name='local-filesystems' grouping='require_all' restart_on='none'
+    type='service'>
+      <service_fmri value='svc:/system/filesystem/local'/>
+  </dependency>
+
+  <!-- Hold dumpadm back until we've had a chance to look around: -->
+  <dependent name='compliance-dump-dumpadm' restart_on='none'
+    grouping='require_all'>
+    <service_fmri value='svc:/system/dumpadm'/>
+  </dependent>
+
+  <exec_method type='method' name='start'
+    exec='/usr/bin/pilot gimlet dump setup' timeout_seconds='600' />
+
+  <exec_method type='method' name='stop' exec=':kill' timeout_seconds='30' />
+
+  <property_group name='startd' type='framework'>
+    <propval name='duration' type='astring' value='transient' />
+  </property_group>
+
+  <stability value='Unstable' />
+
+  <template>
+    <common_name>
+      <loctext xml:lang='C'>compliance ad hoc dump setup</loctext>
+    </common_name>
+    <description>
+      <loctext xml:lang='C'>sets up a ZFS pool and dump device</loctext>
+    </description>
+  </template>
+</service>
+
+</service_bundle>
+<!-- vim: set ts=2 sts=2 sw=2 et: -->
