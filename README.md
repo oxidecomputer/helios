@@ -457,3 +457,30 @@ and it is your computer!  Other things you can do include:
 
 If you want advice on how to do something not completely explained here, or
 just to streamline your workflow, please don't hesitate to reach out!
+
+## OS Image Archives
+
+As part of building OS images for Gimlets, an image archive is produced that
+includes the boot ROM and the root file system ramdisk image.  It also includes
+some metadata in a JSON file, using the same format as [the **omicron1**
+brand](https://github.com/oxidecomputer/helios-omicron-brand/) (see **IMAGE
+ARCHIVES** in **omicron1(7)**).
+
+The contents of the file represents a committed interface between Helios and
+the parts of [Omicron](https://github.com/oxidecomputer/omicron) which need to
+download and install OS images on physical systems in the Oxide rack.  The
+relevant contents for Omicron usage will always include at least:
+
+| Filename         | Description     |
+| ---------------- | --------------- |
+| `oxide.json`     | Metadata header file, with at least a `v=1` key and a `t=os` key to identify it as an OS image. |
+| `image/rom`      | The host boot ROM image. (32MiB) |
+| `image/zfs.img`  | The host root file system ramdisk image. (arbitrary size) |
+
+In addition to the committed files listed above, some additional files may be
+present for engineering or diagnostic purposes; e.g., a `unix.z` compressed
+kernel, and a `cpio.z` compressed boot archive, for use with **nanobl-rs**; or
+an array of extra ROM files with suffixes that represent different diagnostic
+capabilities.  Additional files are not committed and may change at any time in
+the future.  Software that interprets image archives should ignore any
+unrecognised files.

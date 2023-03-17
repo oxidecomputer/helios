@@ -37,3 +37,6 @@ regex = "1.4"
 openssl = { version = "0.10", optional = true }
 json5 = "0.4.1"
 time = { version = "0.3" }
+helios-build-utils = { git = "ssh://git@github.com/oxidecomputer/helios-omicron-brand.git" }
+flate2 = { version = "1", features = [ "zlib" ] }
+tar = "0.4"

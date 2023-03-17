@@ -122,26 +122,14 @@ pub fn exists_dir<P: AsRef<Path>>(path: P) -> Result<bool> {
     }
 }
 
-pub fn unprefix(prefix: &Path, path: &Path) -> Result<PathBuf> {
-    if prefix.is_absolute() != path.is_absolute() {
-        bail!("prefix and path must not be a mix of absolute and relative");
+/**
+ * Try to unlink a file.  If it did not exist, treat that as a success; report
+ * any other error.
+ */
+pub fn maybe_unlink(f: &Path) -> Result<()> {
+    match std::fs::remove_file(f) {
+        Ok(_) => Ok(()),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(e) => bail!("could not remove {f:?}: {e:?}"),
     }
-
-    let cprefix = prefix.components().collect::<Vec<_>>();
-    let cpath = path.components().collect::<Vec<_>>();
-
-    if let Some(tail) = cpath.strip_prefix(cprefix.as_slice()) {
-        Ok(tail.iter().collect())
-    } else {
-        bail!("{:?} does not start with prefix {:?}", path, prefix);
-    }
-}
-
-pub fn reprefix(prefix: &Path, path: &Path, target: &Path) -> Result<PathBuf> {
-    if !target.is_absolute() {
-        bail!("target must be absolute");
-    }
-    let mut newpath = target.to_path_buf();
-    newpath.push(unprefix(prefix, path)?);
-    Ok(newpath)
 }

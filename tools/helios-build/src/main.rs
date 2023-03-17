@@ -2,6 +2,7 @@ mod common;
 use common::*;
 
 use anyhow::{Result, Context, bail};
+use helios_build_utils::metadata::{ArchiveType, self};
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::os::unix::fs::PermissionsExt;
@@ -15,11 +16,12 @@ use std::path::Path;
 use time::{format_description, OffsetDateTime};
 use walkdir::{WalkDir, DirEntry};
 use regex::Regex;
+use helios_build_utils::tree;
 
 pub mod illumos;
 pub mod ensure;
-mod ips;
 mod zfs;
+mod archive;
 
 const PKGREPO: &str = "/usr/bin/pkgrepo";
 const PKGRECV: &str = "/usr/bin/pkgrecv";
@@ -344,7 +346,7 @@ fn cmd_merge_illumos(ca: &CommandArg) -> Result<()> {
      */
     std::fs::remove_dir_all(&repo_merge).ok();
     if res.opt_present("p") {
-        std::fs::remove_file(&mog_publisher).ok();
+        maybe_unlink(&mog_publisher)?;
     }
 
     Ok(())
@@ -1053,7 +1055,7 @@ fn genproto(proto: &Path, output_template: &Path) -> Result<()> {
     for ent in WalkDir::new(proto).min_depth(1).into_iter() {
         let ent = ent?;
 
-        let relpath = unprefix(proto, ent.path())?;
+        let relpath = tree::unprefix(proto, ent.path())?;
         if relpath == PathBuf::from("bin") {
             /*
              * On illumos, /bin is always a symbolic link to /usr/bin.
@@ -1067,7 +1069,7 @@ fn genproto(proto: &Path, output_template: &Path) -> Result<()> {
          * in the image; e.g., "proto/bin/id" would become "/bin/id" in the
          * image.
          */
-        let path = reprefix(proto, ent.path(), &rootdir)?;
+        let path = tree::reprefix(proto, ent.path(), &rootdir)?;
         let path = path.to_str().unwrap();
 
         let md = ent.metadata()?;
@@ -1451,6 +1453,32 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
     ensure::run2(log, &mut cmd)?;
 
     /*
+     * Read the image checksum back in from the file that was built for
+     * inclusion in the boot archive.  The file format is the raw bytes of the
+     * hash rather than ASCII hexadecimal, so we must reformat it for inclusion
+     * in the archive metadata as a string.
+     */
+    let csum = std::fs::File::open(&csumfile)?
+        .bytes()
+        .map(|b| Ok(format!("{:02x}", b?)))
+        .collect::<Result<String>>()?;
+
+    /*
+     * Begin creating the archive now so that the archiver worker thread can
+     * begin compressing it while we are doing other things.
+     */
+    let tarpath = rel_path(Some(&outdir), &["os.tar.gz"])?;
+    let tar = archive::Archive::new(
+        &tarpath,
+        metadata::MetadataBuilder::new(ArchiveType::Os)
+        .info("name", &image_name)?
+        .info("checksum", &csum)?
+        .build()?,
+    )?;
+
+    tar.add_file(&zfsimg, "zfs.img")?;
+
+    /*
      * Create the boot archive (CPIO) with the kernel and modules that we need
      * to boot and mount the ramdisk.
      * XXX This should be an image-builder feature.
@@ -1462,7 +1490,9 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
         &root, cpio.to_str().unwrap(), tempdir.to_str().unwrap()])?;
 
     /*
-     * Create a compressed CPIO and kernel to be passed to nanobl-rs via XMODEM:
+     * Create a compressed CPIO and kernel to be passed to nanobl-rs via XMODEM.
+     * These will also be included in the archive, just in case they are
+     * required for engineering activities later.
      */
     let cpioz = rel_path(Some(&outdir), &["cpio.z"])?;
     let unix = format!("{}/platform/oxide/kernel/amd64/unix", root);
@@ -1471,9 +1501,11 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
     ensure::run(log, &["bash", "-c",
         &format!("'{}' '{}' >'{}'", pinprick, unix,
             unixz.to_str().unwrap())])?;
+    tar.add_file(&unixz, "unix.z")?;
     ensure::run(log, &["bash", "-c",
         &format!("'{}' '{}' >'{}'", pinprick, cpio.to_str().unwrap(),
             cpioz.to_str().unwrap())])?;
+    tar.add_file(&cpioz, "cpio.z")?;
 
     /*
      * Create the reset image for the Gimlet SPI ROM:
@@ -1495,6 +1527,7 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
         "--output-file", rom.to_str().unwrap(),
         "--reset-image", reset.to_str().unwrap(),
     ])?;
+    tar.add_file(&rom, "rom")?;
 
     if ddr_testing {
         let inputcfg = top_path(&["projects", "amd-host-image-builder",
@@ -1508,7 +1541,8 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
         let inputcfg: serde_json::Value = json5::from_str(&f)?;
 
         for limit in [1600, 1866, 2133, 2400, 2667, 2933, 3200] {
-            let rom = rel_path(Some(&outdir), &[&format!("rom.ddr{}", limit)])?;
+            let romname = format!("rom.ddr{limit}");
+            let rom = rel_path(Some(&outdir), &[&romname])?;
 
             /*
              * Produce a new configuration file with the specified
@@ -1516,7 +1550,7 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
              */
             let tmpcfg = rel_path(Some(&tempdir),
                 &[&format!("milan-gimlet-b.ddr{}.efs.json", limit)])?;
-            std::fs::remove_file(&tmpcfg).ok();
+            maybe_unlink(&tmpcfg)?;
             mk_rom_config(inputcfg.clone(), &tmpcfg, limit)?;
 
             /*
@@ -1530,8 +1564,12 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
                 "--output-file", rom.to_str().unwrap(),
                 "--reset-image", reset.to_str().unwrap(),
             ])?;
+            tar.add_file(&rom, &romname)?;
         }
     }
+
+    info!(log, "finishing image archive at {tarpath:?}...");
+    tar.finish()?;
 
     info!(log, "image complete! materials are in {:?}", outdir);
     std::fs::remove_dir_all(&tempdir).ok();
