@@ -458,9 +458,9 @@ fn regen_illumos_sh<P: AsRef<Path>>(log: &Logger, gate: P, bt: BuildType)
     }
     env += &format!("export CODEMGR_WS='{}'\n", gate.to_str().unwrap());
     env += "export MACH=\"$(uname -p)\"\n";
-    env += "export GNUC_ROOT=/opt/gcc-7\n";
-    env += "export PRIMARY_CC=gcc7,$GNUC_ROOT/bin/gcc,gnu\n";
-    env += "export PRIMARY_CCC=gcc7,$GNUC_ROOT/bin/g++,gnu\n";
+    env += "export GNUC_ROOT=/opt/gcc-10\n";
+    env += "export PRIMARY_CC=gcc10,$GNUC_ROOT/bin/gcc,gnu\n";
+    env += "export PRIMARY_CCC=gcc10,$GNUC_ROOT/bin/g++,gnu\n";
     match bt {
         BuildType::Quick | BuildType::QuickDebug => {
             /*
@@ -473,8 +473,8 @@ fn regen_illumos_sh<P: AsRef<Path>>(log: &Logger, gate: P, bt: BuildType)
             /*
              * Enable the shadow compiler for full builds:
              */
-            env += "export SHADOW_CCS=gcc10,/opt/gcc-10/bin/gcc,gnu\n";
-            env += "export SHADOW_CCCS=gcc10,/opt/gcc-10/bin/g++,gnu\n";
+            env += "export SHADOW_CCS=gcc7,/opt/gcc-7/bin/gcc,gnu\n";
+            env += "export SHADOW_CCCS=gcc7,/opt/gcc-7/bin/g++,gnu\n";
 
             /*
              * Enable smatch checks for full builds:
