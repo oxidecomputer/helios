@@ -1,0 +1,7 @@
+[nvme-generic]
+ioengine=${IOENGINE}
+rw=${RW}
+bs=${BLOCK_SIZE}
+iodepth=${IODEPTH}
+filename=${FILENAME}
+numjobs=${NUMJOBS}

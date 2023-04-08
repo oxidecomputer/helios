@@ -1,0 +1,10 @@
+[nvme-seqwrite]
+ioengine=${IOENGINE}
+rw=write
+bs=${BLOCK_SIZE}
+direct=${DIRECT}
+buffered=${BUFFERED}
+iodepth=${IODEPTH}
+size=${SIZE}
+filename=${FILENAME}
+numjobs=${NUMJOBS}

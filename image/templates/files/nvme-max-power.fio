@@ -1,5 +1,0 @@
-[wd-max-power]
-ioengine=posixaio
-rw=randwrite
-bs=4k
-iodepth=64

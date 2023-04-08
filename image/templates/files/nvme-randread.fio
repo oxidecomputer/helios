@@ -1,0 +1,10 @@
+[nvme-randread]
+ioengine=${IOENGINE}
+rw=randread
+bs=${BLOCK_SIZE}
+direct=${DIRECT}
+buffered=${BUFFERED}
+iodepth=${IODEPTH}
+size=${SIZE}
+filename=${FILENAME}
+numjobs=${NUMJOBS}
