@@ -389,9 +389,9 @@ dependencies = [
 
 [[package]]
 name = "h2"
-version = "0.3.16"
+version = "0.3.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5be7b54589b581f624f566bf5d8eb2bab1db736c51528720b6bd36b96b55924d"
+checksum = "66b91535aa35fea1523ad1b86cb6b53c28e0ae566ba4a460f4457e936cad7c6f"
 dependencies = [
  "bytes",
  "fnv",
@@ -442,7 +442,7 @@ dependencies = [
 [[package]]
 name = "helios-build-utils"
 version = "0.0.0"
-source = "git+ssh://git@github.com/oxidecomputer/helios-omicron-brand.git#967c00c7442ec1c025b96001793cc2738a0a2e93"
+source = "git+ssh://git@github.com/oxidecomputer/helios-omicron-brand.git#258f5a682249e0e6597d8d2788cc5c2d10562330"
 dependencies = [
  "anyhow",
  "serde",
