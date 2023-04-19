@@ -26,12 +26,19 @@ use_ssh = true
 cargo_build = true
 use_debug = true
 auto_update = true
+
+[[project.amd-host-image-builder.fixup]]
 #
-# XXX Until amd-host-image-builder#90 is sorted out, we are pinned to an older
-# version of the host image builder.  This will also no longer be necessary if
-# stlouis#204 lands.
+# We used to pin this commit.  To avoid a manual flag day, switch a user with
+# this specific commit checked out as a detached HEAD back to main:
 #
-commit = "4eae23e8a86a6b5ae16e26283e9c0bee87cc2167"
+from_commit = "4eae23e8a86a6b5ae16e26283e9c0bee87cc2167"
+to_branch = "main"
+
+[project.amd-firmware]
+github = "oxidecomputer/amd-firmware"
+use_ssh = true
+auto_update = true
 
 [project.bootserver]
 github = "oxidecomputer/boot-image-tools"

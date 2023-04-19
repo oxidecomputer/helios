@@ -174,6 +174,15 @@ struct Project {
     cargo_build: bool,
     #[serde(default)]
     use_debug: bool,
+
+    #[serde(default)]
+    fixup: Vec<Fixup>,
+}
+
+#[derive(Debug, Deserialize)]
+struct Fixup {
+    from_commit: String,
+    to_branch: String,
 }
 
 impl Project {
@@ -1150,6 +1159,9 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
     opts.optflag("", "ddr-testing", "build ROMs for other DDR frequencies");
     opts.optopt("p", "", "use an external package repository", "PUBLISHER=URL");
     opts.optopt("P", "", "include all files from extra proto area", "DIR");
+    opts.optmulti("Y", "", "AMD firmware blob directories override \
+        (e.g., \"GN/1.0.0.1\")", "DIR");
+    opts.optopt("Z", "", "AMD firmware configuration file override", "FILE");
 
     let usage = || {
         println!("{}",
@@ -1210,6 +1222,64 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
          */
         bail!("-d and -p are mutually exclusive");
     }
+
+    /*
+     * Check that we understand the AMD firmware version and configuration file
+     * overrides before we get going.
+     */
+    let amdconf = if let Some(amdconf) = res.opt_str("Z") {
+        /*
+         * If the override is an absolute path, just pass it through.  Otherwise
+         * look in the place where we usually store the configuration files:
+         */
+        let f = if amdconf.starts_with("/") {
+            let p = PathBuf::from(amdconf);
+            assert!(p.is_absolute());
+            p
+        } else {
+            top_path(&["image", "amd", &amdconf])?
+        };
+
+        f
+    } else {
+        /*
+         * If there is no override, use the default:
+         */
+        top_path(&["image", "amd", "milan-gimlet-b.efs.json5"])?
+    };
+    if !amdconf.is_file() {
+        bail!("AMD firmware configuration file {amdconf:?} does not exist?");
+    }
+    info!(log, "using AMD firmware configuration file {amdconf:?}");
+
+    let amdblobs = if res.opt_present("Y") {
+        res.opt_strs("Y").into_iter().map(|y| {
+            /*
+             * If the override is an absolute path, just pass it through.
+             * Otherwise look in the place where we usually store the
+             * firmware blobs:
+             */
+            let d = if y.starts_with("/") {
+                let p = PathBuf::from(y);
+                assert!(p.is_absolute());
+                p
+            } else {
+                top_path(&["projects", "amd-firmware", &y])?
+            };
+
+            Ok(d)
+        }).collect::<Result<Vec<_>>>()?
+    } else {
+        /*
+         * If there is no override, use the default:
+         */
+        vec![top_path(&["projects", "amd-firmware", "GN", "1.0.0.a"])?]
+    };
+    let missing = amdblobs.iter().filter(|d| !d.is_dir()).collect::<Vec<_>>();
+    if !missing.is_empty() {
+        bail!("These AMD firmware blob directories do not exist? {missing:?}");
+    }
+    info!(log, "using AMD firmware blob directories {amdblobs:?}");
 
     /*
      * Check for the commands we need before we start doing any expensive work.
@@ -1519,25 +1589,40 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
     let reset = top_path(&["projects", "phbl", "target",
         "x86_64-oxide-none-elf", "release", "phbl"])?;
     let ahibdir = top_path(&["projects", "amd-host-image-builder"])?;
-    ensure::run_in(log, &ahibdir, &[
-        ahib.as_str(),
-        "-B", "amd-firmware/GN/1.0.0.1",
-        "-B", "amd-firmware/GN/1.0.0.6",
-        "--config", "etc/milan-gimlet-b.efs.json5",
-        "--output-file", rom.to_str().unwrap(),
-        "--reset-image", reset.to_str().unwrap(),
-    ])?;
+    let ahibargs_base = {
+        let mut t: Vec<String> = vec![
+            ahib.as_str().into(),
+        ];
+        for blob in amdblobs {
+            t.push("-B".into());
+            t.push(blob.to_str().unwrap().into());
+        }
+        t
+    };
+    let ahibargs = {
+        let mut t = ahibargs_base.clone();
+
+        t.push("--config".into());
+        t.push(amdconf.to_str().unwrap().into());
+
+        t.push("--output-file".into());
+        t.push(rom.to_str().unwrap().into());
+
+        t.push("--reset-image".into());
+        t.push(reset.to_str().unwrap().into());
+
+        t
+    };
+    ensure::run_in(log, &ahibdir,
+        &ahibargs.iter().map(String::as_str).collect::<Vec<_>>())?;
     tar.add_file(&rom, "rom")?;
 
     if ddr_testing {
-        let inputcfg = top_path(&["projects", "amd-host-image-builder",
-            "etc", "milan-gimlet-b.efs.json5"])?;
-
         /*
          * The configuration for amd-host-image-builder is stored in JSON5
          * format.  Read the file as a generic JSON object:
          */
-        let f = std::fs::read_to_string(&inputcfg)?;
+        let f = std::fs::read_to_string(&amdconf)?;
         let inputcfg: serde_json::Value = json5::from_str(&f)?;
 
         for limit in [1600, 1866, 2133, 2400, 2667, 2933, 3200] {
@@ -1556,14 +1641,22 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
             /*
              * Build the frequency-specific ROM file for this frequency limit:
              */
-            ensure::run_in(log, &ahibdir, &[
-                ahib.as_str(),
-                "-B", "amd-firmware/GN/1.0.0.1",
-                "-B", "amd-firmware/GN/1.0.0.6",
-                "--config", tmpcfg.to_str().unwrap(),
-                "--output-file", rom.to_str().unwrap(),
-                "--reset-image", reset.to_str().unwrap(),
-            ])?;
+            let ahibargs = {
+                let mut t = ahibargs_base.clone();
+
+                t.push("--config".into());
+                t.push(tmpcfg.to_str().unwrap().into());
+
+                t.push("--output-file".into());
+                t.push(rom.to_str().unwrap().into());
+
+                t.push("--reset-image".into());
+                t.push(reset.to_str().unwrap().into());
+
+                t
+            };
+            ensure::run_in(log, &ahibdir,
+                &ahibargs.iter().map(String::as_str).collect::<Vec<_>>())?;
             tar.add_file(&rom, &romname)?;
         }
     }
@@ -1699,6 +1792,60 @@ fn git_commit_count<P: AsRef<Path>>(path: P) -> Result<u32> {
     Ok(res.trim().parse()?)
 }
 
+struct BranchStatus {
+    oid: String,
+    head: String,
+}
+
+fn git_branch_status<P: AsRef<Path>>(path: P) -> Result<BranchStatus> {
+    let out = Command::new("git")
+        .env_clear()
+        .arg("status")
+        .arg("--branch")
+        .arg("--porcelain=v2")
+        .current_dir(path.as_ref())
+        .output()?;
+
+    if !out.status.success() {
+        bail!("git branch status failed: {}", out.info());
+    }
+
+    let res = String::from_utf8(out.stdout)?;
+
+    let mut oid = None;
+    let mut head = None;
+    for l in res.lines() {
+        let t = l.split_ascii_whitespace().collect::<Vec<_>>();
+        if t.len() < 3 || t[0] != "#" {
+            continue;
+        }
+
+        match t[1] {
+            "branch.oid" => {
+                if t.len() != 3 {
+                    bail!("unexpected branch.oid line: {t:?}");
+                }
+
+                oid = Some(t[2].to_string());
+            }
+            "branch.head" => {
+                if t.len() != 3 {
+                    bail!("unexpected branch.head line: {t:?}");
+                }
+
+                head = Some(t[2].to_string());
+            }
+            _ => (),
+        }
+    }
+
+    if let Some((oid, head)) = oid.zip(head) {
+        Ok(BranchStatus { oid, head })
+    } else {
+        bail!("oid or head missing from branch status? {res:?}");
+    }
+}
+
 fn cmd_setup(ca: &CommandArg) -> Result<()> {
     let opts = baseopts();
 
@@ -1755,6 +1902,29 @@ fn cmd_setup(ca: &CommandArg) -> Result<()> {
                 let exit = child.wait()?;
                 if !exit.success() {
                     bail!("fetch in {} failed", path.display());
+                }
+
+                /*
+                 * Apply fixups to avoid the need for manual flag days in some
+                 * cases.
+                 */
+                for fixup in &project.fixup {
+                    let bs = git_branch_status(&path)?;
+
+                    if &bs.head == "(detached)" && bs.oid == fixup.from_commit {
+                        info!(log, "applying fixup: moving to branch {}...",
+                            fixup.to_branch);
+                        let mut child = Command::new("git")
+                            .current_dir(&path)
+                            .arg("checkout")
+                            .arg(&fixup.to_branch)
+                            .spawn()?;
+
+                        let exit = child.wait()?;
+                        if !exit.success() {
+                            bail!("branch switch in {} failed", path.display());
+                        }
+                    }
                 }
 
                 if let Some(commit) = &project.commit {
