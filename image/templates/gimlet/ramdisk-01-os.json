@@ -57,6 +57,7 @@
             "/system/extended-system-utilities",
             "/web/curl",
             "/text/less",
+            "/text/looker",
             "/system/watch",
             "/editor/vim",
             "/terminal/resize",
