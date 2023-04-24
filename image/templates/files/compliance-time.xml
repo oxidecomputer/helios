@@ -5,7 +5,6 @@
 
 <service name='site/compliance/time' type='service' version='1'>
   <create_default_instance enabled='false' />
-  <single_instance />
 
   <!-- Wait for multi-user... -->
   <dependency name='multi-user-server' grouping='require_all' restart_on='none'
