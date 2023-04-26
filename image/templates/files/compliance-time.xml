@@ -4,7 +4,7 @@
 <service_bundle type='manifest' name='site-compliance-time'>
 
 <service name='site/compliance/time' type='service' version='1'>
-  <create_default_instance enabled='true' />
+  <create_default_instance enabled='false' />
   <single_instance />
 
   <!-- Wait for multi-user... -->
