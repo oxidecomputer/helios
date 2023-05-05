@@ -3921,7 +3921,7 @@
 										},
 										{
 											Byte: {
-												BmcEndLane: 0x81
+												BmcEndLane: 0xFF
 											}
 										},
 										{
@@ -4139,7 +4139,7 @@
 										},
 										{
 											Byte: {
-												BmcSocket: 0x00
+												BmcSocket: 0x0F
 											}
 										},
 										{
@@ -4229,7 +4229,7 @@
 										},
 										{
 											Byte: {
-												BmcStartLane: 0x81
+												BmcStartLane: 0xFF
 											}
 										},
 										{
