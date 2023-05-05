@@ -239,6 +239,7 @@ platform/oxide/kernel/misc/amd64/pcie
 platform/oxide/kernel/sys/amd64/cpc
 platform/oxide/ucode/AuthenticAMD/A011-00
 platform/oxide/ucode/AuthenticAMD/equivalence-table
+usr/kernel/pcbe/amd64/pcbe.AuthenticAMD
 EOF
 
 #
