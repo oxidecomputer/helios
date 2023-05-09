@@ -1,5 +1,10 @@
 {
 	processor_generation: "Milan",
+	spi_mode_zen_rome: {
+		fast_speed_new: "33.33 MHz",
+		read_mode: "Normal 33.33 MHz",
+		micron_mode: "SupportMicron"
+	},
 	psp: {
 		PspDirectory: {
 			entries: [
@@ -3643,7 +3648,7 @@
 										},
 										{
 											Bool: {
-												MemLimitMemoryToBelow1TiB: true
+												MemLimitMemoryToBelow1TiB: false
 											}
 										},
 										{
@@ -3983,7 +3988,7 @@
 										},
 										{
 											Byte: {
-												DfRemapAt1TiB: "Auto"
+												DfRemapAt1TiB: "Enabled"
 											}
 										},
 										{
