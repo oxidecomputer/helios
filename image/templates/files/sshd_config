@@ -29,6 +29,7 @@
 # Use the client's locale/language settings
 #AcceptEnv LANG LC_ALL LC_CTYPE LC_COLLATE LC_TIME LC_NUMERIC
 #AcceptEnv LC_MONETARY LC_MESSAGES
+AcceptEnv LANG LC_* OXIDE_PREF_*
 
 # Authentication:
 

@@ -1,4 +1,29 @@
-set -o vi
+#
+# Accept a preference value for the editing mode of the shell.  The name of
+# this variable is effectively a contract between several things, including:
+#
+#   - the end user who must specify it in their environment somehow
+#   - the SSH server configuration that must allow it to be passed through the
+#     connection (see AcceptEnv in sshd_config)
+#   - the SSH client configuration that provides the value (see SetEnv and
+#     SendEnv in ssh_config)
+#   - pilot, which will attempt to inject and propagate the variable through
+#     the various shell sessions it can establish
+#   - the omicron1 zone brand, which needs to arrange for propagation of
+#     the value through interactive zlogin, and which needs to include a
+#     similar usage in bashrc as we have here
+#
+if [[ -n "$OXIDE_PREF_SHELL_MODE" ]]; then
+	case "$OXIDE_PREF_SHELL_MODE" in
+	vi|emacs)
+		set -o "$OXIDE_PREF_SHELL_MODE"
+		;;
+	*)
+		printf 'WARNING: OXIDE_PREF_SHELL_MODE="%s" not understood' \
+		    "$OXIDE_PREF_SHELL_MODE" >&2
+		;;
+	esac
+fi
 
 C_RED='\[\033[01;31m\]'
 C_BLD='\[\033[1m\]'
