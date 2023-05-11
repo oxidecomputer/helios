@@ -79,7 +79,7 @@
             "/library/expat",
             "/system/library/pcap",
 
-	    "network/dns/bind",
+            "network/dns/bind",
             "/network/openssh-server"
         ] },
 
