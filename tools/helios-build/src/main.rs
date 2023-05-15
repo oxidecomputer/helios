@@ -1213,16 +1213,6 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
         bail!("unexpected arguments");
     }
 
-    if res.opt_present("d") && extrepo.is_some() {
-        /*
-         * At present, our -d flag attempts to find "nightly" instead of
-         * "nightly-nd" bits.  If we are using an external repository, we'll
-         * have to make sure it has the DEBUG bits under a variant; an exercise
-         * for later.
-         */
-        bail!("-d and -p are mutually exclusive");
-    }
-
     /*
      * Check that we understand the AMD firmware version and configuration file
      * overrides before we get going.
@@ -1407,6 +1397,9 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
         cmd.arg("-F").arg(format!("repo_publisher={}", publisher));
         if let Some(url) = &extrepo {
             cmd.arg("-F").arg(format!("repo_url={}", url));
+            if res.opt_present("d") {
+                cmd.arg("-F").arg("debug_variant");
+            }
         } else if let Some(repo) = &repo {
             cmd.arg("-F").arg(format!("repo_redist={}",
                 repo.to_str().unwrap()));

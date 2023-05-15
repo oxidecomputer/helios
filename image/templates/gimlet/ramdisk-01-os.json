@@ -23,6 +23,8 @@
             "value": "global" },
         { "t": "pkg_change_variant", "variant": "opensolaris.imagetype",
             "value": "partial" },
+        { "t": "pkg_change_variant", "with": "debug_variant",
+                "variant": "debug.illumos", "value": "true" },
 
         { "t": "pkg_change_facet", "facet": "openssl.10",
             "value": "false" },
