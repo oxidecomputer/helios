@@ -1440,6 +1440,13 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
         let mut cmd = basecmd();
         cmd.arg("-n").arg("ramdisk-02-trim");
         ensure::run2(log, &mut cmd)?;
+
+        if recovery {
+            info!(log, "image builder template: ramdisk-03-recovery-trim...");
+            let mut cmd = basecmd();
+            cmd.arg("-n").arg("ramdisk-03-recovery-trim");
+            ensure::run2(log, &mut cmd)?;
+        }
     } else {
         info!(log, "skipping installation phase, using existing archive");
     }
