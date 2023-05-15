@@ -43,12 +43,12 @@
         { "t": "include", "name": "t6-firmware" },
 
         { "t": "ensure_file",
-            "file": "/usr/lib/compliance-hostname",
-            "src": "compliance-hostname.sh",
+            "file": "/usr/lib/recovery-hostname",
+            "src": "recovery-hostname.sh",
             "owner": "root", "group": "bin", "mode": "0755" },
         { "t": "ensure_file",
-            "file": "/lib/svc/manifest/site/compliance-hostname.xml",
-            "src": "compliance-hostname.xml",
+            "file": "/lib/svc/manifest/site/recovery-hostname.xml",
+            "src": "recovery-hostname.xml",
             "owner": "root", "group": "bin", "mode": "0644" },
 
         { "t": "ensure_file",
