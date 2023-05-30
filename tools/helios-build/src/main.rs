@@ -22,6 +22,9 @@ pub mod illumos;
 pub mod ensure;
 mod zfs;
 mod archive;
+mod expand;
+
+use expand::Expansion;
 
 const PKGREPO: &str = "/usr/bin/pkgrepo";
 const PKGRECV: &str = "/usr/bin/pkgrecv";
@@ -30,8 +33,8 @@ const PKGDEPOTD: &str = "/usr/lib/pkg.depotd";
 const RELVER: u32 = 1;
 const DASHREV: u32 = 0;
 
-const DATE_FORMAT_STR: &'static str =
-    "[year]-[month]-[day] [hour]:[minute]:[second]";
+const DATE_FORMAT_STR: &'static str = "[year]-[month]-[day]";
+const TIME_FORMAT_STR: &'static str = "[hour]:[minute]:[second]";
 
 fn baseopts() -> getopts::Options {
     let mut opts = getopts::Options::new();
@@ -1195,14 +1198,8 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
         None
     };
 
-    let user = illumos::get_username()?.unwrap_or("unknown".to_string());
-
-    let image_name = res.opt_str("N").unwrap_or_else(|| {
-        let now: OffsetDateTime = SystemTime::now().into();
-        let dt_fmt = format_description::parse(DATE_FORMAT_STR).unwrap();
-        format!("{}@{}: {}", user, illumos::nodename(),
-            now.format(&dt_fmt).unwrap())
-    });
+    let image_template = res.opt_str("N")
+        .unwrap_or(r"${user}@{$host}: ${date} ${time}".to_string());
 
     if res.opt_present("help") {
         usage();
@@ -1452,6 +1449,35 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
     let mut cmd = basecmd();
     cmd.arg("-n").arg(tname);
     ensure::run2(log, &mut cmd)?;
+
+    /*
+     * Build up the tokens that can be used in the image name.
+     */
+    let mut tokens = HashMap::new();
+    let now: OffsetDateTime = SystemTime::now().into();
+
+    tokens.insert("user".to_string(),
+        illumos::get_username()?.unwrap_or("unknown".to_string()));
+    tokens.insert("host".to_string(), illumos::nodename());
+    let dt_fmt = format_description::parse(DATE_FORMAT_STR).unwrap();
+    tokens.insert("date".to_string(), now.format(&dt_fmt).unwrap());
+    let dt_fmt = format_description::parse(TIME_FORMAT_STR).unwrap();
+    tokens.insert("time".to_string(), now.format(&dt_fmt).unwrap());
+
+    let buildfile: PathBuf =
+        [&root, "etc", "versions", "build"].iter().collect();
+    let hash = match read_string(&buildfile) {
+        Ok(s) => {
+            info!(log, "BUILD STRING {:?}", s);
+            extract_hash(&s).unwrap_or("unknown").to_string()
+        }
+        _ => "unknown".to_string(),
+    };
+
+    tokens.insert("os_short_commit".to_string(), hash);
+
+    let image_name = Expansion::parse(&image_template)?.evaluate(&tokens)?;
+    info!(log, "expanded image name: {:?} -> {:?}", image_template, image_name);
 
     let raw = format!("{}/output/gimlet-{}.raw", mp, tname);
 
@@ -2210,4 +2236,39 @@ fn main() -> Result<()> {
     }
 
     bail!("command \"{}\" not understood", res.free[0]);
+}
+
+/*
+ * Extract a hash from a string produced by
+ *    git describe --all --long --dirty
+ */
+fn extract_hash(s: &str) -> Option<&str> {
+    // Look from the end for a column that appears to be the git hash.
+    s.split('-').rev().find_map(|col| {
+        // Require column that starts with `g`; strip it off.
+        let suffix = col.strip_prefix('g')?;
+        // Require suffix to be at least 7 chars and all ascii.
+        if suffix.len() < 7 || !suffix.is_ascii() {
+            return None;
+        }
+        // We know `suffix` is ascii, so slicing is safe (we can't land
+        // mid-UTF8 codepoint).
+        let suffix = &suffix[..7];
+        // Cheap hack to check for all hex: try to parse this as a integer.
+        // We've already trimmed to at most 7 chars, so u32 is big enough.
+        if u32::from_str_radix(suffix, 16).is_ok() {
+            Some(suffix)
+        } else {
+            None
+        }
+    })
+}
+
+#[test]
+fn hash_extract() {
+    assert_eq!(extract_hash("heads/trim-0-g49fb31d-dirty"), Some("49fb31d"));
+    assert_eq!(extract_hash("heads/r151046-0-g82ebda23c9"), Some("82ebda2"));
+    assert_eq!(extract_hash("heads/master-0-g77f745e"), Some("77f745e"));
+    assert_eq!(extract_hash("heads/master-0-g7f745e"), None);
+    assert_eq!(extract_hash("heads/master-0"), None);
 }
