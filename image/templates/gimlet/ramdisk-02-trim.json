@@ -39,7 +39,12 @@
         { "t": "remove_files", "file": "/kernel/drv/amd64/conskbd" },
         { "t": "remove_files", "file": "/kernel/drv/amd64/tzmon" },
         { "t": "remove_files", "file": "/kernel/drv/amd64/power" },
+
         { "t": "remove_files", "file": "/kernel/drv/amd64/audio" },
+        { "t": "remove_files", "file": "/kernel/drv/amd64/audio1575" },
+        { "t": "remove_files", "file": "/kernel/drv/amd64/audioens" },
+        { "t": "remove_files", "file": "/kernel/drv/amd64/audiopci" },
+        { "t": "remove_files", "file": "/kernel/drv/amd64/audiots" },
 
         { "t": "remove_files", "file": "/kernel/drv/amd64/ehci" },
         { "t": "remove_files", "file": "/kernel/drv/amd64/hid" },
