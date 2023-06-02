@@ -59,7 +59,6 @@ kernel/drv/amd64/ixgbe
 kernel/drv/amd64/kmdb
 kernel/drv/amd64/lofi
 kernel/drv/amd64/log
-kernel/drv/amd64/mc-amd
 kernel/drv/amd64/mm
 kernel/drv/amd64/nulldriver
 kernel/drv/amd64/nvme
@@ -105,7 +104,6 @@ kernel/drv/kmdb.conf
 kernel/drv/llc1.conf
 kernel/drv/lofi.conf
 kernel/drv/log.conf
-kernel/drv/mc-amd.conf
 kernel/drv/mm.conf
 kernel/drv/nvme.conf
 kernel/drv/openeepr.conf

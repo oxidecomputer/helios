@@ -59,6 +59,10 @@
         { "t": "remove_files", "file": "/kernel/drv/amd64/usbprn" },
         { "t": "remove_files", "file": "/kernel/drv/amd64/xhci" },
 
+        { "t": "remove_files", "file": "/kernel/drv/amd64/intel_nhm" },
+        { "t": "remove_files", "file": "/kernel/drv/amd64/intel_nb5000" },
+        { "t": "remove_files", "file": "/kernel/drv/amd64/mc-amd" },
+
         { "t": "remove_files", "file": "/kernel/drv/amd64/acpi_toshiba" },
         { "t": "remove_files", "file": "/kernel/drv/amd64/intel_nhmex" },
         { "t": "remove_files", "file": "/kernel/drv/intel_nhmex.conf" },
