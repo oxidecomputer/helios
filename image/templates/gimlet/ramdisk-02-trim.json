@@ -41,6 +41,12 @@
         { "t": "remove_files", "file": "/kernel/drv/amd64/power" },
         { "t": "remove_files", "file": "/kernel/drv/amd64/audio" },
 
+        { "t": "remove_files", "file": "/kernel/drv/amd64/acpi_toshiba" },
+        { "t": "remove_files", "file": "/kernel/drv/amd64/intel_nhmex" },
+        { "t": "remove_files", "file": "/kernel/drv/intel_nhmex.conf" },
+        { "t": "remove_files", "file": "/kernel/drv/amd64/mpt" },
+        { "t": "remove_files", "file": "/kernel/drv/mpt.conf" },
+
         { "t": "remove_files",
             "file": "/usr/lib/fm/fmd/plugins/ses-log-transport.so" },
         { "t": "remove_files",
