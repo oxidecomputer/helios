@@ -518,7 +518,7 @@ fn regen_illumos_sh<P: AsRef<Path>>(log: &Logger, gate: P, bt: BuildType)
     env += "export ATLOG=\"$CODEMGR_WS/log\"\n";
     env += "export LOGFILE=\"$ATLOG/nightly.log\"\n";
     env += "export BUILD_TOOLS='/opt'\n";
-    env += "export MAKEFLAGS='k'\n";
+    env += "export MAKEFLAGS='ke'\n";
     env += "export PARENT_WS=''\n";
     env += "export REF_PROTO_LIST=\"$PARENT_WS/usr/src/proto_list_${MACH}\"\n";
     env += "export PARENT_ROOT=\"$PARENT_WS/proto/root_$MACH\"\n";
