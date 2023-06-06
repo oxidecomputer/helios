@@ -1199,7 +1199,9 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
     };
 
     let image_template = res.opt_str("N")
-        .unwrap_or(r"${user}@{$host}: ${date} ${time}".to_string());
+        .unwrap_or_else(
+            || r"${user}@${host}: ${os_short_commit}; ${date} ${time}"
+            .to_string());
 
     if res.opt_present("help") {
         usage();
@@ -1457,7 +1459,7 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
     let now: OffsetDateTime = SystemTime::now().into();
 
     tokens.insert("user".to_string(),
-        illumos::get_username()?.unwrap_or("unknown".to_string()));
+        illumos::get_username()?.unwrap_or_else(|| "unknown".to_string()));
     tokens.insert("host".to_string(), illumos::nodename());
     let dt_fmt = format_description::parse(DATE_FORMAT_STR).unwrap();
     tokens.insert("date".to_string(), now.format(&dt_fmt).unwrap());
