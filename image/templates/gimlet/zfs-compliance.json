@@ -8,7 +8,9 @@
         "label": false,
         "no_features": false,
         "compression": "gzip-9",
-        "autoexpand": true
+        "autoexpand": true,
+        "options": ["failmode=panic"],
+        "fsoptions": ["primarycache=none"]
     },
 
     "steps": [
