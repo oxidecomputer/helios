@@ -1,0 +1,12 @@
+{
+    "dataset": {
+        "name": "ramdisk",
+        "input_snapshot": "trim",
+        "output_snapshot": "recovery-trim"
+    },
+
+    "steps": [
+        { "t": "include", "name": "recovery-elide" },
+        { "t": "pack_tar", "name": "gimlet-recovery-ramdisk.tar" }
+    ]
+}

@@ -9,6 +9,7 @@
         "no_features": false,
         "compression": "off",
         "autoexpand": true,
+        "trim": true,
         "options": [ "failmode=panic" ],
         "fsoptions": [ "primarycache=none" ]
     },
@@ -16,7 +17,7 @@
     "steps": [
         { "t": "create_be" },
 
-        { "t": "unpack_tar", "name": "gimlet-ramdisk.tar" },
+        { "t": "unpack_tar", "name": "gimlet-recovery-ramdisk.tar" },
 
         { "t": "include", "name": "devfs" },
 
