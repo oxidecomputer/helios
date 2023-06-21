@@ -442,7 +442,7 @@ dependencies = [
 [[package]]
 name = "helios-build-utils"
 version = "0.0.0"
-source = "git+ssh://git@github.com/oxidecomputer/helios-omicron-brand.git#967c00c7442ec1c025b96001793cc2738a0a2e93"
+source = "git+ssh://git@github.com/oxidecomputer/helios-omicron-brand.git#87082932247209dc89ef31b627db2ce90792511a"
 dependencies = [
  "anyhow",
  "serde",
@@ -751,9 +751,9 @@ checksum = "2839e79665f131bdb5782e51f2c6c9599c133c6098982a54c794358bf432529c"
 
 [[package]]
 name = "openssl"
-version = "0.10.48"
+version = "0.10.55"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "518915b97df115dd36109bfa429a48b8f737bd05508cf9588977b599648926d2"
+checksum = "345df152bc43501c5eb9e4654ff05f794effb78d4efe3d53abc158baddc0703d"
 dependencies = [
  "bitflags",
  "cfg-if",
@@ -792,11 +792,10 @@ dependencies = [
 
 [[package]]
 name = "openssl-sys"
-version = "0.9.83"
+version = "0.9.90"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "666416d899cf077260dac8698d60a60b435a46d57e82acb1be3d0dad87284e5b"
+checksum = "374533b0e45f3a7ced10fcaeccca020e66656bc03dac384f852e4e5a7a8104a6"
 dependencies = [
- "autocfg",
  "cc",
  "libc",
  "openssl-src",
