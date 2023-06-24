@@ -1202,7 +1202,6 @@
         { "t": "remove_files", "file": "/usr/sbin/fmthard" },
         { "t": "remove_files", "file": "/usr/sbin/format" },
         { "t": "remove_files", "file": "/usr/sbin/fsck" },
-        { "t": "remove_files", "file": "/usr/sbin/fstyp" },
         { "t": "remove_files", "file": "/usr/sbin/fuser" },
         { "t": "remove_files", "file": "/usr/sbin/getdevpolicy" },
         { "t": "remove_files", "file": "/usr/sbin/getmajor" },
