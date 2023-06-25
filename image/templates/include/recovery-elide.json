@@ -969,8 +969,6 @@
         { "t": "remove_files", "file": "/usr/lib/fs/ufs/ufsdump" },
         { "t": "remove_files", "file": "/usr/lib/fs/ufs/ufsrestore" },
         { "t": "remove_files", "file": "/usr/lib/fs/ufs/volcopy" },
-        { "t": "remove_files", "file": "/usr/lib/fs/zfs/fstyp" },
-        { "t": "remove_files", "file": "/usr/lib/fs/zfs/fstyp.so.1" },
         { "t": "remove_files", "file": "/usr/lib/gss/dh1024-0.so.1" },
         { "t": "remove_files", "file": "/usr/lib/gss/dh640-0.so.1" },
         { "t": "remove_files", "file": "/usr/lib/gss/gsscred_clean" },
