@@ -189,7 +189,6 @@
         { "t": "remove_files", "file": "/usr/bin/dumpkeys" },
         { "t": "remove_files", "file": "/usr/bin/echo" },
         { "t": "remove_files", "file": "/usr/bin/edit" },
-        { "t": "remove_files", "file": "/usr/bin/egrep" },
         { "t": "remove_files", "file": "/usr/bin/eject" },
         { "t": "remove_files", "file": "/usr/bin/elfsign" },
         { "t": "remove_files", "file": "/usr/bin/elfwrap" },
