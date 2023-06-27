@@ -170,7 +170,6 @@
         { "t": "remove_files", "file": "/usr/bin/curl-config" },
         { "t": "remove_files", "file": "/usr/bin/date" },
         { "t": "remove_files", "file": "/usr/bin/dc" },
-        { "t": "remove_files", "file": "/usr/bin/dd" },
         { "t": "remove_files", "file": "/usr/bin/decrypt" },
         { "t": "remove_files", "file": "/usr/bin/devattr" },
         { "t": "remove_files", "file": "/usr/bin/devfree" },
