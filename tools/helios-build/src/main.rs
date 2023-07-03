@@ -800,8 +800,9 @@ fn cmd_illumos_onu(ca: &CommandArg) -> Result<()> {
      * privileges as it modifies the system.
      */
     info!(log, "installing packages...");
-    let onu = top_path(&["projects", "illumos", "usr", "src",
-        "tools", "proto", "root_i386-nd", "opt", "onbld", "bin", "onu"])?;
+    let onu = rel_path(Some(&gate), &["usr", "src", "tools", "proto",
+        "root_i386-nd", "opt", "onbld", "bin", "onu"])?;
+
     let onu_dir = top_path(&["tmp", &tonu])?;
     ensure::run(log, &["pfexec", &onu.to_str().unwrap(), "-v",
         "-d", &onu_dir.to_str().unwrap(),
