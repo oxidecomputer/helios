@@ -30,8 +30,24 @@ const PKGREPO: &str = "/usr/bin/pkgrepo";
 const PKGRECV: &str = "/usr/bin/pkgrecv";
 const PKGDEPOTD: &str = "/usr/lib/pkg.depotd";
 
-const RELVER: u32 = 1;
 const DASHREV: u32 = 0;
+
+#[derive(Copy, Clone)]
+enum RelVer {
+    V1,
+    V2,
+}
+
+impl std::fmt::Display for RelVer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>)
+        -> std::result::Result<(), std::fmt::Error>
+    {
+        write!(f, "{}", match self {
+            RelVer::V1 => 1,
+            RelVer::V2 => 2,
+        })
+    }
+}
 
 const DATE_FORMAT_STR: &'static str = "[year]-[month]-[day]";
 const TIME_FORMAT_STR: &'static str = "[hour]:[minute]:[second]";
@@ -426,8 +442,32 @@ fn regen_publisher_mog<P: AsRef<Path>>(log: &Logger, mogfile: Option<P>,
     Ok(())
 }
 
-fn regen_illumos_sh<P: AsRef<Path>>(log: &Logger, gate: P, bt: BuildType)
-    -> Result<PathBuf>
+fn determine_release_version() -> Result<RelVer> {
+    let relpath = "/etc/os-release";
+    let relfile = std::fs::read_to_string(relpath)?;
+    let map: HashMap<_, _> = relfile.lines().filter_map(|l| {
+        l.split_once('=')
+    }).collect();
+
+    let Some(id) = map.get("ID") else {
+        bail!("ID missing from {relpath:?}");
+    };
+    if *id != "helios" {
+        bail!("expect to build on \"helios\", not {id:?} (from {relpath:?})");
+    }
+
+    let Some(version_id) = map.get("VERSION_ID") else {
+        bail!("VERSION_ID missing from {relpath:?}");
+    };
+    Ok(match *version_id {
+        "1" => RelVer::V1,
+        "2" => RelVer::V2,
+        other => bail!("unexpected VERSION_ID {other:?} in {relpath:?}"),
+    })
+}
+
+fn regen_illumos_sh<P: AsRef<Path>>(log: &Logger, gate: P, bt: BuildType,
+    relver: RelVer) -> Result<PathBuf>
 {
     let gate = gate.as_ref();
     let path_env = rel_path(Some(gate), &[bt.script_name()])?;
@@ -443,7 +483,7 @@ fn regen_illumos_sh<P: AsRef<Path>>(log: &Logger, gate: P, bt: BuildType)
          */
         BuildType::Release => {
             let rnum = git_commit_count(&gate)?;
-            let vers = format!("helios-{}.{}.{}", RELVER, DASHREV, rnum);
+            let vers = format!("helios-{}.{}.{}", relver, DASHREV, rnum);
             (rnum, vers, "Oxide Helios Version ^v ^w-bit")
         }
         /*
@@ -500,7 +540,14 @@ fn regen_illumos_sh<P: AsRef<Path>>(log: &Logger, gate: P, bt: BuildType)
     env += "export BUILDVERSION_EXEC=\"git describe --all --long --dirty\"\n";
     env += &format!("export DMAKE_MAX_JOBS={}\n", maxjobs);
     env += "export ENABLE_SMB_PRINTING='#'\n";
-    env += "export PERL_VERSION=5.32\n";
+    match relver {
+        RelVer::V1 => {
+            env += "export PERL_VERSION=5.32\n";
+        }
+        RelVer::V2 => {
+            env += "export PERL_VERSION=5.36\n";
+        }
+    }
     env += "export PERL_PKGVERS=\n";
     env += "export PERL_VARIANT=-thread-multi\n";
     env += "export BUILDPERL32='#'\n";
@@ -511,8 +558,16 @@ fn regen_illumos_sh<P: AsRef<Path>>(log: &Logger, gate: P, bt: BuildType)
     env += "export BUILDPY3=\n";
     env += "export BUILDPY2TOOLS='#'\n";
     env += "export BUILDPY3TOOLS=\n";
-    env += "export PYTHON3_VERSION=3.9\n";
-    env += "export PYTHON3_PKGVERS=-39\n";
+    match relver {
+        RelVer::V1 => {
+            env += "export PYTHON3_VERSION=3.9\n";
+            env += "export PYTHON3_PKGVERS=-39\n";
+        }
+        RelVer::V2 => {
+            env += "export PYTHON3_VERSION=3.11\n";
+            env += "export PYTHON3_PKGVERS=-311\n";
+        }
+    }
     env += "export PYTHON3_SUFFIX=\n";
     env += "export TOOLS_PYTHON=/usr/bin/python$PYTHON3_VERSION\n";
     env += "export STAFFER=\"$LOGNAME\"\n";
@@ -535,7 +590,7 @@ fn regen_illumos_sh<P: AsRef<Path>>(log: &Logger, gate: P, bt: BuildType)
     env += "export MULTI_PROTO=\"yes\"\n";
     env += "export ONBLD_BIN=/opt/onbld/bin\n";
     env += "export ON_CLOSED_BINS=/opt/onbld/closed\n";
-    env += &format!("export PKGVERS_BRANCH={}.{}.{}\n", RELVER, DASHREV, rnum);
+    env += &format!("export PKGVERS_BRANCH={}.{}.{}\n", relver, DASHREV, rnum);
 
     ensure::file_str(log, &env, &path_env, 0o644, ensure::Create::Always)?;
 
@@ -595,12 +650,14 @@ fn cmd_build_illumos(ca: &CommandArg) -> Result<()> {
         BuildType::Full
     };
 
+    let relver = determine_release_version()?;
+
     let gate = if let Some(gate) = res.opt_str("g") {
         abs_path(gate)?
     } else {
         top_path(&["projects", "illumos"])?
     };
-    let env_sh = regen_illumos_sh(log, &gate, bt)?;
+    let env_sh = regen_illumos_sh(log, &gate, bt, relver)?;
 
     let script = format!("cd {} && ./usr/src/tools/scripts/nightly{} {}",
         gate.to_str().unwrap(),
@@ -831,16 +888,18 @@ fn cmd_illumos_genenv(ca: &CommandArg) -> Result<()> {
         bail!("unexpected arguments");
     }
 
+    let relver = determine_release_version()?;
+
     let gate = if let Some(gate) = res.opt_str("g") {
         abs_path(gate)?
     } else {
         top_path(&["projects", "illumos"])?
     };
 
-    regen_illumos_sh(ca.log, &gate, BuildType::Quick)?;
-    regen_illumos_sh(ca.log, &gate, BuildType::QuickDebug)?;
-    regen_illumos_sh(ca.log, &gate, BuildType::Full)?;
-    regen_illumos_sh(ca.log, &gate, BuildType::Release)?;
+    regen_illumos_sh(ca.log, &gate, BuildType::Quick, relver)?;
+    regen_illumos_sh(ca.log, &gate, BuildType::QuickDebug, relver)?;
+    regen_illumos_sh(ca.log, &gate, BuildType::Full, relver)?;
+    regen_illumos_sh(ca.log, &gate, BuildType::Release, relver)?;
 
     info!(ca.log, "ok");
     Ok(())
@@ -891,8 +950,10 @@ fn cmd_illumos_bldenv(ca: &CommandArg) -> Result<()> {
         BuildType::Full
     };
 
+    let relver = determine_release_version()?;
+
     let gate = top_path(&["projects", "illumos"])?;
-    regen_illumos_sh(ca.log, &gate, t)?;
+    regen_illumos_sh(ca.log, &gate, t, relver)?;
 
     let env = rel_path(Some(&gate), &[t.script_name()])?;
     let src = rel_path(Some(&gate), &["usr", "src"])?;
@@ -1890,6 +1951,8 @@ fn cmd_setup(ca: &CommandArg) -> Result<()> {
         return Ok(());
     }
 
+    let relver = determine_release_version()?;
+
     let top = top()?;
     info!(log, "helios repository root is: {}", top.display());
 
@@ -2063,7 +2126,7 @@ fn cmd_setup(ca: &CommandArg) -> Result<()> {
             site_sh += "PKGPUBLISHER=helios-dev\n";
             site_sh += "HOMEURL=https://oxide.computer/helios\n";
             site_sh += "PUBLISHER_EMAIL=jmc@oxide.computer\n";
-            site_sh += &format!("RELVER={}\n", RELVER);
+            site_sh += &format!("RELVER={}\n", relver);
             site_sh += &format!("DASHREV={}\n", DASHREV);
             site_sh += "PVER=$RELVER.$DASHREV\n";
             site_sh += "IPS_REPO=https://pkg.oxide.computer/helios-dev\n";
@@ -2094,10 +2157,10 @@ fn cmd_setup(ca: &CommandArg) -> Result<()> {
     }
 
     let gate = top_path(&["projects", "illumos"])?;
-    regen_illumos_sh(log, &gate, BuildType::Full)?;
-    regen_illumos_sh(log, &gate, BuildType::QuickDebug)?;
-    regen_illumos_sh(log, &gate, BuildType::Quick)?;
-    regen_illumos_sh(log, &gate, BuildType::Release)?;
+    regen_illumos_sh(log, &gate, BuildType::Full, relver)?;
+    regen_illumos_sh(log, &gate, BuildType::QuickDebug, relver)?;
+    regen_illumos_sh(log, &gate, BuildType::Quick, relver)?;
+    regen_illumos_sh(log, &gate, BuildType::Release, relver)?;
 
     /*
      * Perform setup in project repositories that require it.
