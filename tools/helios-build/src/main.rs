@@ -1435,6 +1435,7 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
     let templates = top_path(&["image", "templates"])?;
     let brand_extras = rel_path(Some(&tempdir), &["omicron1"])?;
     let projects_extras = top_path(&["projects"])?;
+    let relver = determine_release_version()?;
     std::fs::create_dir_all(&brand_extras)?;
     let basecmd = || -> Command {
         let mut cmd = Command::new("pfexec");
@@ -1443,6 +1444,7 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
         cmd.arg("-d").arg(&imgds);
         cmd.arg("-g").arg("gimlet");
         cmd.arg("-T").arg(&templates);
+        cmd.arg("-F").arg(&format!("relver={}", relver));
         if let Some(genproto) = &genproto {
             cmd.arg("-E").arg(extra_proto.as_deref().unwrap());
             cmd.arg("-F").arg(&format!("genproto={}",

@@ -8,8 +8,6 @@
     "steps": [
         { "t": "remove_files", "dir": "/var/pkg" },
 
-        { "t": "remove_files", "dir": "/usr/gcc/9" },
-
         { "t": "remove_files", "dir": "/usr/xpg4" },
         { "t": "remove_files", "dir": "/usr/include" },
         { "t": "remove_files", "dir": "/usr/demo" },
