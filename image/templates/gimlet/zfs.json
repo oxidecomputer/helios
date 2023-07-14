@@ -55,7 +55,7 @@
 
         { "t": "ensure_file",
             "file": "/var/svc/profile/site.xml",
-            "src": "site${mfg?-mfg}.xml",
+            "src": "site${mfg?-mfg}${compliance?-compliance}.xml",
             "owner": "root", "group": "root", "mode": "644" },
 
         { "t": "include", "with": "stress", "name": "stress" },

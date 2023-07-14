@@ -7,6 +7,11 @@
     <instance name='default' enabled='true' />
   </service>
 
+  <!-- Enable pilot-based dump device and crash dump management: -->
+  <service name='site/compliance/dump' version='1' type='service'>
+    <instance name='default' enabled='true' />
+  </service>
+
   <!-- See: https://www.illumos.org/issues/14006 -->
   <service name='network/routing/route' version='1' type='service'>
     <instance name='default' enabled='false' />

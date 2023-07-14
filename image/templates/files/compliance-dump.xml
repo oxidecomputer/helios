@@ -4,7 +4,7 @@
 <service_bundle type='manifest' name='site-compliance-dump'>
 
 <service name='site/compliance/dump' type='service' version='1'>
-  <create_default_instance enabled='true' />
+  <create_default_instance enabled='false' />
 
   <!-- Wait for local file systems, like dumpadm does: -->
   <dependency name='local-filesystems' grouping='require_all' restart_on='none'
