@@ -1234,7 +1234,7 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
     };
 
     let log = ca.log;
-    let res = opts.parse(ca.args)?;
+    let res = opts.parse(ca.args.iter())?;
     let cdock = res.opt_str("C");
     let brand = res.opt_present("B") || cdock.is_some();
     let (publisher, extrepo) = if let Some(arg) = res.opt_str("p") {
@@ -1576,6 +1576,87 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
     info!(log, "output artefacts stored in: {:?}", outdir);
 
     /*
+     * Assemble a set of extra metadata to include in the archive.
+     */
+    let mut infos = vec![
+        (
+            "image-args.txt".to_string(),
+            format!("image arguments: {:#?}\n", ca.args).as_bytes().to_vec(),
+        ),
+    ];
+
+    /*
+     * Include some basic git metadata from the set of project directories we
+     * have cloned locally and are using as part of building this image.
+     */
+    {
+        let projdir = top_path(&["projects"])?;
+        let mut wd = std::fs::read_dir(&projdir)?;
+
+        while let Some(ent) = wd.next().transpose()? {
+            let dir = ent.path();
+            if !dir.is_dir() {
+                bail!("unexpected item in project area: {:?}", ent.path());
+            }
+            let name = dir.file_name().unwrap().to_str().unwrap().to_string();
+
+            info!(log, "collecting git info from project {name:?}...");
+
+            let mut cmd = Command::new("git");
+            cmd.env_clear();
+            cmd.arg("status");
+            cmd.arg("-b");
+            cmd.arg("--porcelain=2");
+            cmd.current_dir(&dir);
+
+            let out = cmd.output()?;
+            if !out.status.success() {
+                bail!("could not git status in {:?}: {}", dir, out.info());
+            }
+            let data = String::from_utf8(out.stdout)?.as_bytes().to_vec();
+
+            infos.push((format!("git-status-{}.txt", name), data));
+        }
+    }
+
+    /*
+     * We want to include a full list of all of the packages that were installed
+     * into the image prior to any trimming of individual files.  This will make
+     * it easier to tell exactly what files went into a particular image, and
+     * will allow us to more accurately reproduce the same image later by using
+     * the same packages.
+     */
+    let pkg_infos = [
+        ("pkg-publishers.txt", ["publisher", "-F", "tsv"]),
+        ("pkg-list.txt", ["list", "-H", "-v"]),
+    ];
+    /*
+     * Because we have already stripped the packaging metadata out of the final
+     * image, go back to using the snapshot that is created at the end of the
+     * "ramdisk-01-os" step:
+     */
+    let snapdir = rel_path(Some(&root), &[".zfs", "snapshot", "os"])?;
+    for (name, args) in pkg_infos {
+        info!(log, "collecting packaging info {name:?}: {args:?}...");
+
+        let mut cmd = Command::new("pfexec");
+        cmd.env_clear();
+        cmd.arg("pkg");
+        cmd.arg("-R").arg(&snapdir);
+        for a in args {
+            cmd.arg(a);
+        }
+
+        let out = cmd.output()?;
+        if !out.status.success() {
+            bail!("could not run {args:?} into {name:?}: {}", out.info());
+        }
+        let data = String::from_utf8(out.stdout)?.as_bytes().to_vec();
+
+        infos.push((name.to_string(), data));
+    }
+
+    /*
      * Oxide boot images need a header that contains some basic metadata like
      * the SHA256 hash of the image itself.  This header is consumed by the
      * kernel boot code when reading the image from an NVMe device, and by the
@@ -1637,6 +1718,10 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
         .info("checksum", &csum)?
         .build()?,
     )?;
+
+    for (name, data) in infos {
+        tar.add_file_with_data(data, &name)?;
+    }
 
     tar.add_file(&zfsimg, "zfs.img")?;
 
@@ -2314,23 +2399,36 @@ fn main() -> Result<()> {
 }
 
 /*
- * Extract a hash from a string produced by
+ * Extract a hash from a string produced by:
  *    git describe --all --long --dirty
  */
 fn extract_hash(s: &str) -> Option<&str> {
-    // Look from the end for a column that appears to be the git hash.
+    /*
+     * Look from the end for a column that appears to be the git hash.
+     */
     s.split('-').rev().find_map(|col| {
-        // Require column that starts with `g`; strip it off.
+        /*
+         * Require column that starts with `g`; strip it off.
+         */
         let suffix = col.strip_prefix('g')?;
-        // Require suffix to be at least 7 chars and all ascii.
+
+        /*
+         * Require suffix to be at least 7 chars and all ascii.
+         */
         if suffix.len() < 7 || !suffix.is_ascii() {
             return None;
         }
-        // We know `suffix` is ascii, so slicing is safe (we can't land
-        // mid-UTF8 codepoint).
+
+        /*
+         * We know "suffix" is ascii, so slicing is safe (we can't land
+         * mid-UTF8 codepoint).
+         */
         let suffix = &suffix[..7];
-        // Cheap hack to check for all hex: try to parse this as a integer.
-        // We've already trimmed to at most 7 chars, so u32 is big enough.
+
+        /*
+         * Cheap hack to check for all hex: try to parse this as a integer.
+         * We've already trimmed to at most 7 chars, so u32 is big enough.
+         */
         if u32::from_str_radix(suffix, 16).is_ok() {
             Some(suffix)
         } else {
