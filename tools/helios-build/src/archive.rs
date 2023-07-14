@@ -10,6 +10,7 @@ use helios_build_utils::metadata::Metadata;
 
 enum Act {
     File(String, PathBuf),
+    FileWithData(String, Vec<u8>),
     Complete,
 }
 
@@ -91,6 +92,27 @@ impl Archive {
 
                         tar.append(&h, f)?;
                     }
+                    Act::FileWithData(name, data) => {
+                        let mut h = tar::Header::new_ustar();
+
+                        let mtime = SystemTime::now()
+                            .duration_since(UNIX_EPOCH)
+                            .unwrap()
+                            .as_secs();
+
+                        h.set_entry_type(tar::EntryType::Regular);
+                        h.set_mode(0o444);
+                        h.set_username("root")?;
+                        h.set_uid(0);
+                        h.set_groupname("root")?;
+                        h.set_uid(0);
+                        h.set_path(&name)?;
+                        h.set_mtime(mtime);
+                        h.set_size(data.len().try_into().unwrap());
+                        h.set_cksum();
+
+                        tar.append(&h, data.as_slice())?;
+                    }
                     Act::Complete => break,
                 }
             }
@@ -114,6 +136,15 @@ impl Archive {
         }
 
         self.tx.send(Act::File(format!("image/{n}"), p.to_path_buf()))?;
+        Ok(())
+    }
+
+    pub fn add_file_with_data(&self, data: Vec<u8>, n: &str) -> Result<()> {
+        if n.contains("/") {
+            bail!("{n:?} must be a bare file name, not directory components");
+        }
+
+        self.tx.send(Act::FileWithData(format!("image/{n}"), data))?;
         Ok(())
     }
 
