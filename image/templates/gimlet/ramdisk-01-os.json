@@ -60,6 +60,7 @@
             "/web/curl",
             "/text/less",
             "/text/looker",
+            "/ooce/util/jq",
             "/system/watch",
             "/editor/vim",
             "/terminal/resize",
