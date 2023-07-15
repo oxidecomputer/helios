@@ -14,7 +14,7 @@
 
   <!-- Hold dumpadm back until we've had a chance to look around: -->
   <dependent name='compliance-dump-dumpadm' restart_on='none'
-    grouping='require_all'>
+    grouping='optional_all'>
     <service_fmri value='svc:/system/dumpadm'/>
   </dependent>
 
