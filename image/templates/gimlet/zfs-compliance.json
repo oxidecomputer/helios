@@ -81,7 +81,7 @@
             "owner": "root", "group": "bin", "mode": "0644" },
         { "t": "ensure_file",
             "file": "/usr/bin/xcvradm",
-            "extsrc": "xcvradm",
+            "extsrc": "transceiver-control/target/release/xcvradm",
             "owner": "root", "group": "bin", "mode": "0755" },
         { "t": "ensure_file",
             "file": "/usr/bin/faux-mgs",

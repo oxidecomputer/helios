@@ -82,6 +82,11 @@
             "owner": "root", "group": "bin", "mode": "0755" },
         { "t": "include", "without": "no-pilot", "name": "compliance-common" },
 
+        { "t": "ensure_file",
+            "file": "/usr/bin/xcvradm",
+            "extsrc": "transceiver-control/target/release/xcvradm",
+            "owner": "root", "group": "bin", "mode": "0755" },
+
         { "t": "include", "with": "genproto",
             "name": "genproto", "file": "${genproto}" },
 

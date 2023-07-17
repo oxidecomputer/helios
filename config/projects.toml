@@ -64,3 +64,9 @@ github = "oxidecomputer/compliance-pilot"
 use_ssh = true
 cargo_build = true
 auto_update = true
+
+[project.transceiver-control]
+github = "oxidecomputer/transceiver-control"
+use_ssh = true
+cargo_build = true
+auto_update = true
