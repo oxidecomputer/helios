@@ -34,6 +34,14 @@
             "src": "default_init",
             "owner": "root", "group": "root", "mode": "644" },
 
+        { "t": "ensure_file", "file": "/etc/logadm.conf",
+            "src": "logadm.conf",
+            "owner": "root", "group": "sys", "mode": "644" },
+
+        { "t": "ensure_file", "file": "/var/spool/cron/crontabs/root",
+            "src": "crontab.root",
+            "owner": "root", "group": "sys", "mode": "600" },
+
         { "t": "ensure_file", "file": "/etc/ssh/sshd_config",
             "src": "sshd_config",
             "owner": "root", "group": "root", "mode": "644" },
