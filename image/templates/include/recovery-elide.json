@@ -21,10 +21,6 @@
         { "t": "remove_files", "dir": "/usr/share/terminfo" },
         { "t": "remove_files", "dir": "/usr/share/vim" },
 
-        { "t": "remove_files", "file": "/usr/bin/truss" },
-        { "t": "remove_files", "file": "/usr/bin/i86/truss" },
-        { "t": "remove_files", "file": "/usr/bin/amd64/truss" },
-
         { "t": "remove_files", "file": "/lib/svc/manifest/network/ssh.xml" },
         { "t": "remove_files", "file": "/lib/svc/manifest/system/fmd.xml" },
 
@@ -172,7 +168,6 @@
         { "t": "remove_files", "file": "/usr/bin/du" },
         { "t": "remove_files", "file": "/usr/bin/dumpcs" },
         { "t": "remove_files", "file": "/usr/bin/dumpkeys" },
-        { "t": "remove_files", "file": "/usr/bin/echo" },
         { "t": "remove_files", "file": "/usr/bin/edit" },
         { "t": "remove_files", "file": "/usr/bin/eject" },
         { "t": "remove_files", "file": "/usr/bin/elfsign" },
@@ -295,7 +290,6 @@
         { "t": "remove_files", "file": "/usr/bin/kpasswd" },
         { "t": "remove_files", "file": "/usr/bin/krb5-config" },
         { "t": "remove_files", "file": "/usr/bin/ksh93" },
-        { "t": "remove_files", "file": "/usr/bin/kstat" },
         { "t": "remove_files", "file": "/usr/bin/ktutil" },
         { "t": "remove_files", "file": "/usr/bin/kvmstat" },
         { "t": "remove_files", "file": "/usr/bin/last" },
@@ -554,7 +548,6 @@
         { "t": "remove_files", "file": "/usr/has/bin/vi" },
         { "t": "remove_files", "file": "/usr/has/bin/view" },
 
-        { "t": "remove_files", "file": "/usr/kernel/drv/amd64/kstat" },
         { "t": "remove_files", "file": "/usr/kernel/drv/amd64/logindmux" },
         { "t": "remove_files", "file": "/usr/kernel/drv/amd64/pool" },
         { "t": "remove_files", "file": "/usr/kernel/drv/amd64/ppt" },
@@ -564,7 +557,6 @@
         { "t": "remove_files", "file": "/usr/kernel/drv/amd64/zcons" },
         { "t": "remove_files", "file": "/usr/kernel/drv/eventfd.conf" },
         { "t": "remove_files", "file": "/usr/kernel/drv/fssnap.conf" },
-        { "t": "remove_files", "file": "/usr/kernel/drv/kstat.conf" },
         { "t": "remove_files", "file": "/usr/kernel/drv/ksyms.conf" },
         { "t": "remove_files", "file": "/usr/kernel/drv/logindmux.conf" },
         { "t": "remove_files", "file": "/usr/kernel/drv/nsmb.conf" },
@@ -935,7 +927,6 @@
         { "t": "remove_files", "file": "/usr/lib/link_audit/who.so.1" },
         { "t": "remove_files", "file": "/usr/lib/pci/pcidb" },
         { "t": "remove_files", "file": "/usr/lib/pci/pcidr_plugin.so" },
-        { "t": "remove_files", "file": "/usr/lib/pci/pcieadm" },
         { "t": "remove_files", "file": "/usr/lib/pci/pcieb" },
         { "t": "remove_files", "file": "/usr/lib/raidcfg/amd64/mpt.so.1" },
         { "t": "remove_files", "file": "/usr/lib/raidcfg/mpt.so.1" },
@@ -1106,7 +1097,6 @@
         { "t": "remove_files", "file": "/usr/sbin/consadm" },
         { "t": "remove_files", "file": "/usr/sbin/consadmd" },
         { "t": "remove_files", "file": "/usr/sbin/cpustat" },
-        { "t": "remove_files", "file": "/usr/sbin/cxgbetool" },
         { "t": "remove_files", "file": "/usr/sbin/deallocate" },
         { "t": "remove_files", "file": "/usr/sbin/devinfo" },
         { "t": "remove_files", "file": "/usr/sbin/devlinks" },
