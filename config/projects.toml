@@ -60,7 +60,7 @@ cargo_build = false
 auto_update = true
 
 [project.pilot]
-github = "oxidecomputer/compliance-pilot"
+github = "oxidecomputer/pilot"
 use_ssh = true
 cargo_build = true
 auto_update = true

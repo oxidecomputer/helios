@@ -1217,7 +1217,6 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
     opts.optopt("o", "", "output directory for image", "DIR");
     opts.optmulti("F", "", "pass extra image builder features", "KEY[=VAL]");
     opts.optflag("B", "", "include omicron1 brand");
-    opts.optopt("C", "", "compliance dock location", "DOCK");
     opts.optopt("N", "name", "image name", "NAME");
     opts.optflag("R", "", "recovery image");
     opts.optmulti("X", "", "skip this phase", "PHASE");
@@ -1235,8 +1234,7 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
 
     let log = ca.log;
     let res = opts.parse(ca.args.iter())?;
-    let cdock = res.opt_str("C");
-    let brand = res.opt_present("B") || cdock.is_some();
+    let brand = res.opt_present("B");
     let (publisher, extrepo) = if let Some(arg) = res.opt_str("p") {
         if let Some((key, val)) = arg.split_once('=') {
             (key.to_string(), Some(val.to_string()))
@@ -1450,11 +1448,6 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
             cmd.arg("-F").arg(&format!("genproto={}",
                 genproto.to_str().unwrap()));
         }
-        if let Some(cdock) = &cdock {
-            cmd.arg("-F").arg("compliance");
-            cmd.arg("-F").arg("stress");
-            cmd.arg("-E").arg(&cdock);
-        }
         cmd.arg("-E").arg(&brand_extras);
         cmd.arg("-E").arg(&projects_extras);
         cmd.arg("-F").arg(format!("repo_publisher={}", publisher));
@@ -1516,7 +1509,6 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
     }
 
     let tname = if recovery { "zfs-recovery" }
-        else if cdock.is_some() { "zfs-compliance" }
         else { "zfs" };
     info!(log, "image builder template: {}...", tname);
     let mut cmd = basecmd();
@@ -1673,16 +1665,7 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
     /*
      * Create the image and extract the checksum:
      */
-    let target_size = if cdock.is_some() {
-        /*
-         * In the compliance rack we would like to avoid running out of space,
-         * and we have no customer workloads, so using more RAM for the ramdisk
-         * pool is OK.
-         */
-        16 * 1024
-    } else {
-        4 * 1024
-    };
+    let target_size = 4 * 1024;
     info!(log, "creating Oxide boot image...");
     let mut cmd = Command::new(&mkimage);
     cmd.arg("-i").arg(&raw);
