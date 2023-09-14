@@ -7,7 +7,7 @@
             "target": "inetd_generic.xml",
             "owner": "root", "group": "root" },
         { "t": "ensure_symlink", "link": "/etc/svc/profile/platform.xml",
-            "target": "platform_none.xml",
+	    "target": "platform_oxide.xml",
             "owner": "root", "group": "root" },
 
         { "t": "ensure_symlink", "link": "/etc/svc/profile/name_service.xml",
