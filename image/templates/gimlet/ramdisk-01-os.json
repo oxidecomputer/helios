@@ -54,10 +54,11 @@
             "/developer/linker",
             "/diagnostic/diskinfo",
             "/diagnostic/pci",
-            "diagnostic/cpu-counters",
+            "/diagnostic/cpu-counters",
             "/system/data/hardware-registry",
             "/system/extended-system-utilities",
             "/web/curl",
+            "/text/column",
             "/text/less",
             "/text/looker",
             "/ooce/util/jq",
@@ -82,7 +83,7 @@
             "/library/expat",
             "/system/library/pcap",
 
-            "network/dns/bind",
+            "/network/dns/bind",
             "/network/openssh-server"
         ] },
 
