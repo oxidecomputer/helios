@@ -77,6 +77,8 @@
         { "t": "remove_files", "file": "/sbin/beadm" },
         { "t": "remove_files", "file": "/usr/sbin/beadm" },
 
+        { "t": "remove_files", "file": "/etc/default/tar" },
+
         { "t": "ensure_file",
             "file": "/lib/svc/method/keymap",
             "contents": "",
