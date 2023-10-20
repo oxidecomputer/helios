@@ -169,10 +169,12 @@ struct Project {
     auto_update: bool,
 
     /*
-     * When cloning or updating this repository, pin to this commit hash:
+     * When cloning or updating this repository, pin to this revision. The
+     * revision can be a commit hash, a refname (such as a branch), or any
+     * other valid revision as described in gitrevisions(7).
      */
     #[serde(default)]
-    commit: Option<String>,
+    rev: Option<String>,
 
     /*
      * If this is a private repository, we force the use of SSH:
@@ -193,6 +195,12 @@ struct Project {
     cargo_build: bool,
     #[serde(default)]
     use_debug: bool,
+
+    /*
+     * If this environment variable is set to "no", we will skip cloning and
+     * building this project.
+     */
+    unless_env: Option<String>,
 
     #[serde(default)]
     fixup: Vec<Fixup>,
@@ -217,6 +225,23 @@ impl Project {
         } else {
             bail!("need github or url?");
         }
+    }
+
+    fn skip(&self) -> bool {
+        self.skip_reason().is_some()
+    }
+
+    fn skip_reason(&self) -> Option<String> {
+        if let Some(key) = self.unless_env.as_deref() {
+            if let Ok(value) = std::env::var(key) {
+                let value = value.to_ascii_lowercase();
+                if value == "no" || value == "0" || value == "false" {
+                    return Some(format!("{key:?} is set to {value:?}"));
+                }
+            }
+        }
+
+        None
     }
 }
 
@@ -2057,6 +2082,11 @@ fn cmd_setup(ca: &CommandArg) -> Result<()> {
         let url = project.url(false)?;
         let tmp = ensure_dir(&["tmp", &name])?;
 
+        if let Some(reason) = project.skip_reason() {
+            info!(log, "skipping project {name:?} because {reason}");
+            continue;
+        }
+
         let log = log.new(o!("project" => name.to_string()));
         info!(log, "project {name}: {project:?}");
 
@@ -2064,12 +2094,12 @@ fn cmd_setup(ca: &CommandArg) -> Result<()> {
             info!(log, "clone {url} exists already at {path:?}");
             if project.auto_update {
                 info!(log, "fetching updates for clone ...");
-                let mut child = if let Some(commit) = &project.commit {
+                let mut child = if let Some(rev) = &project.rev {
                     Command::new("git")
                         .current_dir(&path)
                         .arg("fetch")
                         .arg("origin")
-                        .arg(commit)
+                        .arg(rev)
                         .spawn()?
                 } else {
                     Command::new("git")
@@ -2106,12 +2136,12 @@ fn cmd_setup(ca: &CommandArg) -> Result<()> {
                     }
                 }
 
-                if let Some(commit) = &project.commit {
-                    info!(log, "pinning to commit {commit}...");
+                if let Some(rev) = &project.rev {
+                    info!(log, "pinning to revision {rev}...");
                     let mut child = Command::new("git")
                         .current_dir(&path)
                         .arg("checkout")
-                        .arg(commit)
+                        .arg(rev)
                         .spawn()?;
 
                     let exit = child.wait()?;
@@ -2159,13 +2189,13 @@ fn cmd_setup(ca: &CommandArg) -> Result<()> {
                 bail!("clone of {} to {} failed", url, path.display());
             }
 
-            if let Some(commit) = &project.commit {
-                info!(log, "fetching commit {commit} for clone ...");
+            if let Some(rev) = &project.rev {
+                info!(log, "fetching revision {rev} for clone ...");
                 let mut child = Command::new("git")
                     .current_dir(&path)
                     .arg("fetch")
                     .arg("origin")
-                    .arg(commit)
+                    .arg(rev)
                     .spawn()?;
 
                 let exit = child.wait()?;
@@ -2173,11 +2203,11 @@ fn cmd_setup(ca: &CommandArg) -> Result<()> {
                     bail!("fetch in {} failed", path.display());
                 }
 
-                info!(log, "pinning to commit {commit}...");
+                info!(log, "pinning to revision {rev}...");
                 let mut child = Command::new("git")
                     .current_dir(&path)
                     .arg("checkout")
-                    .arg(commit)
+                    .arg(rev)
                     .spawn()?;
 
                 let exit = child.wait()?;
@@ -2223,6 +2253,13 @@ fn cmd_setup(ca: &CommandArg) -> Result<()> {
             ensure::file_str(&log, &site_sh, &ssp, 0o644,
                 ensure::Create::Always)?;
         }
+
+        if name == "illumos" {
+            regen_illumos_sh(&log, &path, BuildType::Full, relver)?;
+            regen_illumos_sh(&log, &path, BuildType::QuickDebug, relver)?;
+            regen_illumos_sh(&log, &path, BuildType::Quick, relver)?;
+            regen_illumos_sh(&log, &path, BuildType::Release, relver)?;
+        }
     }
 
     /*
@@ -2243,16 +2280,14 @@ fn cmd_setup(ca: &CommandArg) -> Result<()> {
             &format!("../tools/packages/{}.mogrify", mog))?;
     }
 
-    let gate = top_path(&["projects", "illumos"])?;
-    regen_illumos_sh(log, &gate, BuildType::Full, relver)?;
-    regen_illumos_sh(log, &gate, BuildType::QuickDebug, relver)?;
-    regen_illumos_sh(log, &gate, BuildType::Quick, relver)?;
-    regen_illumos_sh(log, &gate, BuildType::Release, relver)?;
-
     /*
      * Perform setup in project repositories that require it.
      */
     for (name, project) in p.project.iter().filter(|p| p.1.cargo_build) {
+        if project.skip() {
+            continue;
+        }
+
         let path = top_path(&["projects", &name])?;
         info!(log, "building project {:?} at {}", name, path.display());
         let start = Instant::now();
