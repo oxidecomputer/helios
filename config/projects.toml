@@ -1,13 +1,17 @@
 [project.illumos]
-github = "illumos/illumos-gate"
+github = "oxidecomputer/illumos-gate"
+rev = "stlouis"
+unless_env = "BUILD_OS"
 
 [project.omnios-build]
 github = "oxidecomputer/helios-omnios-build"
+unless_env = "BUILD_OS"
 use_ssh = true
 site_sh = true
 
 [project.omnios-extra]
 github = "oxidecomputer/helios-omnios-extra"
+unless_env = "BUILD_OS"
 use_ssh = true
 site_sh = true
 
