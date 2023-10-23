@@ -239,7 +239,6 @@
         { "t": "remove_files", "file": "/usr/bin/i86/rksh" },
         { "t": "remove_files", "file": "/usr/bin/i86/rksh93" },
         { "t": "remove_files", "file": "/usr/bin/i86/savecore" },
-        { "t": "remove_files", "file": "/usr/bin/i86/strings" },
         { "t": "remove_files", "file": "/usr/bin/iconv" },
         { "t": "remove_files", "file": "/usr/bin/id" },
         { "t": "remove_files", "file": "/usr/bin/idn" },
