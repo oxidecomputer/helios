@@ -40,15 +40,15 @@ xterm*|rxvt*|screen*|sun-color)
 esac
 
 pathdirs=(
-        "$HOME/bin"
-        '/opt/local/sbin'
-        '/opt/local/bin'
-        '/opt/ooce/sbin'
-        '/opt/ooce/bin'
-        '/usr/sbin'
-        '/usr/bin'
-        '/bin'
-        '/sbin'
+	"$HOME/bin"
+	'/opt/ooce/sbin'
+	'/opt/ooce/bin'
+	'/opt/oxide/opte/bin'
+	'/opt/oxide/mg-ddm'
+	'/usr/sbin'
+	'/usr/bin'
+	'/bin'
+	'/sbin'
 )
 export PATH=$(IFS=':'; printf '%s' "${pathdirs[*]}")
 
