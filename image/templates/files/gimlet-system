@@ -1,16 +1,24 @@
 *
+*      #####
+*     ##   ##
+*    ##   # ##  ##   ##
+*    ##  #  ##   ## ##     Oxide Computer Company
+*    ## #   ##    ###      Gimlet
+*     ##   ##    ## ##
+*      #####    ##   ##
+*
 * This is the /etc/system file for Gimlet, which is pulled in as part of the
-* image creation process for Helios.
+* image creation process for Helios; it cannot be modified in situ.
 *
 
 *
 * Normally, the dbuf cache is 1/32nd of RAM and the dbuf metadata cache is
 * 1/64th of RAM.  On a 1TiB system, these are way, way too big for us --
 * especially with 800GiB already spoken for.  Moreover, the primary advantage
-* of the dbuf cache -- namely, saving uncompression costs -- is negated by the
-* non-compressability for Crucible data (which is encrypted).  We
-* therefore tune these numbers down quite a bit, knowing that any eviction
-* from the dbuf cache can still be in the ARC.
+* of the dbuf cache -- namely, eliminate the cost of uncompression on a dbuf
+* cache hit -- is negated by the non-compressability for Crucible data (which
+* is encrypted).  We therefore tune these numbers down quite a bit, knowing
+* that any eviction from the dbuf cache can still be in the ARC.
 *
 set zfs:dbuf_cache_max_bytes = 1073741824
 set zfs:dbuf_metadata_cache_max_bytes = 1073741824
