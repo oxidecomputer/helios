@@ -100,10 +100,16 @@
             "file": "/etc/motd",
             "src": "motd",
             "owner": "root", "group": "sys", "mode": "0644" },
+
         { "t": "ensure_file",
-            "file": "/etc/system",
-            "src": "gimlet-system",
+            "file": "/etc/system.d/zfs:dbuf",
+            "src": "gimlet-system-zfs:dbuf",
             "owner": "root", "group": "sys", "mode": "0644" },
+
+        { "t": "assemble_files",
+            "dir": "/etc/system.d",
+            "output": "/etc/system.d/.self-assembly" },
+
         { "t": "ensure_file",
             "file": "/etc/dumpadm.conf",
             "src": "dumpadm.conf",
