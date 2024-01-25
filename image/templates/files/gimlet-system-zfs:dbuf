@@ -1,17 +1,4 @@
 *
-*      #####
-*     ##   ##
-*    ##   # ##  ##   ##
-*    ##  #  ##   ## ##     Oxide Computer Company
-*    ## #   ##    ###      Gimlet
-*     ##   ##    ## ##
-*      #####    ##   ##
-*
-* This is the /etc/system.d/zfs:dbuf file for Gimlet, which is pulled in as
-* part of the image creation process for Helios; it cannot be modified in situ.
-*
-
-*
 * Normally, the dbuf cache is 1/32nd of RAM and the dbuf metadata cache is
 * 1/64th of RAM.  On a 1TiB system, these are way, way too big for us --
 * especially with 800GiB already spoken for.  Moreover, the primary advantage
