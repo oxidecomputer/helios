@@ -23,6 +23,7 @@ etc/name_to_major
 etc/name_to_sysnum
 etc/path_to_inst
 etc/system
+etc/system.d/.self-assembly
 etc/versions/build
 kernel/amd64/genunix
 kernel/crypto/amd64/aes
