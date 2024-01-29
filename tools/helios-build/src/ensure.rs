@@ -1,25 +1,16 @@
 /*
- * Copyright 2020 Oxide Computer Company
+ * Copyright 2024 Oxide Computer Company
  */
 
 use std::path::{Path, PathBuf};
 use std::fs::{DirBuilder, File};
 use std::os::unix::fs::DirBuilderExt;
 use std::ffi::CString;
-use std::io::{Read, BufRead, Write, BufReader, BufWriter};
+use std::io::{Read, BufRead, Write, BufReader};
 use std::process::{Command, Stdio};
 use std::ffi::OsStr;
-use digest::Digest;
 use slog::{Logger, info, warn, error};
 use anyhow::{Result, bail, anyhow};
-
-#[allow(dead_code)]
-#[derive(Debug, PartialEq)]
-pub enum HashType {
-    SHA1,
-    MD5,
-    None,
-}
 
 #[derive(Debug, PartialEq)]
 pub enum FileType {
@@ -457,107 +448,6 @@ pub fn symlink<P1: AsRef<Path>, P2: AsRef<Path>>(log: &Logger, dst: P1,
 
     info!(log, "ok!");
     Ok(did_work)
-}
-
-pub fn hash_file<P: AsRef<Path>>(p: P, hashtype: &HashType) -> Result<String> {
-    let p = p.as_ref();
-
-    if let HashType::None = hashtype {
-        return Ok("".to_string());
-    }
-
-    let f = File::open(p)?;
-    let mut r = BufReader::new(f);
-    let mut buf = [0u8; 128 * 1024];
-
-    let mut digest: Box<dyn digest::DynDigest> = match hashtype {
-        HashType::MD5 => Box::new(md5::Md5::new()),
-        HashType::SHA1 => Box::new(sha1::Sha1::new()),
-        HashType::None => panic!("None unexpected"),
-    };
-
-    loop {
-        let sz = r.read(&mut buf)?;
-        if sz == 0 {
-            break;
-        }
-
-        digest.input(&buf[0..sz]);
-    }
-
-    let mut out = String::new();
-    let hash = digest.result();
-    for byt in hash.iter() {
-        out.push_str(&format!("{:02x}", byt));
-    }
-
-    Ok(out)
-}
-
-fn sleep(s: u64) {
-    std::thread::sleep(std::time::Duration::from_secs(s));
-}
-
-pub fn download_file<P: AsRef<Path>>(log: &Logger, url: &str, p: P, hash: &str,
-    hashtype: HashType) -> Result<()>
-{
-    let p = p.as_ref();
-
-    loop {
-        /*
-         * Check to see if the file exists already.
-         */
-        if let Some(fi) = check(p)? {
-            if fi.filetype != FileType::File {
-                warn!(log, "type {:?} unexpected; unlinking", fi.filetype);
-                std::fs::remove_file(p)?;
-                continue;
-            }
-
-            info!(log, "file {} exists; checking hash...", p.display());
-
-            let actual_hash = hash_file(p, &hashtype)?;
-            info!(log, " got hash {}", actual_hash);
-            info!(log, "want hash {}", hash);
-
-            if hash == actual_hash {
-                info!(log, "hash match!  done");
-                break;
-            } else {
-                warn!(log, "does not match; unlinking");
-                std::fs::remove_file(p)?;
-                continue;
-            }
-        }
-
-        info!(log, "file {} does not exist; downloading from {}", p.display(),
-            url);
-        let mut res = reqwest::blocking::get(url)?;
-        if !res.status().is_success() {
-            warn!(log, "HTTP {:?}; retrying...", res.status());
-            sleep(5);
-        }
-
-        let f = std::fs::OpenOptions::new()
-            .create_new(true)
-            .write(true)
-            .open(p)?;
-        let mut w = BufWriter::new(f);
-
-        let sz = match std::io::copy(&mut res, &mut w) {
-            Ok(sz) => sz,
-            Err(e) => {
-                std::fs::remove_file(p)?;
-                warn!(log, "download error (retrying): {}", e);
-                sleep(5);
-                continue;
-            }
-        };
-
-        info!(log, "downloaded {} bytes", sz);
-    }
-
-    Ok(())
 }
 
 fn spawn_reader<T>(log: &Logger, name: &str, stream: Option<T>)
