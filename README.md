@@ -1,6 +1,6 @@
 # Oxide Helios
 
-Helios is a distribution of illumos intended to power the Oxide Rack.  The full
+Helios is a distribution of illumos powering the Oxide Rack.  The full
 distribution is built from several consolidations of software, driven from
 tools and documentation in this top-level repository.
 
