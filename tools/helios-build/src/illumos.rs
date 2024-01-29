@@ -2,15 +2,15 @@
  * Copyright 2020 Oxide Computer Company
  */
 
-use std::os::raw::{c_char, c_int};
-use std::process::{exit, Command};
-use std::ffi::{CString, CStr};
-use std::collections::HashMap;
-use std::path::{Path, PathBuf};
-use std::io::Write;
-use anyhow::{Result, bail};
+use super::common::{sleep, OutputExt};
+use anyhow::{bail, Result};
 use slog::Logger;
-use super::common::{OutputExt, sleep};
+use std::collections::HashMap;
+use std::ffi::{CStr, CString};
+use std::io::Write;
+use std::os::raw::{c_char, c_int};
+use std::path::{Path, PathBuf};
+use std::process::{exit, Command};
 
 const PFEXEC: &str = "/bin/pfexec";
 const ZONEADM: &str = "/usr/sbin/zoneadm";
@@ -27,9 +27,7 @@ pub struct UserAttr {
 impl UserAttr {
     pub fn profiles(&self) -> Vec<String> {
         if let Some(p) = self.attr.get("profiles") {
-            p.split(',')
-                .map(|s| s.trim().to_string())
-                .collect::<Vec<_>>()
+            p.split(',').map(|s| s.trim().to_string()).collect::<Vec<_>>()
         } else {
             Vec::new()
         }
@@ -74,16 +72,13 @@ struct UserAttrRaw {
 }
 
 #[link(name = "secdb")]
-extern {
+extern "C" {
     fn getusernam(buf: *const c_char) -> *mut UserAttrRaw;
     fn free_userattr(userattr: *mut UserAttrRaw);
 }
 
 pub fn get_user_attr_by_name(name: &str) -> Result<Option<UserAttr>> {
-    let mut out = UserAttr {
-        name: name.to_string(),
-        attr: HashMap::new(),
-    };
+    let mut out = UserAttr { name: name.to_string(), attr: HashMap::new() };
 
     let name = CString::new(name.to_owned())?;
     let ua = unsafe { getusernam(name.as_ptr()) };
@@ -112,11 +107,14 @@ pub fn nodename() -> String {
             exit(100);
         }
         std::ffi::CStr::from_ptr(un.nodename.as_mut_ptr())
-    }.to_str().unwrap().to_string()
+    }
+    .to_str()
+    .unwrap()
+    .to_string()
 }
 
 #[link(name = "c")]
-extern {
+extern "C" {
     fn getzoneid() -> i32;
     fn getzonenamebyid(id: i32, buf: *mut u8, buflen: usize) -> isize;
 }
@@ -138,7 +136,10 @@ pub fn zonename() -> String {
         Vec::from(&buf[0..sz as usize])
     };
     std::ffi::CStr::from_bytes_with_nul(&buf)
-        .unwrap().to_str().unwrap().to_string()
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .to_string()
 }
 
 fn errno() -> i32 {
@@ -223,7 +224,7 @@ impl Group {
                 members.push(cs(unsafe { *mems })?.unwrap());
 
                 mems = unsafe { mems.offset(1) };
-             }
+            }
             Some(members)
         } else {
             None
@@ -334,10 +335,7 @@ impl Terms {
     }
 
     fn new() -> Terms {
-        Terms {
-            terms: Vec::new(),
-            buf: Some(String::new()),
-        }
+        Terms { terms: Vec::new(), buf: Some(String::new()) }
     }
 }
 
@@ -425,17 +423,9 @@ pub fn zone_list() -> Result<Vec<Zone>> {
             bail!("invalid zoneadm list line: {:?}", line);
         }
 
-        let id = if line[0] == "-" {
-            None
-        } else {
-            Some(line[0].parse()?)
-        };
+        let id = if line[0] == "-" { None } else { Some(line[0].parse()?) };
 
-        let uuid = if line[4] == "" {
-            None
-        } else {
-            Some(line[4].to_string())
-        };
+        let uuid = if line[4] == "" { None } else { Some(line[4].to_string()) };
 
         zones.push(Zone {
             id,
@@ -451,12 +441,11 @@ pub fn zone_list() -> Result<Vec<Zone>> {
     Ok(zones)
 }
 
-pub fn zone_create<P, S1, S2>(name: S1, path: P, brand: S2)
-    -> Result<()>
-    where
-        P: AsRef<Path>,
-        S1: AsRef<str>,
-        S2: AsRef<str>,
+pub fn zone_create<P, S1, S2>(name: S1, path: P, brand: S2) -> Result<()>
+where
+    P: AsRef<Path>,
+    S1: AsRef<str>,
+    S2: AsRef<str>,
 {
     let n = name.as_ref();
     let p = path.as_ref();
@@ -474,7 +463,8 @@ pub fn zone_create<P, S1, S2>(name: S1, path: P, brand: S2)
     let out = Command::new(PFEXEC)
         .env_clear()
         .arg(ZONECFG)
-        .arg("-z").arg(n)
+        .arg("-z")
+        .arg(n)
         .arg(script)
         .output()?;
 
@@ -485,12 +475,11 @@ pub fn zone_create<P, S1, S2>(name: S1, path: P, brand: S2)
     Ok(())
 }
 
-pub fn zone_add_lofs<P1, P2, S1>(name: S1, gz: P1, ngz: P2)
-    -> Result<()>
-    where
-        P1: AsRef<Path>,
-        P2: AsRef<Path>,
-        S1: AsRef<str>,
+pub fn zone_add_lofs<P1, P2, S1>(name: S1, gz: P1, ngz: P2) -> Result<()>
+where
+    P1: AsRef<Path>,
+    P2: AsRef<Path>,
+    S1: AsRef<str>,
 {
     let n = name.as_ref();
     let gz = gz.as_ref();
@@ -510,7 +499,8 @@ pub fn zone_add_lofs<P1, P2, S1>(name: S1, gz: P1, ngz: P2)
     let out = Command::new(PFEXEC)
         .env_clear()
         .arg(ZONECFG)
-        .arg("-z").arg(n)
+        .arg("-z")
+        .arg(n)
         .arg(script)
         .output()?;
 
@@ -521,10 +511,9 @@ pub fn zone_add_lofs<P1, P2, S1>(name: S1, gz: P1, ngz: P2)
     Ok(())
 }
 
-pub fn zone_install<S1>(name: S1, packages: &[&str])
-    -> Result<()>
-    where
-        S1: AsRef<str>,
+pub fn zone_install<S1>(name: S1, packages: &[&str]) -> Result<()>
+where
+    S1: AsRef<str>,
 {
     let n = name.as_ref();
 
@@ -553,11 +542,10 @@ pub fn zone_install<S1>(name: S1, packages: &[&str])
     Ok(())
 }
 
-pub fn zone_clone<S1, S2>(name: S1, src: S2)
-    -> Result<()>
-    where
-        S1: AsRef<str>,
-        S2: AsRef<str>,
+pub fn zone_clone<S1, S2>(name: S1, src: S2) -> Result<()>
+where
+    S1: AsRef<str>,
+    S2: AsRef<str>,
 {
     let n = name.as_ref();
     let src = src.as_ref();
@@ -581,10 +569,9 @@ pub fn zone_clone<S1, S2>(name: S1, src: S2)
     Ok(())
 }
 
-pub fn zone_halt<S1>(name: S1)
-    -> Result<()>
-    where
-        S1: AsRef<str>,
+pub fn zone_halt<S1>(name: S1) -> Result<()>
+where
+    S1: AsRef<str>,
 {
     let n = name.as_ref();
 
@@ -603,10 +590,9 @@ pub fn zone_halt<S1>(name: S1)
     Ok(())
 }
 
-pub fn zone_boot<S1>(name: S1)
-    -> Result<()>
-    where
-        S1: AsRef<str>,
+pub fn zone_boot<S1>(name: S1) -> Result<()>
+where
+    S1: AsRef<str>,
 {
     let n = name.as_ref();
 
@@ -625,11 +611,14 @@ pub fn zone_boot<S1>(name: S1)
     Ok(())
 }
 
-pub fn zone_milestone_wait<S1, S2>(_log: &Logger, name: S1, fmri: S2)
-    -> Result<()>
-    where
-        S1: AsRef<str>,
-        S2: AsRef<str>,
+pub fn zone_milestone_wait<S1, S2>(
+    _log: &Logger,
+    name: S1,
+    fmri: S2,
+) -> Result<()>
+where
+    S1: AsRef<str>,
+    S2: AsRef<str>,
 {
     let name = name.as_ref();
     let fmri = fmri.as_ref();
@@ -667,10 +656,9 @@ pub fn zone_milestone_wait<S1, S2>(_log: &Logger, name: S1, fmri: S2)
     Ok(())
 }
 
-pub fn zone_mount<S1>(name: S1)
-    -> Result<()>
-    where
-        S1: AsRef<str>,
+pub fn zone_mount<S1>(name: S1) -> Result<()>
+where
+    S1: AsRef<str>,
 {
     let n = name.as_ref();
 
@@ -689,10 +677,9 @@ pub fn zone_mount<S1>(name: S1)
     Ok(())
 }
 
-pub fn zone_unmount<S1>(name: S1)
-    -> Result<()>
-    where
-        S1: AsRef<str>,
+pub fn zone_unmount<S1>(name: S1) -> Result<()>
+where
+    S1: AsRef<str>,
 {
     let n = name.as_ref();
 
@@ -711,10 +698,9 @@ pub fn zone_unmount<S1>(name: S1)
     Ok(())
 }
 
-pub fn zone_uninstall<S1>(name: S1)
-    -> Result<()>
-    where
-        S1: AsRef<str>,
+pub fn zone_uninstall<S1>(name: S1) -> Result<()>
+where
+    S1: AsRef<str>,
 {
     let n = name.as_ref();
 
@@ -734,10 +720,9 @@ pub fn zone_uninstall<S1>(name: S1)
     Ok(())
 }
 
-pub fn zone_delete<S1>(name: S1)
-    -> Result<()>
-    where
-        S1: AsRef<str>,
+pub fn zone_delete<S1>(name: S1) -> Result<()>
+where
+    S1: AsRef<str>,
 {
     let n = name.as_ref();
 
@@ -757,11 +742,10 @@ pub fn zone_delete<S1>(name: S1)
     Ok(())
 }
 
-pub fn zone_deposit_script<S1, S2>(name: S1, contents: S2)
-    -> Result<String>
-    where
-        S1: AsRef<str>,
-        S2: AsRef<str>,
+pub fn zone_deposit_script<S1, S2>(name: S1, contents: S2) -> Result<String>
+where
+    S1: AsRef<str>,
+    S2: AsRef<str>,
 {
     let n = name.as_ref();
     let c = contents.as_ref();
@@ -806,12 +790,11 @@ pub fn zone_deposit_script<S1, S2>(name: S1, contents: S2)
     Ok(sp)
 }
 
-pub fn zoneinstall_append<S1, S2, P>(name: S1, path: P, line: S2)
-    -> Result<()>
-    where
-        P: AsRef<Path>,
-        S1: AsRef<str>,
-        S2: AsRef<str>,
+pub fn zoneinstall_append<S1, S2, P>(name: S1, path: P, line: S2) -> Result<()>
+where
+    P: AsRef<Path>,
+    S1: AsRef<str>,
+    S2: AsRef<str>,
 {
     let n = name.as_ref();
     let p = path.as_ref();
@@ -843,11 +826,15 @@ pub fn zoneinstall_append<S1, S2, P>(name: S1, path: P, line: S2)
     Ok(())
 }
 
-pub fn zoneinstall_mkdir<S1, P>(name: S1, path: P, uid: u32, gid: u32)
-    -> Result<()>
-    where
-        P: AsRef<Path>,
-        S1: AsRef<str>,
+pub fn zoneinstall_mkdir<S1, P>(
+    name: S1,
+    path: P,
+    uid: u32,
+    gid: u32,
+) -> Result<()>
+where
+    P: AsRef<Path>,
+    S1: AsRef<str>,
 {
     let n = name.as_ref();
     let p = path.as_ref();

@@ -5,27 +5,27 @@
 mod common;
 use common::*;
 
-use anyhow::{Result, Context, bail};
-use helios_build_utils::metadata::{ArchiveType, self};
+use anyhow::{bail, Context, Result};
+use helios_build_utils::metadata::{self, ArchiveType};
+use helios_build_utils::tree;
 use serde::Deserialize;
-use std::collections::HashMap;
-use std::os::unix::fs::PermissionsExt;
-use std::process::Command;
-use std::os::unix::process::CommandExt;
-use std::io::{BufReader, Read, Write};
-use std::fs::File;
-use std::time::{Instant,SystemTime};
 use slog::Logger;
+use std::collections::HashMap;
+use std::fs::File;
+use std::io::{BufReader, Read, Write};
+use std::os::unix::fs::PermissionsExt;
+use std::os::unix::process::CommandExt;
 use std::path::Path;
+use std::process::Command;
+use std::time::{Instant, SystemTime};
 use time::{format_description, OffsetDateTime};
 use walkdir::WalkDir;
-use helios_build_utils::tree;
 
-pub mod illumos;
-pub mod ensure;
-mod zfs;
 mod archive;
+pub mod ensure;
 mod expand;
+pub mod illumos;
+mod zfs;
 
 use expand::Expansion;
 
@@ -42,13 +42,18 @@ enum RelVer {
 }
 
 impl std::fmt::Display for RelVer {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>)
-        -> std::result::Result<(), std::fmt::Error>
-    {
-        write!(f, "{}", match self {
-            RelVer::V1 => 1,
-            RelVer::V2 => 2,
-        })
+    fn fmt(
+        &self,
+        f: &mut std::fmt::Formatter<'_>,
+    ) -> std::result::Result<(), std::fmt::Error> {
+        write!(
+            f,
+            "{}",
+            match self {
+                RelVer::V1 => 1,
+                RelVer::V2 => 2,
+            }
+        )
     }
 }
 
@@ -66,8 +71,8 @@ fn baseopts() -> getopts::Options {
     opts
 }
 
-use std::path::{PathBuf, Component};
 use std::ffi::OsStr;
+use std::path::{Component, PathBuf};
 
 const NO_PATH: Option<PathBuf> = None;
 
@@ -110,11 +115,8 @@ fn rel_path<P: AsRef<Path>>(
     p: Option<P>,
     components: &[&str],
 ) -> Result<PathBuf> {
-    let mut top = if let Some(p) = p {
-        p.as_ref().to_path_buf()
-    } else {
-        top()?
-    };
+    let mut top =
+        if let Some(p) = p { p.as_ref().to_path_buf() } else { top()? };
     for c in components {
         top.push(c);
     }
@@ -256,11 +258,15 @@ fn ensure_dir(components: &[&str]) -> Result<PathBuf> {
     Ok(dir)
 }
 
-
-fn create_ips_repo<P, S>(log: &Logger, path: P, publ: S, torch: bool)
-    -> Result<()>
-    where P: AsRef<Path>,
-          S: AsRef<str>,
+fn create_ips_repo<P, S>(
+    log: &Logger,
+    path: P,
+    publ: S,
+    torch: bool,
+) -> Result<()>
+where
+    P: AsRef<Path>,
+    S: AsRef<str>,
 {
     let publ: &str = publ.as_ref();
     let path: &Path = path.as_ref();
@@ -298,8 +304,10 @@ fn cmd_merge_illumos(ca: &CommandArg) -> Result<()> {
     opts.optopt("p", "", "output publisher name", "PUBLISHER");
 
     let usage = || {
-        println!("{}",
-            opts.usage("Usage: helios [OPTIONS] merge-illumos [OPTIONS]"));
+        println!(
+            "{}",
+            opts.usage("Usage: helios [OPTIONS] merge-illumos [OPTIONS]")
+        );
     };
 
     let log = ca.log;
@@ -351,10 +359,12 @@ fn cmd_merge_illumos(ca: &CommandArg) -> Result<()> {
     ensure_dir(&["tmp", &tillumos])?;
     let repo_merge = top_path(&["tmp", &tillumos, "nightly-merged"])?;
 
-    let repo_d = rel_path(Some(&gate),
-        &["packages", "i386", "nightly", "repo.redist"])?;
-    let repo_nd = rel_path(Some(&gate),
-        &["packages", "i386", "nightly-nd", "repo.redist"])?;
+    let repo_d =
+        rel_path(Some(&gate), &["packages", "i386", "nightly", "repo.redist"])?;
+    let repo_nd = rel_path(
+        Some(&gate),
+        &["packages", "i386", "nightly-nd", "repo.redist"],
+    )?;
 
     /*
      * Merge the packages from the DEBUG and non-DEBUG builds into a single
@@ -363,9 +373,18 @@ fn cmd_merge_illumos(ca: &CommandArg) -> Result<()> {
     info!(log, "recreating merging repository at {:?}", &repo_merge);
     create_ips_repo(log, &repo_merge, &input_publisher, true)?;
 
-    ensure::run(log, &["/usr/bin/pkgmerge", "-d", &repo_merge.to_str().unwrap(),
-        "-s", &format!("debug.illumos=false,{}/", repo_nd.to_str().unwrap()),
-        "-s", &format!("debug.illumos=true,{}/", repo_d.to_str().unwrap())])?;
+    ensure::run(
+        log,
+        &[
+            "/usr/bin/pkgmerge",
+            "-d",
+            &repo_merge.to_str().unwrap(),
+            "-s",
+            &format!("debug.illumos=false,{}/", repo_nd.to_str().unwrap()),
+            "-s",
+            &format!("debug.illumos=true,{}/", repo_d.to_str().unwrap()),
+        ],
+    )?;
 
     info!(log, "transforming packages for publishing...");
 
@@ -387,14 +406,25 @@ fn cmd_merge_illumos(ca: &CommandArg) -> Result<()> {
         top_path(&["packages", "os"])?
     };
 
-    ensure::run(log, &[PKGRECV,
-        "-s", &repo_merge.to_str().unwrap(),
-        "-d", &repo.to_str().unwrap(),
-        "--mog-file", &mog_publisher.to_str().unwrap(),
-        "--mog-file", &mog_conflicts.to_str().unwrap(),
-        "--mog-file", &mog_deps.to_str().unwrap(),
-        "-m", "latest",
-        "*"])?;
+    ensure::run(
+        log,
+        &[
+            PKGRECV,
+            "-s",
+            &repo_merge.to_str().unwrap(),
+            "-d",
+            &repo.to_str().unwrap(),
+            "--mog-file",
+            &mog_publisher.to_str().unwrap(),
+            "--mog-file",
+            &mog_conflicts.to_str().unwrap(),
+            "--mog-file",
+            &mog_deps.to_str().unwrap(),
+            "-m",
+            "latest",
+            "*",
+        ],
+    )?;
     ensure::run(log, &[PKGREPO, "refresh", "-s", &repo.to_str().unwrap()])?;
 
     /*
@@ -412,10 +442,8 @@ fn ncpus() -> Result<u32> {
     /*
      * XXX Replace with kstat check.
      */
-    let out = Command::new("/usr/sbin/psrinfo")
-        .env_clear()
-        .arg("-t")
-        .output()?;
+    let out =
+        Command::new("/usr/sbin/psrinfo").env_clear().arg("-t").output()?;
 
     if !out.status.success() {
         bail!("could not count CPUs: {}", out.info());
@@ -450,16 +478,21 @@ impl BuildType {
     }
 }
 
-fn regen_publisher_mog<P: AsRef<Path>>(log: &Logger, mogfile: Option<P>,
-    publisher: &str) -> Result<()>
-{
+fn regen_publisher_mog<P: AsRef<Path>>(
+    log: &Logger,
+    mogfile: Option<P>,
+    publisher: &str,
+) -> Result<()> {
     /*
      * Create the pkgmogrify template that we need to replace the pkg(5)
      * publisher name when promoting packages from a build repository to the
      * central repository.
      */
-    let mog = format!("<transform set name=pkg.fmri -> \
-        edit value pkg://[^/]+/ pkg://{}/>\n", publisher);
+    let mog = format!(
+        "<transform set name=pkg.fmri -> \
+        edit value pkg://[^/]+/ pkg://{}/>\n",
+        publisher
+    );
     let mogpath = if let Some(mogfile) = mogfile {
         mogfile.as_ref().to_path_buf()
     } else {
@@ -472,9 +505,8 @@ fn regen_publisher_mog<P: AsRef<Path>>(log: &Logger, mogfile: Option<P>,
 fn determine_release_version() -> Result<RelVer> {
     let relpath = "/etc/os-release";
     let relfile = std::fs::read_to_string(relpath)?;
-    let map: HashMap<_, _> = relfile.lines().filter_map(|l| {
-        l.split_once('=')
-    }).collect();
+    let map: HashMap<_, _> =
+        relfile.lines().filter_map(|l| l.split_once('=')).collect();
 
     let Some(id) = map.get("ID") else {
         bail!("ID missing from {relpath:?}");
@@ -493,9 +525,12 @@ fn determine_release_version() -> Result<RelVer> {
     })
 }
 
-fn regen_illumos_sh<P: AsRef<Path>>(log: &Logger, gate: P, bt: BuildType,
-    relver: RelVer) -> Result<PathBuf>
-{
+fn regen_illumos_sh<P: AsRef<Path>>(
+    log: &Logger,
+    gate: P,
+    bt: BuildType,
+    relver: RelVer,
+) -> Result<PathBuf> {
     let gate = gate.as_ref();
     let path_env = rel_path(Some(gate), &[bt.script_name()])?;
 
@@ -637,8 +672,10 @@ fn cmd_build_illumos(ca: &CommandArg) -> Result<()> {
     opts.optflag("i", "incremental", "perform an incremental build");
 
     let usage = || {
-        println!("{}",
-            opts.usage("Usage: helios [OPTIONS] build-illumos [OPTIONS]"));
+        println!(
+            "{}",
+            opts.usage("Usage: helios [OPTIONS] build-illumos [OPTIONS]")
+        );
     };
 
     let log = ca.log;
@@ -686,20 +723,25 @@ fn cmd_build_illumos(ca: &CommandArg) -> Result<()> {
     };
     let env_sh = regen_illumos_sh(log, &gate, bt, relver)?;
 
-    let script = format!("cd {} && ./usr/src/tools/scripts/nightly{} {}",
+    let script = format!(
+        "cd {} && ./usr/src/tools/scripts/nightly{} {}",
         gate.to_str().unwrap(),
         if res.opt_present("i") { " -i" } else { "" },
-        env_sh.to_str().unwrap());
+        env_sh.to_str().unwrap()
+    );
 
     ensure::run(log, &["/sbin/sh", "-c", &script])?;
 
     Ok(())
 }
 
-fn create_transformed_repo(log: &Logger, gate: &Path, tmpdir: &Path,
-    debug: bool, refresh: bool)
-    -> Result<PathBuf>
-{
+fn create_transformed_repo(
+    log: &Logger,
+    gate: &Path,
+    tmpdir: &Path,
+    debug: bool,
+    refresh: bool,
+) -> Result<PathBuf> {
     let repo = rel_path(Some(tmpdir), &["repo.redist"])?;
     create_ips_repo(log, &repo, "on-nightly", true)?;
 
@@ -711,15 +753,25 @@ fn create_transformed_repo(log: &Logger, gate: &Path, tmpdir: &Path,
 
     info!(log, "transforming packages for installation...");
     let which = if debug { "nightly" } else { "nightly-nd" };
-    let repo_nd = rel_path(Some(gate),
-        &["packages", "i386", which, "repo.redist"])?;
-    ensure::run(log, &[PKGRECV,
-        "-s", &repo_nd.to_str().unwrap(),
-        "-d", &repo.to_str().unwrap(),
-        "--mog-file", &mog_conflicts.to_str().unwrap(),
-        "--mog-file", &mog_deps.to_str().unwrap(),
-        "-m", "latest",
-        "*"])?;
+    let repo_nd =
+        rel_path(Some(gate), &["packages", "i386", which, "repo.redist"])?;
+    ensure::run(
+        log,
+        &[
+            PKGRECV,
+            "-s",
+            &repo_nd.to_str().unwrap(),
+            "-d",
+            &repo.to_str().unwrap(),
+            "--mog-file",
+            &mog_conflicts.to_str().unwrap(),
+            "--mog-file",
+            &mog_deps.to_str().unwrap(),
+            "-m",
+            "latest",
+            "*",
+        ],
+    )?;
     if refresh {
         ensure::run(log, &[PKGREPO, "refresh", "-s", &repo.to_str().unwrap()])?;
     }
@@ -801,8 +853,13 @@ fn cmd_illumos_onu(ca: &CommandArg) -> Result<()> {
      * consolidations.  To do this, we create an onu-specific repository:
      */
     info!(log, "creating temporary repository...");
-    let repo = create_transformed_repo(log, &gate,
-        &ensure_dir(&["tmp", &tonu])?, res.opt_present("d"), true)?;
+    let repo = create_transformed_repo(
+        log,
+        &gate,
+        &ensure_dir(&["tmp", &tonu])?,
+        res.opt_present("d"),
+        true,
+    )?;
 
     if res.opt_present("P") {
         info!(log, "transformed packages available for onu at: {:?}", &repo);
@@ -884,13 +941,34 @@ fn cmd_illumos_onu(ca: &CommandArg) -> Result<()> {
      * privileges as it modifies the system.
      */
     info!(log, "installing packages...");
-    let onu = rel_path(Some(&gate), &["usr", "src", "tools", "proto",
-        "root_i386-nd", "opt", "onbld", "bin", "onu"])?;
+    let onu = rel_path(
+        Some(&gate),
+        &[
+            "usr",
+            "src",
+            "tools",
+            "proto",
+            "root_i386-nd",
+            "opt",
+            "onbld",
+            "bin",
+            "onu",
+        ],
+    )?;
 
     let onu_dir = top_path(&["tmp", &tonu])?;
-    ensure::run(log, &["pfexec", &onu.to_str().unwrap(), "-v",
-        "-d", &onu_dir.to_str().unwrap(),
-        "-t", &bename])?;
+    ensure::run(
+        log,
+        &[
+            "pfexec",
+            &onu.to_str().unwrap(),
+            "-v",
+            "-d",
+            &onu_dir.to_str().unwrap(),
+            "-t",
+            &bename,
+        ],
+    )?;
 
     info!(log, "onu complete!  you must now reboot");
     Ok(())
@@ -984,8 +1062,8 @@ fn cmd_illumos_bldenv(ca: &CommandArg) -> Result<()> {
 
     let env = rel_path(Some(&gate), &[t.script_name()])?;
     let src = rel_path(Some(&gate), &["usr", "src"])?;
-    let bldenv = rel_path(Some(&gate), &["usr", "src",
-        "tools", "scripts", "bldenv"])?;
+    let bldenv =
+        rel_path(Some(&gate), &["usr", "src", "tools", "scripts", "bldenv"])?;
 
     /*
      * bldenv(1) starts an interactive build shell with the correct environment
@@ -1010,11 +1088,18 @@ fn read_string(path: &Path) -> Result<String> {
     Ok(buf)
 }
 
-fn cargo_target_cmd(project: &str, command: &str, debug: bool)
-    -> Result<String>
-{
-    let bin = top_path(&["projects", project, "target",
-        if debug { "debug" } else { "release" }, command])?;
+fn cargo_target_cmd(
+    project: &str,
+    command: &str,
+    debug: bool,
+) -> Result<String> {
+    let bin = top_path(&[
+        "projects",
+        project,
+        "target",
+        if debug { "debug" } else { "release" },
+        command,
+    ])?;
     if !bin.is_file() {
         bail!("binary {:?} does not exist.  run \"gmake setup\"?", bin);
     }
@@ -1046,8 +1131,10 @@ fn genproto(proto: &Path, output_template: &Path) -> Result<()> {
             /*
              * On illumos, /bin is always a symbolic link to /usr/bin.
              */
-            bail!("proto {:?} contains a /bin directory; should use /usr/bin",
-                proto);
+            bail!(
+                "proto {:?} contains a /bin directory; should use /usr/bin",
+                proto
+            );
         }
 
         /*
@@ -1085,9 +1172,7 @@ fn genproto(proto: &Path, output_template: &Path) -> Result<()> {
                 || relpath == PathBuf::from("opt")
             {
                 "sys"
-            } else if relpath.starts_with("lib")
-                || relpath.starts_with("usr")
-            {
+            } else if relpath.starts_with("lib") || relpath.starts_with("usr") {
                 "bin"
             } else {
                 "root"
@@ -1135,13 +1220,20 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
     opts.optflag("", "ddr-testing", "build ROMs for other DDR frequencies");
     opts.optopt("p", "", "use an external package repository", "PUBLISHER=URL");
     opts.optopt("P", "", "include all files from extra proto area", "DIR");
-    opts.optmulti("Y", "", "AMD firmware blob directories override \
-        (e.g., \"GN/1.0.0.1\")", "DIR");
+    opts.optmulti(
+        "Y",
+        "",
+        "AMD firmware blob directories override \
+        (e.g., \"GN/1.0.0.1\")",
+        "DIR",
+    );
     opts.optopt("Z", "", "AMD firmware configuration file override", "FILE");
 
     let usage = || {
-        println!("{}",
-            opts.usage("Usage: helios [OPTIONS] experiment-image [OPTIONS]"));
+        println!(
+            "{}",
+            opts.usage("Usage: helios [OPTIONS] experiment-image [OPTIONS]")
+        );
     };
 
     let log = ca.log;
@@ -1170,10 +1262,9 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
         None
     };
 
-    let image_template = res.opt_str("N")
-        .unwrap_or_else(
-            || r"${user}@${host}: ${os_short_commit}; ${date} ${time}"
-            .to_string());
+    let image_template = res.opt_str("N").unwrap_or_else(|| {
+        r"${user}@${host}: ${os_short_commit}; ${date} ${time}".to_string()
+    });
 
     if res.opt_present("help") {
         usage();
@@ -1214,22 +1305,25 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
     info!(log, "using AMD firmware configuration file {amdconf:?}");
 
     let amdblobs = if res.opt_present("Y") {
-        res.opt_strs("Y").into_iter().map(|y| {
-            /*
-             * If the override is an absolute path, just pass it through.
-             * Otherwise look in the place where we usually store the
-             * firmware blobs:
-             */
-            let d = if y.starts_with("/") {
-                let p = PathBuf::from(y);
-                assert!(p.is_absolute());
-                p
-            } else {
-                top_path(&["projects", "amd-firmware", &y])?
-            };
+        res.opt_strs("Y")
+            .into_iter()
+            .map(|y| {
+                /*
+                 * If the override is an absolute path, just pass it through.
+                 * Otherwise look in the place where we usually store the
+                 * firmware blobs:
+                 */
+                let d = if y.starts_with("/") {
+                    let p = PathBuf::from(y);
+                    assert!(p.is_absolute());
+                    p
+                } else {
+                    top_path(&["projects", "amd-firmware", &y])?
+                };
 
-            Ok(d)
-        }).collect::<Result<Vec<_>>>()?
+                Ok(d)
+            })
+            .collect::<Result<Vec<_>>>()?
     } else {
         /*
          * If there is no override, use the default:
@@ -1248,8 +1342,11 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
     let builder = cargo_target_cmd("image-builder", "image-builder", true)?;
     let mkimage = cargo_target_cmd("bootserver", "mkimage", false)?;
     let pinprick = cargo_target_cmd("pinprick", "pinprick", false)?;
-    let ahib = cargo_target_cmd("amd-host-image-builder",
-        "amd-host-image-builder", true)?;
+    let ahib = cargo_target_cmd(
+        "amd-host-image-builder",
+        "amd-host-image-builder",
+        true,
+    )?;
     let baseline = "/usr/lib/brand/omicron1/baseline";
     if brand && !PathBuf::from(baseline).is_file() {
         bail!("Please run: pkg install /system/zones/brand/omicron1/tools");
@@ -1266,8 +1363,10 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
         bail!("neither LOGNAME nor IMAGE_DATASET present in environment?");
     };
     if !zfs::dataset_exists(&imgds)? {
-        bail!("ZFS dataset {:?} does not exist; we need it to create images",
-            imgds);
+        bail!(
+            "ZFS dataset {:?} does not exist; we need it to create images",
+            imgds
+        );
     }
     let mp = zfs::zfs_get(&imgds, "mountpoint")?;
 
@@ -1334,8 +1433,13 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
          * consolidations.  To do this, we create an onu-specific repository:
          */
         info!(log, "creating temporary repository...");
-        Some(create_transformed_repo(log, &gate, &tempdir,
-            res.opt_present("d"), false)?)
+        Some(create_transformed_repo(
+            log,
+            &gate,
+            &tempdir,
+            res.opt_present("d"),
+            false,
+        )?)
     };
 
     /*
@@ -1357,8 +1461,8 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
         cmd.arg("-F").arg(&format!("relver={}", relver));
         if let Some(genproto) = &genproto {
             cmd.arg("-E").arg(extra_proto.as_deref().unwrap());
-            cmd.arg("-F").arg(&format!("genproto={}",
-                genproto.to_str().unwrap()));
+            cmd.arg("-F")
+                .arg(&format!("genproto={}", genproto.to_str().unwrap()));
         }
         cmd.arg("-E").arg(&brand_extras);
         cmd.arg("-E").arg(&projects_extras);
@@ -1369,8 +1473,8 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
                 cmd.arg("-F").arg("debug_variant");
             }
         } else if let Some(repo) = &repo {
-            cmd.arg("-F").arg(format!("repo_redist={}",
-                repo.to_str().unwrap()));
+            cmd.arg("-F")
+                .arg(format!("repo_redist={}", repo.to_str().unwrap()));
         }
         cmd.arg("-F").arg("baud=3000000");
         if brand {
@@ -1399,10 +1503,10 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
              */
             info!(log, "omicron1 baseline generation...");
 
-            ensure::run(log, &[baseline,
-                "-R", &root,
-                &brand_extras.to_str().unwrap()
-            ])?;
+            ensure::run(
+                log,
+                &[baseline, "-R", &root, &brand_extras.to_str().unwrap()],
+            )?;
         }
 
         info!(log, "image builder template: ramdisk-02-trim...");
@@ -1420,8 +1524,7 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
         info!(log, "skipping installation phase, using existing archive");
     }
 
-    let tname = if recovery { "zfs-recovery" }
-        else { "zfs" };
+    let tname = if recovery { "zfs-recovery" } else { "zfs" };
     info!(log, "image builder template: {}...", tname);
     let mut cmd = basecmd();
     cmd.arg("-n").arg(tname);
@@ -1433,8 +1536,10 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
     let mut tokens = HashMap::new();
     let now: OffsetDateTime = SystemTime::now().into();
 
-    tokens.insert("user".to_string(),
-        illumos::get_username()?.unwrap_or_else(|| "unknown".to_string()));
+    tokens.insert(
+        "user".to_string(),
+        illumos::get_username()?.unwrap_or_else(|| "unknown".to_string()),
+    );
     tokens.insert("host".to_string(), illumos::nodename());
     let dt_fmt = format_description::parse(DATE_FORMAT_STR).unwrap();
     tokens.insert("date".to_string(), now.format(&dt_fmt).unwrap());
@@ -1482,12 +1587,10 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
     /*
      * Assemble a set of extra metadata to include in the archive.
      */
-    let mut infos = vec![
-        (
-            "image-args.txt".to_string(),
-            format!("image arguments: {:#?}\n", ca.args).as_bytes().to_vec(),
-        ),
-    ];
+    let mut infos = vec![(
+        "image-args.txt".to_string(),
+        format!("image arguments: {:#?}\n", ca.args).as_bytes().to_vec(),
+    )];
 
     /*
      * Include some basic git metadata from the set of project directories we
@@ -1609,9 +1712,9 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
     let tar = archive::Archive::new(
         &tarpath,
         metadata::MetadataBuilder::new(ArchiveType::Os)
-        .info("name", &image_name)?
-        .info("checksum", &csum)?
-        .build()?,
+            .info("name", &image_name)?
+            .info("checksum", &csum)?
+            .build()?,
     )?;
 
     for (name, data) in infos {
@@ -1628,8 +1731,16 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
     let mkcpio = top_path(&["image", "mkcpio.sh"])?;
     let cpio = rel_path(Some(&outdir), &["cpio"])?;
     info!(log, "creating boot archive (CPIO)...");
-    ensure::run(log, &["bash", mkcpio.to_str().unwrap(),
-        &root, cpio.to_str().unwrap(), tempdir.to_str().unwrap()])?;
+    ensure::run(
+        log,
+        &[
+            "bash",
+            mkcpio.to_str().unwrap(),
+            &root,
+            cpio.to_str().unwrap(),
+            tempdir.to_str().unwrap(),
+        ],
+    )?;
 
     /*
      * Create a compressed CPIO and kernel to be passed to nanobl-rs via XMODEM.
@@ -1640,31 +1751,64 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
     let unix = format!("{}/platform/oxide/kernel/amd64/unix", root);
     let unixz = rel_path(Some(&outdir), &["unix.z"])?;
     info!(log, "creating compressed cpio/unix for nanobl-rs...");
-    ensure::run(log, &["bash", "-c",
-        &format!("'{}' '{}' >'{}'", pinprick, unix,
-            unixz.to_str().unwrap())])?;
+    ensure::run(
+        log,
+        &[
+            "bash",
+            "-c",
+            &format!(
+                "'{}' '{}' >'{}'",
+                pinprick,
+                unix,
+                unixz.to_str().unwrap()
+            ),
+        ],
+    )?;
     tar.add_file(&unixz, "unix.z")?;
-    ensure::run(log, &["bash", "-c",
-        &format!("'{}' '{}' >'{}'", pinprick, cpio.to_str().unwrap(),
-            cpioz.to_str().unwrap())])?;
+    ensure::run(
+        log,
+        &[
+            "bash",
+            "-c",
+            &format!(
+                "'{}' '{}' >'{}'",
+                pinprick,
+                cpio.to_str().unwrap(),
+                cpioz.to_str().unwrap()
+            ),
+        ],
+    )?;
     tar.add_file(&cpioz, "cpio.z")?;
 
     /*
      * Create the reset image for the Gimlet SPI ROM:
      */
     info!(log, "creating reset image...");
-    ensure::run_in(log, &top_path(&["projects", "phbl"])?,
-        &["cargo", "xtask", "build", "--release",
-        "--cpioz", cpioz.to_str().unwrap()])?;
+    ensure::run_in(
+        log,
+        &top_path(&["projects", "phbl"])?,
+        &[
+            "cargo",
+            "xtask",
+            "build",
+            "--release",
+            "--cpioz",
+            cpioz.to_str().unwrap(),
+        ],
+    )?;
     info!(log, "building host image...");
     let rom = rel_path(Some(&outdir), &["rom"])?;
-    let reset = top_path(&["projects", "phbl", "target",
-        "x86_64-oxide-none-elf", "release", "phbl"])?;
+    let reset = top_path(&[
+        "projects",
+        "phbl",
+        "target",
+        "x86_64-oxide-none-elf",
+        "release",
+        "phbl",
+    ])?;
     let ahibdir = top_path(&["projects", "amd-host-image-builder"])?;
     let ahibargs_base = {
-        let mut t: Vec<String> = vec![
-            ahib.as_str().into(),
-        ];
+        let mut t: Vec<String> = vec![ahib.as_str().into()];
         for blob in amdblobs {
             t.push("-B".into());
             t.push(blob.to_str().unwrap().into());
@@ -1685,8 +1829,11 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
 
         t
     };
-    ensure::run_in(log, &ahibdir,
-        &ahibargs.iter().map(String::as_str).collect::<Vec<_>>())?;
+    ensure::run_in(
+        log,
+        &ahibdir,
+        &ahibargs.iter().map(String::as_str).collect::<Vec<_>>(),
+    )?;
     tar.add_file(&rom, "rom")?;
 
     if ddr_testing {
@@ -1705,8 +1852,10 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
              * Produce a new configuration file with the specified
              * MemBusFrequencyLimit:
              */
-            let tmpcfg = rel_path(Some(&tempdir),
-                &[&format!("milan-gimlet-b.ddr{}.efs.json", limit)])?;
+            let tmpcfg = rel_path(
+                Some(&tempdir),
+                &[&format!("milan-gimlet-b.ddr{}.efs.json", limit)],
+            )?;
             maybe_unlink(&tmpcfg)?;
             mk_rom_config(inputcfg.clone(), &tmpcfg, limit)?;
 
@@ -1727,8 +1876,11 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
 
                 t
             };
-            ensure::run_in(log, &ahibdir,
-                &ahibargs.iter().map(String::as_str).collect::<Vec<_>>())?;
+            ensure::run_in(
+                log,
+                &ahibdir,
+                &ahibargs.iter().map(String::as_str).collect::<Vec<_>>(),
+            )?;
             tar.add_file(&rom, &romname)?;
         }
     }
@@ -1741,10 +1893,11 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
     Ok(())
 }
 
-fn mk_rom_config(mut input: serde_json::Value, output: &Path, ddr_speed: u32)
-    -> Result<()>
-{
-
+fn mk_rom_config(
+    mut input: serde_json::Value,
+    output: &Path,
+    ddr_speed: u32,
+) -> Result<()> {
     let Some(bhd) = input.get_mut("bhd") else {
         bail!("could not find bhd");
     };
@@ -1770,7 +1923,7 @@ fn mk_rom_config(mut input: serde_json::Value, output: &Path, ddr_speed: u32)
             target: EntryTarget,
         }
 
-        let ee: Entry= serde_json::from_value(e.clone())?;
+        let ee: Entry = serde_json::from_value(e.clone())?;
         if ee.target.type_ != "ApcbBackup" {
             continue;
         }
@@ -1801,8 +1954,9 @@ fn mk_rom_config(mut input: serde_json::Value, output: &Path, ddr_speed: u32)
             };
             let h: Header = serde_json::from_value(h.clone())?;
 
-            if h.group_id != 0x3000 || h.entry_id != 0x0004 ||
-                h.instance_id != 0
+            if h.group_id != 0x3000
+                || h.entry_id != 0x0004
+                || h.instance_id != 0
             {
                 continue;
             }
@@ -1830,8 +1984,10 @@ fn mk_rom_config(mut input: serde_json::Value, output: &Path, ddr_speed: u32)
                         continue;
                     }
                 }
-                dword.insert("MemBusFrequencyLimit".to_string(),
-                    serde_json::Value::String(format!("Ddr{}", ddr_speed)));
+                dword.insert(
+                    "MemBusFrequencyLimit".to_string(),
+                    serde_json::Value::String(format!("Ddr{}", ddr_speed)),
+                );
             }
         }
     }
@@ -1991,8 +2147,11 @@ fn cmd_setup(ca: &CommandArg) -> Result<()> {
                     let bs = git_branch_status(&path)?;
 
                     if &bs.head == "(detached)" && bs.oid == fixup.from_commit {
-                        info!(log, "applying fixup: moving to branch {}...",
-                            fixup.to_branch);
+                        info!(
+                            log,
+                            "applying fixup: moving to branch {}...",
+                            fixup.to_branch
+                        );
                         let mut child = Command::new("git")
                             .current_dir(&path)
                             .arg("checkout")
@@ -2120,8 +2279,13 @@ fn cmd_setup(ca: &CommandArg) -> Result<()> {
             site_sh += &format!("TMPDIR={}\n", &tmp.to_str().unwrap());
             site_sh += "DTMPDIR=$TMPDIR\n";
 
-            ensure::file_str(&log, &site_sh, &ssp, 0o644,
-                ensure::Create::Always)?;
+            ensure::file_str(
+                &log,
+                &site_sh,
+                &ssp,
+                0o644,
+                ensure::Create::Always,
+            )?;
         }
 
         if name == "illumos" {
@@ -2146,8 +2310,11 @@ fn cmd_setup(ca: &CommandArg) -> Result<()> {
     regen_publisher_mog(log, NO_PATH, publisher)?;
     for mog in &["os-conflicts", "os-deps"] {
         let mogpath = top_path(&["packages", &format!("{}.mogrify", mog)])?;
-        ensure::symlink(log, &mogpath,
-            &format!("../tools/packages/{}.mogrify", mog))?;
+        ensure::symlink(
+            log,
+            &mogpath,
+            &format!("../tools/packages/{}.mogrify", mog),
+        )?;
     }
 
     /*
@@ -2285,10 +2452,7 @@ fn main() -> Result<()> {
             continue;
         }
 
-        let ca = CommandArg {
-            log: &log,
-            args: args.as_slice(),
-        };
+        let ca = CommandArg { log: &log, args: args.as_slice() };
 
         return (ci.func)(&ca);
     }

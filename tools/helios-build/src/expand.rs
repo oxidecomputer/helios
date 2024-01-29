@@ -3,7 +3,6 @@ use std::collections::HashMap;
  * Copyright 2024 Oxide Computer Company
  */
 
-
 use anyhow::{bail, Result};
 
 pub struct Expansion {
@@ -126,7 +125,8 @@ impl Expansion {
     }
 
     pub fn evaluate(
-        &self, variables: &HashMap<String, String>,
+        &self,
+        variables: &HashMap<String, String>,
     ) -> Result<String> {
         let mut out = String::new();
 
