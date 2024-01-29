@@ -1,2 +1,6 @@
+#
+# Copyright 2024 Oxide Computer Company
+#
+
 <transform file path=usr/share/lib/dict/words -> drop>
 <transform file path=usr/lib/brand/ipkg.* -> drop>

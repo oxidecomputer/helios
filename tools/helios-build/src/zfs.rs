@@ -1,4 +1,8 @@
 use std::process::Command;
+/*
+ * Copyright 2024 Oxide Computer Company
+ */
+
 
 use anyhow::{Result, bail};
 

@@ -12,7 +12,13 @@
 # into a shell.
 #
 
+#
+# Copyright 2024 Oxide Computer Company
+#
+
+#
 # The only required argument is the name of the config.
+#
 if [[ "$#" != 1 ]]; then
 	echo "Usage: nvme-fio.sh config" >&2
 	exit 1

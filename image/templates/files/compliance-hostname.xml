@@ -1,5 +1,8 @@
 <?xml version="1.0"?>
 <!DOCTYPE service_bundle SYSTEM "/usr/share/lib/xml/dtd/service_bundle.dtd.1">
+<!--
+    Copyright 2024 Oxide Computer Company
+-->
 
 <service_bundle type='manifest' name='site-compliance-hostname'>
 
@@ -45,4 +48,3 @@
 </service>
 
 </service_bundle>
-<!-- vim: set ts=2 sts=2 sw=2 et: -->

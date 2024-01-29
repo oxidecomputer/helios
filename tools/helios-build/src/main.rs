@@ -1,3 +1,7 @@
+/*
+ * Copyright 2024 Oxide Computer Company
+ */
+
 mod common;
 use common::*;
 

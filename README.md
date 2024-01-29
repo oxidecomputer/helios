@@ -484,3 +484,10 @@ an array of extra ROM files with suffixes that represent different diagnostic
 capabilities.  Additional files are not committed and may change at any time in
 the future.  Software that interprets image archives should ignore any
 unrecognised files.
+
+## Licence
+
+Copyright 2024 Oxide Computer Company
+
+Unless otherwise noted, all components are licenced under the [Mozilla Public
+License Version 2.0](./LICENSE).

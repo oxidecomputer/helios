@@ -1,8 +1,8 @@
 [package]
 name = "helios-build"
-version = "0.1.0"
-authors = ["Oxide Computer Company"]
+version = "0.0.0"
 edition = "2021"
+license = "MPL-2.0"
 #
 # Report a specific error in the case that the toolchain is too old for
 # let-else:

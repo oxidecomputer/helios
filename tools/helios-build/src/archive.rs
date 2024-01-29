@@ -1,4 +1,8 @@
 use std::io::Write;
+/*
+ * Copyright 2024 Oxide Computer Company
+ */
+
 use std::path::{Path, PathBuf};
 use std::sync::mpsc;
 use std::thread::JoinHandle;
