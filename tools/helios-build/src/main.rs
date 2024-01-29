@@ -18,8 +18,7 @@ use std::time::{Instant,SystemTime};
 use slog::Logger;
 use std::path::Path;
 use time::{format_description, OffsetDateTime};
-use walkdir::{WalkDir, DirEntry};
-use regex::Regex;
+use walkdir::WalkDir;
 use helios_build_utils::tree;
 
 pub mod illumos;
@@ -413,7 +412,6 @@ fn ncpus() -> Result<u32> {
     /*
      * XXX Replace with kstat check.
      */
-    /* "psrinfo -t" */
     let out = Command::new("/usr/sbin/psrinfo")
         .env_clear()
         .arg("-t")
@@ -1004,127 +1002,12 @@ fn cmd_illumos_bldenv(ca: &CommandArg) -> Result<()> {
     bail!("exec failure: {:?}", err);
 }
 
-#[derive(Debug)]
-enum BuildFile {
-    Script(PathBuf),
-    Manifest(PathBuf),
-}
-
-struct BuildPackage {
-    name: String,
-    file: BuildFile,
-}
-
 fn read_string(path: &Path) -> Result<String> {
     let f = File::open(path)?;
     let mut buf = String::new();
     let mut br = BufReader::new(&f);
     br.read_to_string(&mut buf)?;
     Ok(buf)
-}
-
-fn extract_pkgs(_log: &Logger, dir: &Path) -> Result<Vec<BuildPackage>> {
-    /*
-     * First, find all the build.sh scripts.
-     */
-    fn is_build_sh(ent: &DirEntry) -> bool {
-        ent.file_type().is_file() &&
-            ent.file_name().to_str()
-            .map(|s| s.starts_with("build") && s.ends_with(".sh"))
-            .unwrap_or(false)
-    }
-
-    fn is_p5m(ent: &DirEntry) -> bool {
-        ent.file_type().is_file() &&
-            ent.file_name().to_str()
-            .map(|s| s.ends_with(".p5m"))
-            .unwrap_or(false)
-    }
-
-    let mut out = Vec::new();
-    let re = Regex::new(r"\bPKG=([^[:space:]]+)[[:space:]]*(#.*)?$").unwrap();
-    let re2 = Regex::new(r"^set name=pkg.fmri value=([^[:space:]]+).*")
-        .unwrap();
-    let re3 = Regex::new("^(?:.*//[^/]*/)?(.+?)(?:@.*)$").unwrap();
-
-    for ent in WalkDir::new(&dir).into_iter() {
-        let ent = ent?;
-
-        if is_p5m(&ent) {
-            for l in read_string(&ent.path())?.lines() {
-                if let Some(cap) = re2.captures(&l) {
-                    let pkg = cap.get(1).unwrap().as_str();
-                    if let Some(cap) = re3.captures(&pkg) {
-                        let pkg = cap.get(1).unwrap().as_str();
-                        out.push(BuildPackage {
-                            name: pkg.to_string(),
-                            file: BuildFile::Manifest(ent.path().to_path_buf()),
-                        });
-                    } else {
-                        bail!("weird package? {}", l);
-                    }
-                }
-            }
-            continue;
-        }
-
-        if !is_build_sh(&ent) {
-            continue;
-        }
-
-        /*
-         * Inspect the contents of each build script and look for packages.
-         */
-        for l in read_string(&ent.path())?.lines() {
-            if l.contains("##IGNORE##") {
-                continue;
-            }
-
-            if let Some(cap) = re.captures(&l) {
-                if let Some(pkg) = cap.get(1) {
-                    let pkg = pkg.as_str().trim();
-                    if !pkg.is_empty() {
-                        out.push(BuildPackage {
-                            name: pkg.to_string(),
-                            file: BuildFile::Script(ent.path().to_path_buf()),
-                        });
-                    }
-                }
-            }
-        }
-    }
-
-    Ok(out)
-}
-
-fn cmd_build_omnios(ca: &CommandArg) -> Result<()> {
-    let opts = baseopts();
-
-    let usage = || {
-        println!("{}", opts.usage("Usage: helios [OPTIONS] build-omnios \
-            [OPTIONS]"));
-    };
-
-    let log = ca.log;
-    let res = opts.parse(ca.args)?;
-
-    if res.opt_present("help") {
-        usage();
-        return Ok(());
-    }
-
-    let dir = top_path(&["projects", "omnios-build", "build"])?;
-
-    let mut pkgs = extract_pkgs(log, &dir)?;
-
-    pkgs.sort_by(|a, b| a.name.cmp(&b.name));
-
-    for pkg in pkgs.iter() {
-        println!(" * {}", pkg.name);
-        println!("   {:?}", pkg.file);
-    }
-
-    Ok(())
 }
 
 fn cargo_target_cmd(project: &str, command: &str, debug: bool)
@@ -1246,7 +1129,6 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
     opts.optopt("o", "", "output directory for image", "DIR");
     opts.optmulti("F", "", "pass extra image builder features", "KEY[=VAL]");
     opts.optflag("B", "", "include omicron1 brand");
-    opts.optopt("C", "", "compliance dock location", "DOCK");
     opts.optopt("N", "name", "image name", "NAME");
     opts.optflag("R", "", "recovery image");
     opts.optmulti("X", "", "skip this phase", "PHASE");
@@ -1264,8 +1146,7 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
 
     let log = ca.log;
     let res = opts.parse(ca.args.iter())?;
-    let cdock = res.opt_str("C");
-    let brand = res.opt_present("B") || cdock.is_some();
+    let brand = res.opt_present("B");
     let (publisher, extrepo) = if let Some(arg) = res.opt_str("p") {
         if let Some((key, val)) = arg.split_once('=') {
             (key.to_string(), Some(val.to_string()))
@@ -1371,7 +1252,7 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
         "amd-host-image-builder", true)?;
     let baseline = "/usr/lib/brand/omicron1/baseline";
     if brand && !PathBuf::from(baseline).is_file() {
-        bail!("pkg install /system/zones/brand/omicron1/tools");
+        bail!("Please run: pkg install /system/zones/brand/omicron1/tools");
     }
 
     /*
@@ -1479,11 +1360,6 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
             cmd.arg("-F").arg(&format!("genproto={}",
                 genproto.to_str().unwrap()));
         }
-        if let Some(cdock) = &cdock {
-            cmd.arg("-F").arg("compliance");
-            cmd.arg("-F").arg("stress");
-            cmd.arg("-E").arg(&cdock);
-        }
         cmd.arg("-E").arg(&brand_extras);
         cmd.arg("-E").arg(&projects_extras);
         cmd.arg("-F").arg(format!("repo_publisher={}", publisher));
@@ -1545,7 +1421,6 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
     }
 
     let tname = if recovery { "zfs-recovery" }
-        else if cdock.is_some() { "zfs-compliance" }
         else { "zfs" };
     info!(log, "image builder template: {}...", tname);
     let mut cmd = basecmd();
@@ -1702,16 +1577,7 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
     /*
      * Create the image and extract the checksum:
      */
-    let target_size = if cdock.is_some() {
-        /*
-         * In the compliance rack we would like to avoid running out of space,
-         * and we have no customer workloads, so using more RAM for the ramdisk
-         * pool is OK.
-         */
-        16 * 1024
-    } else {
-        4 * 1024
-    };
+    let target_size = 4 * 1024;
     info!(log, "creating Oxide boot image...");
     let mut cmd = Command::new(&mkimage);
     cmd.arg("-i").arg(&raw);
@@ -2365,13 +2231,6 @@ fn main() -> Result<()> {
         desc: "merge DEBUG and non-DEBUG packages into one repository".into(),
         func: cmd_merge_illumos,
         hide: false,
-        blank: false,
-    });
-    handlers.push(CommandInfo {
-        name: "build-omnios".into(),
-        desc: "build-omnios".into(),
-        func: cmd_build_omnios,
-        hide: true,
         blank: false,
     });
     handlers.push(CommandInfo {
