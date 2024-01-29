@@ -1,4 +1,9 @@
 #!/sbin/sh
+
+#
+# Copyright 2024 Oxide Computer Company
+#
+
 #
 # The real rootisramdisk needs to be able to look through ZFS, which presently
 # obfuscates the ramdisk reality somewhat.  For now, we shall fake it until we

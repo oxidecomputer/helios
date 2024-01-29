@@ -1,6 +1,9 @@
 use std::process::Command;
+/*
+ * Copyright 2024 Oxide Computer Company
+ */
 
-use anyhow::{Result, bail};
+use anyhow::{bail, Result};
 
 pub fn dataset_exists(dataset: &str) -> Result<bool> {
     if dataset.contains('@') {
@@ -10,7 +13,8 @@ pub fn dataset_exists(dataset: &str) -> Result<bool> {
     let zfs = Command::new("/sbin/zfs")
         .env_clear()
         .arg("list")
-        .arg("-Ho").arg("name")
+        .arg("-Ho")
+        .arg("name")
         .arg(dataset)
         .output()?;
 
@@ -30,7 +34,8 @@ pub fn zfs_get(dataset: &str, n: &str) -> Result<String> {
         .env_clear()
         .arg("get")
         .arg("-H")
-        .arg("-o").arg("value")
+        .arg("-o")
+        .arg("value")
         .arg(n)
         .arg(dataset)
         .output()?;

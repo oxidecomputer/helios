@@ -1,3 +1,6 @@
+#
+# Copyright 2024 Oxide Computer Company
+#
 
 TOP =			$(PWD)
 
@@ -20,6 +23,13 @@ welcome: gmakecheck
 gmakecheck:
 	@if [[ -z "$(.FEATURES)" ]]; then \
 		printf 'ERROR: This Makefile requires GNU Make (gmake)\n' >&2; \
+		exit 1; \
+	fi
+
+.PHONY: cargocheck
+cargocheck:
+	@if ! cargo --version >/dev/null 2>&1; then \
+		printf '    You must install Rust before continuing.\n' >&2; \
 		exit 1; \
 	fi
 
@@ -47,7 +57,7 @@ setup: gmakecheck $(HELIOS_BUILD)
 	@printf '\n'
 
 .PHONY: $(HELIOS_BUILD)
-$(HELIOS_BUILD):
+$(HELIOS_BUILD): cargocheck
 	@if [[ $$(/usr/bin/uname -o) != illumos ]]; then \
 		printf 'ERROR: must be built on illumos\n' >&2; \
 		exit 1; \

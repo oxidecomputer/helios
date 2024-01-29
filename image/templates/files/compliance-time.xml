@@ -1,49 +1,52 @@
 <?xml version="1.0"?>
 <!DOCTYPE service_bundle SYSTEM "/usr/share/lib/xml/dtd/service_bundle.dtd.1">
+<!--
+    Copyright 2024 Oxide Computer Company
+-->
 
 <service_bundle type='manifest' name='site-compliance-time'>
 
 <service name='site/compliance/time' type='service' version='1'>
-  <create_default_instance enabled='false' />
+    <create_default_instance enabled='false' />
 
-  <!-- Wait for multi-user... -->
-  <dependency name='multi-user-server' grouping='require_all' restart_on='none'
-    type='service'>
-    <service_fmri value='svc:/milestone/multi-user-server' />
-  </dependency>
+    <!-- Wait for multi-user... -->
+    <dependency name='multi-user-server' grouping='require_all'
+        restart_on='none' type='service'>
+        <service_fmri value='svc:/milestone/multi-user-server' />
+    </dependency>
 
-  <!-- ... and make sure we run after the T6 has been configured. -->
-  <dependency name='t6init' grouping='require_all' restart_on='none'
-    type='service'>
-    <service_fmri value='svc:/system/t6init' />
-  </dependency>
+    <!-- ... and make sure we run after the T6 has been configured. -->
+    <dependency name='t6init' grouping='require_all' restart_on='none'
+        type='service'>
+        <service_fmri value='svc:/system/t6init' />
+    </dependency>
 
-  <!-- ... and after our postboot script. -->
-  <dependency name='after-postboot' grouping='require_all' restart_on='none'
-    type='service'>
-    <service_fmri value='svc:/site/postboot' />
-  </dependency>
+    <!-- ... and after our postboot script. -->
+    <dependency name='after-postboot' grouping='require_all' restart_on='none'
+        type='service'>
+        <service_fmri value='svc:/site/postboot' />
+    </dependency>
 
-  <exec_method type='method' name='start'
-    exec='/usr/bin/pilot time listen' timeout_seconds='30' />
+    <exec_method type='method' name='start'
+        exec='/usr/bin/pilot time listen' timeout_seconds='30' />
 
-  <exec_method type='method' name='stop' exec=':kill' timeout_seconds='30' />
+    <exec_method type='method' name='stop' exec=':kill' timeout_seconds='30' />
 
-  <property_group name='startd' type='framework'>
-    <propval name='duration' type='astring' value='child' />
-  </property_group>
+    <property_group name='startd' type='framework'>
+        <propval name='duration' type='astring' value='child' />
+    </property_group>
 
-  <stability value='Unstable' />
+    <stability value='Unstable' />
 
-  <template>
-    <common_name>
-      <loctext xml:lang='C'>compliance time configuration</loctext>
-    </common_name>
-    <description>
-      <loctext xml:lang='C'>waits for local NTP servers to show up</loctext>
-    </description>
-  </template>
+    <template>
+        <common_name>
+            <loctext xml:lang='C'>compliance time configuration</loctext>
+        </common_name>
+        <description>
+            <loctext xml:lang='C'>waits for local NTP servers to show up
+            </loctext>
+        </description>
+    </template>
 </service>
 
 </service_bundle>
-<!-- vim: set ts=2 sts=2 sw=2 et: -->

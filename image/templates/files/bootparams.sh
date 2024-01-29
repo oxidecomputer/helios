@@ -1,4 +1,7 @@
 #!/bin/bash
+#
+# Copyright 2024 Oxide Computer Company
+#
 
 prtconf -v /devices | awk -v want="$1" "
 	/name='/ && /type=string/ && /items=1/ {

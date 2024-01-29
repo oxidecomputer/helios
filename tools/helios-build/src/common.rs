@@ -1,19 +1,15 @@
 /*
- * Copyright 2020 Oxide Computer Company
+ * Copyright 2024 Oxide Computer Company
  */
 
-#![allow(unused)]
-
-use atty::Stream;
-use slog::{Drain, Logger};
-use std::sync::Mutex;
+use anyhow::{bail, Result};
 use serde::Deserialize;
-use std::fs::File;
-use std::io::{Read, BufReader};
-use std::path::{Path, PathBuf};
-use anyhow::{Result, bail};
+use slog::{Drain, Logger};
+use std::io::IsTerminal;
+use std::path::Path;
+use std::sync::Mutex;
 
-pub use slog::{info, warn, error, debug, trace, o};
+pub use slog::{info, o};
 
 /**
  * Initialise a logger which writes to stdout, and which does the right thing on
@@ -21,14 +17,14 @@ pub use slog::{info, warn, error, debug, trace, o};
  */
 pub fn init_log() -> Logger {
     let dec = slog_term::TermDecorator::new().stdout().build();
-    if atty::is(Stream::Stdout) {
-        let dr = Mutex::new(slog_term::CompactFormat::new(dec)
-            .build()).fuse();
+    if std::io::stdout().is_terminal() {
+        let dr = Mutex::new(slog_term::CompactFormat::new(dec).build()).fuse();
         slog::Logger::root(dr, o!())
     } else {
-        let dr = Mutex::new(slog_term::FullFormat::new(dec)
-            .use_original_order()
-            .build()).fuse();
+        let dr = Mutex::new(
+            slog_term::FullFormat::new(dec).use_original_order().build(),
+        )
+        .fuse();
         slog::Logger::root(dr, o!())
     }
 }
@@ -75,14 +71,11 @@ impl OutputExt for std::process::Output {
 }
 
 pub fn read_toml<P, O>(path: P) -> Result<O>
-    where P: AsRef<Path>,
-          for<'de> O: Deserialize<'de>
+where
+    P: AsRef<Path>,
+    for<'de> O: Deserialize<'de>,
 {
-    let f = File::open(path.as_ref())?;
-    let mut buf: Vec<u8> = Vec::new();
-    let mut r = BufReader::new(f);
-    r.read_to_end(&mut buf)?;
-    Ok(toml::from_slice(&buf)?)
+    Ok(toml::from_str(&std::fs::read_to_string(path.as_ref())?)?)
 }
 
 fn exists<P: AsRef<Path>>(path: P) -> Result<Option<std::fs::Metadata>> {
@@ -94,6 +87,7 @@ fn exists<P: AsRef<Path>>(path: P) -> Result<Option<std::fs::Metadata>> {
     }
 }
 
+#[allow(unused)]
 pub fn exists_file<P: AsRef<Path>>(path: P) -> Result<bool> {
     let p = path.as_ref();
 
