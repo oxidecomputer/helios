@@ -1,3 +1,7 @@
+#
+# Copyright 2024 Oxide Computer Company
+#
+
 [project.illumos]
 github = "oxidecomputer/illumos-gate"
 rev = "stlouis"
@@ -5,14 +9,16 @@ unless_env = "BUILD_OS"
 
 [project.omnios-build]
 github = "oxidecomputer/helios-omnios-build"
+rev = "helios2"
 unless_env = "BUILD_OS"
-use_ssh = true
+use_ssh = false
 site_sh = true
 
 [project.omnios-extra]
 github = "oxidecomputer/helios-omnios-extra"
+rev = "helios2"
 unless_env = "BUILD_OS"
-use_ssh = true
+use_ssh = false
 site_sh = true
 
 [project.pinprick]
@@ -22,7 +28,30 @@ cargo_build = true
 
 [project.phbl]
 github = "oxidecomputer/phbl"
-use_ssh = true
+use_ssh = false
+
+[project.image-builder]
+github = "illumos/image-builder"
+use_ssh = false
+cargo_build = true
+use_debug = true
+auto_update = true
+
+[project.bootserver]
+github = "oxidecomputer/boot-image-tools"
+use_ssh = false
+cargo_build = true
+auto_update = true
+
+#
+# -----------------------------------------------------------------------------
+# NOTE: Repositories below this comment are all still private.
+#
+# If you do not have access to private repositories in the "oxidecomputer"
+# GitHub organisation, set "OXIDE_STAFF=no" in your environment to skip
+# cloning them.
+# -----------------------------------------------------------------------------
+#
 
 [project.amd-host-image-builder]
 github = "oxidecomputer/amd-host-image-builder"
@@ -30,6 +59,7 @@ use_ssh = true
 cargo_build = true
 use_debug = true
 auto_update = true
+unless_env = "OXIDE_STAFF"
 
 [[project.amd-host-image-builder.fixup]]
 #
@@ -43,28 +73,18 @@ to_branch = "main"
 github = "oxidecomputer/amd-firmware"
 use_ssh = true
 auto_update = true
-
-[project.bootserver]
-github = "oxidecomputer/boot-image-tools"
-use_ssh = true
-cargo_build = true
-auto_update = true
-
-[project.image-builder]
-github = "illumos/image-builder"
-use_ssh = false
-cargo_build = true
-use_debug = true
-auto_update = true
+unless_env = "OXIDE_STAFF"
 
 [project.chelsio-t6-roms]
 github = "oxidecomputer/chelsio-t6-roms"
 use_ssh = true
 cargo_build = false
 auto_update = true
+unless_env = "OXIDE_STAFF"
 
 [project.pilot]
-github = "oxidecomputer/compliance-pilot"
+github = "oxidecomputer/pilot"
 use_ssh = true
 cargo_build = true
 auto_update = true
+unless_env = "OXIDE_STAFF"
