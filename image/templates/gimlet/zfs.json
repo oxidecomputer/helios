@@ -60,11 +60,6 @@
 
         { "t": "include", "with": "stress", "name": "stress" },
 
-        { "t": "ensure_file", "with": "opte",
-            "file": "/kernel/drv/xde.conf",
-            "src": "xde.conf",
-            "owner": "root", "group": "sys", "mode": "0644" },
-
         { "t": "include", "name": "root-noauth" },
 
         { "t": "ensure_file", "with": "mfg",
