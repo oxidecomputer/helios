@@ -14,7 +14,7 @@ tools and documentation in this top-level repository.
 | [illumos-gate (stlouis branch)](https://github.com/oxidecomputer/illumos-gate/tree/stlouis/)    | ✅ Yes  | Core operating system (kernel, libc, etc)                                       |
 | [phbl](https://github.com/oxidecomputer/phbl)                                                   | ✅ Yes  | Pico Host Boot Loader                                                           |
 | [pinprick](https://github.com/oxidecomputer/pinprick)                                           | ✅ Yes  | ROM image compression utility                                                   |
-| [illumos/image-builder](https://github.com/image-builder)                                       | ✅ Yes  | Tool for building bootable illumos disk images                                  |
+| [illumos/image-builder](https://github.com/illumos/image-builder)                               | ✅ Yes  | Tool for building bootable illumos disk images                                  |
 | [amd-firmware](https://github.com/oxidecomputer/amd-firmware)                                   | ❌ No   | AMD CPU firmware binary blobs (will be available in future)                     |
 | [amd-host-image-builder](https://github.com/oxidecomputer/amd-host-image-builder)               | ❌ No   | ROM image construction tools for AMD CPUs (will be available in future)         |
 | [chelsio-t6-roms](https://github.com/oxidecomputer/chelsio-t6-roms)                             | ❌ No   | Chelsio T6 network interface card firmware blobs (will be available in future)  |
