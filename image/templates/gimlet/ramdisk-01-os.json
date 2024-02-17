@@ -29,9 +29,9 @@
         { "t": "pkg_change_facet", "facet": "openssl.10",
             "value": "false" },
         { "t": "pkg_change_facet", "facet": "doc",
-            "value": "false" },
+            "value": "true" },
         { "t": "pkg_change_facet", "facet": "doc.man",
-            "value": "false" },
+            "value": "true" },
 
         { "t": "pkg_install", "pkgs": [
             "/developer/debug/mdb",
@@ -48,7 +48,9 @@
             "/driver/storage/nvme",
 
             "/developer/macro/cpp",
+	    "/developer/object-file",
 
+            "/system/man",
             "/system/library/gcc-runtime",
             "/system/library/g++-runtime",
             "/developer/linker",
