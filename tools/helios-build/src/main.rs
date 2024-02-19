@@ -1480,6 +1480,9 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
         if brand {
             cmd.arg("-F").arg("omicron1");
         }
+        if recovery {
+            cmd.arg("-F").arg("recovery");
+        }
         for farg in res.opt_strs("F") {
             cmd.arg("-F").arg(farg);
         }

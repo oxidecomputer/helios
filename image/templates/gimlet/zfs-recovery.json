@@ -11,7 +11,7 @@
         "autoexpand": true,
         "trim": true,
         "options": [ "failmode=panic" ],
-        "fsoptions": [ "primarycache=none" ]
+        "fsoptions": []
     },
 
     "steps": [

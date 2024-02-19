@@ -29,9 +29,9 @@
         { "t": "pkg_change_facet", "facet": "openssl.10",
             "value": "false" },
         { "t": "pkg_change_facet", "facet": "doc",
-            "value": "false" },
+            "value": "false", "with": "recovery" },
         { "t": "pkg_change_facet", "facet": "doc.man",
-            "value": "false" },
+            "value": "false", "with": "recovery" },
 
         { "t": "pkg_install", "pkgs": [
             "/developer/debug/mdb",
@@ -46,7 +46,6 @@
             "/driver/network/rge",
 
             "/driver/storage/nvme",
-
             "/developer/macro/cpp",
 
             "/system/library/gcc-runtime",
@@ -85,6 +84,11 @@
 
             "/network/dns/bind",
             "/network/openssh-server"
+        ] },
+
+        { "t": "pkg_install", "without": "recovery", "pkgs": [
+            "/system/man",
+            "/developer/object-file"
         ] },
 
         { "t": "pkg_install", "with": "omicron1", "pkgs": [
