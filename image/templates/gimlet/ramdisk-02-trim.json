@@ -15,9 +15,12 @@
         { "t": "remove_files", "dir": "/usr/share/doc" },
         { "t": "remove_files", "dir": "/usr/share/bash-completion" },
 
-        { "t": "remove_files", "dir": "/usr/perl5/5.36/man" },
-        { "t": "remove_files", "dir": "/usr/share/man/man3ssl" },
-        { "t": "remove_files", "dir": "/usr/ssl-3/man" },
+        { "t": "remove_files",
+            "dir": "/usr/perl5/5.36/man", "without": "recovery" },
+        { "t": "remove_files",
+            "dir": "/usr/share/man/man3ssl", "without": "recovery" },
+        { "t": "remove_files",
+            "dir": "/usr/ssl-3/man", "without": "recovery" },
 
         { "t": "remove_files", "dir": "/etc/net-snmp" },
 
