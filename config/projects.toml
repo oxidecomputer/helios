@@ -29,6 +29,7 @@ cargo_build = true
 [project.phbl]
 github = "oxidecomputer/phbl"
 use_ssh = false
+auto_update = true
 
 [project.image-builder]
 github = "illumos/image-builder"
