@@ -4,7 +4,7 @@
         "bename": "ramdisk",
         "ashift": 9,
         "uefi": false,
-        "size": 800,
+        "size": 1000,
         "label": false,
         "no_features": false,
         "compression": "gzip-9",
