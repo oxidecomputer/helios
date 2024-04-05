@@ -229,7 +229,6 @@
         { "t": "remove_files", "file": "/usr/bin/hostname" },
         { "t": "remove_files", "file": "/usr/bin/i86/adb" },
         { "t": "remove_files", "file": "/usr/bin/i86/amt" },
-        { "t": "remove_files", "file": "/usr/bin/i86/cputrack" },
         { "t": "remove_files", "file": "/usr/bin/i86/ksh" },
         { "t": "remove_files", "file": "/usr/bin/i86/mdb" },
         { "t": "remove_files", "file": "/usr/bin/i86/rksh" },
