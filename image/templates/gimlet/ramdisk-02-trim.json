@@ -106,6 +106,10 @@
             "file": "/etc/motd",
             "src": "motd",
             "owner": "root", "group": "sys", "mode": "0644" },
+        { "t": "ensure_file",
+            "file": "/usr/share/bash/oxide_completion",
+            "src": "bash_completion",
+            "owner": "root", "group": "root", "mode": "0644" },
 
         { "t": "ensure_file",
             "file": "/etc/system.d/zfs:dbuf",

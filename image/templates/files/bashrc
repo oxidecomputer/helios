@@ -45,12 +45,15 @@ pathdirs=(
 	'/opt/ooce/bin'
 	'/opt/oxide/opte/bin'
 	'/opt/oxide/mg-ddm'
+	'/opt/oxide/oxlog'
 	'/usr/sbin'
 	'/usr/bin'
 	'/bin'
 	'/sbin'
 )
 export PATH=$(IFS=':'; printf '%s' "${pathdirs[*]}")
+
+. /usr/share/bash/oxide_completion
 
 #
 # Bracketed paste in bash is a deeply questionable facility, and on a serial
