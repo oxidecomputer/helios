@@ -4219,7 +4219,7 @@
 										},
 										{
 											Byte: {
-												MemTrainingHdtControl: "StageCompletionMessages1"
+												MemTrainingHdtControl: "AssertionMessages"
 											}
 										},
 										{
@@ -4314,7 +4314,7 @@
 										},
 										{
 											Byte: {
-												FchConsoleOutMode: 0x00
+												FchConsoleOutMode: "Disabled"
 											}
 										},
 										{
