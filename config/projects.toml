@@ -61,6 +61,7 @@ cargo_build = true
 use_debug = true
 auto_update = true
 unless_env = "OXIDE_STAFF"
+rev = "eaf0bc261413cf88d1538095ae3e38f465450cae"
 
 [[project.amd-host-image-builder.fixup]]
 #
