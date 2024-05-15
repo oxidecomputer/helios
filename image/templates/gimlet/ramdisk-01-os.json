@@ -83,7 +83,9 @@
             "/system/library/pcap",
 
             "/network/dns/bind",
-            "/network/openssh-server"
+            "/network/openssh-server",
+
+            "${@extra_packages}"
         ] },
 
         { "t": "pkg_install", "without": "recovery", "pkgs": [
