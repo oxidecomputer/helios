@@ -2,9 +2,11 @@
     "steps": [
         { "t": "remove_files", "dir": "/lib/svc/manifest/network/ipsec" },
         { "t": "remove_files", "dir": "/lib/svc/manifest/network/ldap" },
-        { "t": "remove_files", "dir": "/lib/svc/manifest/network/rpc" },
+        { "t": "remove_files", "without": "nfs",
+            "dir": "/lib/svc/manifest/network/rpc" },
         { "t": "remove_files", "dir": "/lib/svc/manifest/network/security" },
-        { "t": "remove_files", "dir": "/lib/svc/manifest/network/shares" },
+        { "t": "remove_files", "without": "nfs",
+            "dir": "/lib/svc/manifest/network/shares" },
         { "t": "remove_files", "dir": "/lib/svc/manifest/network/smb" },
         { "t": "remove_files",
              "file": "/lib/svc/manifest/application/management/net-snmp.xml" },
@@ -42,7 +44,7 @@
              "file": "/lib/svc/manifest/system/device/mpxio-upgrade.xml" },
         { "t": "remove_files",
              "file": "/lib/svc/manifest/system/hostid.xml" },
-        { "t": "remove_files",
+        { "t": "remove_files", "without": "nfs",
              "file": "/lib/svc/manifest/system/idmap.xml" },
         { "t": "remove_files",
              "file": "/lib/svc/manifest/system/pkgserv.xml" },
@@ -50,7 +52,7 @@
              "file": "/lib/svc/manifest/system/zones.xml" },
         { "t": "remove_files",
              "file": "/lib/svc/manifest/system/intrd.xml" },
-        { "t": "remove_files",
+        { "t": "remove_files", "without": "ntp",
              "file": "/lib/svc/manifest/network/chrony.xml" }
     ]
 }
