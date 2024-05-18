@@ -15,6 +15,7 @@
         { "t": "remove_files", "dir": "/dev/dsk" },
         { "t": "remove_files", "dir": "/dev/rdsk" },
         { "t": "remove_files", "dir": "/dev/usb" },
+        { "t": "remove_files", "dir": "/dev/sensors" },
 
         { "t": "ensure_dir", "dir": "/dev/cfg",
             "owner": "root", "group": "root", "mode": "755" },
