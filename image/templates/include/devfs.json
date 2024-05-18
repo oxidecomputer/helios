@@ -8,12 +8,15 @@
             "owner": "root", "group": "sys", "mode": "755" },
         { "t": "ensure_dir", "dir": "/dev/rdsk",
             "owner": "root", "group": "sys", "mode": "755" },
+        { "t": "ensure_dir", "dir": "/dev/sensors",
+            "owner": "root", "group": "root", "mode": "755" },
         { "t": "ensure_dir", "dir": "/dev/usb",
             "owner": "root", "group": "root", "mode": "755" },
 
         { "t": "remove_files", "dir": "/dev/cfg" },
         { "t": "remove_files", "dir": "/dev/dsk" },
         { "t": "remove_files", "dir": "/dev/rdsk" },
+        { "t": "remove_files", "dir": "/dev/sensors" },
         { "t": "remove_files", "dir": "/dev/usb" },
 
         { "t": "ensure_dir", "dir": "/dev/cfg",
@@ -22,6 +25,8 @@
             "owner": "root", "group": "sys", "mode": "755" },
         { "t": "ensure_dir", "dir": "/dev/rdsk",
             "owner": "root", "group": "sys", "mode": "755" },
+        { "t": "ensure_dir", "dir": "/dev/sensors",
+            "owner": "root", "group": "root", "mode": "755" },
         { "t": "ensure_dir", "dir": "/dev/usb",
             "owner": "root", "group": "root", "mode": "755" },
 
