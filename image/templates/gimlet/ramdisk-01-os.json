@@ -90,7 +90,9 @@
 
         { "t": "pkg_install", "without": "recovery", "pkgs": [
             "/system/man",
-            "/developer/object-file"
+            "/developer/object-file",
+            "/system/ksensor",
+            "/driver/cpu/sensor"
         ] },
 
         { "t": "pkg_install", "with": "omicron1", "pkgs": [
