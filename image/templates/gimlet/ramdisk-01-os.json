@@ -109,6 +109,12 @@
             "/driver/developer/amd/zen"
         ] },
 
+        { "t": "pkg_install", "with": "netperf", "pkgs": [
+            "/network/test/iperf",
+            "/system/library/demangle",
+            "/ooce/developer/flamegraph"
+        ] },
+
         { "t": "pkg_install", "with": "compliance", "pkgs": [
             "/driver/developer/amd/zen",
             "/developer/debug/humility"
