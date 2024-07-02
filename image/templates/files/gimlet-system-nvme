@@ -1,0 +1,10 @@
+*
+* The default NVMe admin command timeout is one second. We have observed that,
+* from the driver's perspective, the SN840 drives in a gimlet occasionally take
+* over two seconds to respond to a log page request. When the request times out
+* (after the first second), an abort is sent which also times out resulting in
+* the device being marked as dead by the driver.
+* Pending upstream driver work to improve things, we bump the timeout.
+*
+set nvme:nvme_admin_cmd_timeout = 0xa
+
