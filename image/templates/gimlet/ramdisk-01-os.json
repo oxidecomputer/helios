@@ -85,6 +85,8 @@
             "/network/dns/bind",
             "/network/openssh-server",
 
+            "oxide/platform-identity-cacerts",
+
             "${@extra_packages}"
         ] },
 
