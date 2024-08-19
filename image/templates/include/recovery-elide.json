@@ -519,7 +519,6 @@
         { "t": "remove_files", "file": "/usr/kernel/drv/amd64/pts" },
         { "t": "remove_files", "file": "/usr/kernel/drv/amd64/vmm" },
         { "t": "remove_files", "file": "/usr/kernel/drv/amd64/zcons" },
-        { "t": "remove_files", "file": "/usr/kernel/drv/eventfd.conf" },
         { "t": "remove_files", "file": "/usr/kernel/drv/fssnap.conf" },
         { "t": "remove_files", "file": "/usr/kernel/drv/ksyms.conf" },
         { "t": "remove_files", "file": "/usr/kernel/drv/logindmux.conf" },
