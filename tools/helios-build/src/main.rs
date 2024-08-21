@@ -65,8 +65,9 @@ fn baseopts() -> getopts::Options {
 
     /*
      * We should always have a --help flag everywhere.
+     * Accept -h as well as --help for good measure.
      */
-    opts.optflag("", "help", "usage information");
+    opts.optflag("h", "help", "usage information");
 
     opts
 }
@@ -2441,7 +2442,7 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
-    if res.free.is_empty() {
+    if res.free.is_empty() || res.free[0] == "help" {
         usage();
         bail!("choose a command");
     }
