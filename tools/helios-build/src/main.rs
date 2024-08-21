@@ -65,9 +65,8 @@ fn baseopts() -> getopts::Options {
 
     /*
      * We should always have a --help flag everywhere.
-     * Accept -h as well as --help for good measure.
      */
-    opts.optflag("h", "help", "usage information");
+    opts.optflag("", "help", "display usage information");
 
     opts
 }
@@ -2418,6 +2417,17 @@ fn main() -> Result<()> {
         hide: true,
         blank: false,
     });
+    handlers.push(CommandInfo {
+        name: "help".into(),
+        desc: "display usage information".into(),
+        /*
+         * No behaviour is required here.  The "help" command is a special case
+         * in the argument processing below.
+         */
+        func: |_: &CommandArg| Ok(()),
+        hide: false,
+        blank: true,
+    });
 
     let usage = || {
         let mut out = String::new();
@@ -2436,15 +2446,20 @@ fn main() -> Result<()> {
         println!("{}", opts.usage(&out));
     };
 
-    let res = opts.parse(std::env::args().skip(1))?;
+    let res = opts.parse(std::env::args_os().skip(1))?;
     if res.opt_present("help") {
         usage();
         return Ok(());
     }
 
-    if res.free.is_empty() || res.free[0] == "help" {
+    if res.free.is_empty() {
         usage();
         bail!("choose a command");
+    }
+
+    if res.free[0] == "help" {
+        usage();
+        return Ok(());
     }
 
     let args = res.free[1..].iter().map(|s| s.as_str()).collect::<Vec<_>>();
