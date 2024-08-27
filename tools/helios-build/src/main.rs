@@ -2429,7 +2429,7 @@ fn main() -> Result<()> {
         blank: true,
     });
 
-    let usage = || {
+    let usage = |failure: bool| {
         let mut out = String::new();
         out += "Usage: helios [OPTIONS] COMMAND [OPTIONS] [ARGS...]\n\n";
         for ci in handlers.iter() {
@@ -2443,22 +2443,34 @@ fn main() -> Result<()> {
 
             out += &format!("    {:<16} {}\n", ci.name, ci.desc);
         }
-        println!("{}", opts.usage(&out));
+        let msg = opts.usage(&out);
+        if failure {
+            eprintln!("{msg}");
+        } else {
+            println!("{msg}");
+        }
     };
 
-    let res = opts.parse(std::env::args_os().skip(1))?;
+    let res = match opts.parse(std::env::args_os().skip(1)) {
+        Ok(res) => res,
+        Err(e) => {
+            usage(true);
+            bail!("{e}");
+        }
+    };
+
     if res.opt_present("help") {
-        usage();
+        usage(false);
         return Ok(());
     }
 
     if res.free.is_empty() {
-        usage();
+        usage(true);
         bail!("choose a command");
     }
 
     if res.free[0] == "help" {
-        usage();
+        usage(false);
         return Ok(());
     }
 
@@ -2466,7 +2478,7 @@ fn main() -> Result<()> {
 
     let log = init_log();
 
-    for ci in handlers {
+    for ci in handlers.iter() {
         if ci.name != res.free[0] {
             continue;
         }
@@ -2476,6 +2488,7 @@ fn main() -> Result<()> {
         return (ci.func)(&ca);
     }
 
+    usage(true);
     bail!("command \"{}\" not understood", res.free[0]);
 }
 
