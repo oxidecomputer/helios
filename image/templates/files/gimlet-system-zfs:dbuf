@@ -10,13 +10,15 @@
 set zfs:dbuf_cache_max_bytes = 0x40000000
 set zfs:dbuf_metadata_cache_max_bytes = 0x40000000
 
-* by default, zfs tries to internally aggregate multiple IO operations, so it
-* can dispatch them as a single operation to the disk. This logic comes from the
-* era of spinning drives, where putting in the work to issue fewer, larger
-* commands would increase throughput. For SSDs, and especially the gimlet SSDs,
-* it instead generates extra work within ZFS that reduces throughput.
+*
+* By default, ZFS tries to internally aggregate multiple I/O operations, so it
+* can dispatch them as a single operation to the disk.  This logic comes from
+* the era of spinning drives, where putting in the work to issue fewer, larger
+* commands would increase throughput.  For SSDs, and especially the Gimlet
+* SSDs, it instead generates extra work within ZFS that reduces throughput.
 *
 * We set the limit to 0 disable aggregation entirely.
+*
 set zfs:zfs_vdev_aggregation_limit = 0
 
 * These taskqueues will allocate threads equal to 75% of the number of CPU
