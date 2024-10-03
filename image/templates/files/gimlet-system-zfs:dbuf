@@ -21,11 +21,13 @@ set zfs:dbuf_metadata_cache_max_bytes = 0x40000000
 *
 set zfs:zfs_vdev_aggregation_limit = 0
 
-* These taskqueues will allocate threads equal to 75% of the number of CPU
-* threads on the system. On the gimlet, that means that it allocates 96 threads.
-* These queues are per-zpool, so actually that means it allocates 960 threads by
-* default. This is a bit excessive. These parameters bring it down to allocate
-* 5% per pool instead, significantly reducing mutex contention between the
-* worker threads.
+*
+* These task queues will allocate threads equal to 75% of the number of CPU
+* threads on the system.  On the Gimlet, that means that it allocates 96
+* threads.  These queues are per-zpool, so actually that means it allocates 960
+* threads by default.  This is a bit excessive.  These parameters bring it down
+* to allocate 5% per pool instead, significantly reducing mutex contention
+* between the worker threads.
+*
 set zfs:zfs_sync_taskq_batch_pct = 5
 set zfs:zio_taskq_batch_pct = 5
