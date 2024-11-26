@@ -39,6 +39,8 @@
             "/system/network",
             "/system/microcode/oxide",
 
+	    "/driver/ktest",
+
             "/driver/network/cxgbe",
             "/driver/network/e1000g",
             "/driver/network/igb",
