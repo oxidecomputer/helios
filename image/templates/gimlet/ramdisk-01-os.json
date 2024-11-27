@@ -39,8 +39,6 @@
             "/system/network",
             "/system/microcode/oxide",
 
-	    "/driver/ktest",
-
             "/driver/network/cxgbe",
             "/driver/network/e1000g",
             "/driver/network/igb",
@@ -96,7 +94,8 @@
             "/system/man",
             "/developer/object-file",
             "/system/ksensor",
-            "/driver/cpu/sensor"
+            "/driver/cpu/sensor",
+            "/driver/ktest"
         ] },
 
         { "t": "pkg_install", "with": "omicron1", "pkgs": [
