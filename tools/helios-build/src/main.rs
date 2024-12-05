@@ -575,28 +575,31 @@ fn regen_illumos_sh<P: AsRef<Path>>(
     env += "export GNUC_ROOT=/opt/gcc-10\n";
     env += "export PRIMARY_CC=gcc10,$GNUC_ROOT/bin/gcc,gnu\n";
     env += "export PRIMARY_CCC=gcc10,$GNUC_ROOT/bin/g++,gnu\n";
+    env += "export SHADOW_CCS=\n";
+    env += "export SHADOW_CCCS=\n";
     match bt {
         BuildType::Quick | BuildType::QuickDebug => {
             /*
              * Skip the shadow compiler and smatch for quick builds:
              */
-            env += "export SHADOW_CCS=\n";
-            env += "export SHADOW_CCCS=\n";
         }
         BuildType::Full | BuildType::Release => {
             /*
-             * Enable the shadow compiler for full builds:
+             * Enable the shadow compiler(s) for full builds:
              */
-            env += "export SHADOW_CCS=gcc7,/opt/gcc-7/bin/gcc,gnu\n";
-            env += "export SHADOW_CCCS=gcc7,/opt/gcc-7/bin/g++,gnu\n";
+            for v in vec![14].iter() {
+                env += &format!(
+                    "SHADOW_CCS+=\" gcc{v},/opt/gcc-{v}/bin/gcc,gnu\"\n");
+                env += &format!(
+                    "SHADOW_CCCS+=\" gcc{v},/opt/gcc-{v}/bin/g++,gnu\"\n");
+            }
 
             /*
              * Enable smatch checks for full builds:
              */
-            env += "export SMATCHBIN=$CODEMGR_WS/usr/src/tools/proto/\
+            env += "SMATCHBIN=$CODEMGR_WS/usr/src/tools/proto/\
                 root_$MACH-nd/opt/onbld/bin/$MACH/smatch\n";
-            env += "export SHADOW_CCS=\"$SHADOW_CCS \
-                smatch,$SMATCHBIN,smatch\"\n";
+            env += "SHADOW_CCS+=\" smatch,$SMATCHBIN,smatch\"\n";
         }
     }
     env += "export BUILDVERSION_EXEC=\"git describe --all --long --dirty\"\n";
