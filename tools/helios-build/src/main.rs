@@ -587,7 +587,9 @@ fn regen_illumos_sh<P: AsRef<Path>>(
             /*
              * Enable the shadow compiler(s) for full builds:
              */
-            for v in vec![14].iter() {
+            const GCC_VERSIONS: &[u32] = &[14];
+
+            for v in GCC_VERSIONS {
                 env += &format!(
                     "SHADOW_CCS+=\" gcc{v},/opt/gcc-{v}/bin/gcc,gnu\"\n");
                 env += &format!(
