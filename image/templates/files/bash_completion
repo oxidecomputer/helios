@@ -1,0 +1,78 @@
+# This file is derived from completion fragments at
+#     https://github.com/OpenIndiana/openindiana-completions
+#
+# Portions Copyright 2006 Yann Rouillard <yann@opencsw.org>
+# Portions Copyright (c) 2013, Jonathan Perkin <jperkin@joyent.com>
+# Portions copyright 2013, Nexenta Systems, Inc.
+# Portions Copyright (c) 2018, Michal Nowak <mnowak@startmail.com>
+# Portions Copyright 2024 Oxide Computer Company
+
+shopt -s extglob progcomp
+
+_zlogin()
+{
+    local cur prev line
+    cur="${COMP_WORDS[COMP_CWORD]}"
+    prev="${COMP_WORDS[COMP_CWORD-1]}"
+    line="${COMP_LINE}"
+
+    # zlogin [-dCEQ] [-e c] [-l username] zonename
+    # zlogin [-nEQS] [-e c] [-l username] zonename utility [argument]...
+    local opts="-E -Q -e -l"
+    local opts_interactive="-d -C"
+    local opts_util="-n -S"
+
+    if [[ "${cur}" == -* ]]
+    then
+      case "${line}" in
+        *\ -n\ *|*\ -S\ *)
+          COMPREPLY=( $(compgen -W "${opts} ${opts_util}" -- "${cur}") )
+          ;;
+        *\ -d\ *|*\ -C\ *)
+          COMPREPLY=( $(compgen -W "${opts} ${opts_interactive}" -- "${cur}") )
+          ;;
+        *)
+          COMPREPLY=( $(compgen -W "${opts} ${opts_util} ${opts_interactive}" -- "${cur}") )
+          ;;
+        esac
+    else
+      # Provide running zone names
+      local zones=$(zoneadm list -n)
+      COMPREPLY=( $(compgen -W "${zones}" -- ${cur}) )
+    fi
+}
+
+_dash_z_zone()
+{
+    local cur prev
+    cur="${COMP_WORDS[COMP_CWORD]}"
+    prev="${COMP_WORDS[COMP_CWORD-1]}"
+
+    if [[ ${prev} =~ "-z" ]]; then
+      local zones="$(zoneadm list -n $*)"
+      COMPREPLY=( $(compgen -W "${zones}" -- ${cur}) )
+    fi
+}
+
+_dash_z_zone_running() { _dash_z_zone; }
+_dash_z_zone_configured() { _dash_z_zone -c; }
+
+complete -F _zlogin zlogin
+
+# Many illumos utilities are zone-aware through the -z option
+#
+complete -F _dash_z_zone_running pgrep
+complete -F _dash_z_zone_running pkill
+complete -F _dash_z_zone_running ps
+complete -F _dash_z_zone_running psrset
+complete -F _dash_z_zone_running ptree
+complete -F _dash_z_zone_running svcadm
+complete -F _dash_z_zone_running svcs
+complete -F _dash_z_zone_running svccfg
+complete -F _dash_z_zone_running svcprop
+
+complete -F _dash_z_zone_configured zoneadm
+complete -F _dash_z_zone_configured zonecfg
+
+# ex: filetype=sh
+# vim: tabstop=2 shiftwidth=2 expandtab
