@@ -555,7 +555,7 @@ fn regen_illumos_sh<P: AsRef<Path>>(
          * numbers:
          */
         BuildType::Quick | BuildType::QuickDebug | BuildType::Full => {
-            let vers = "$(git describe --long --all HEAD | cut -d/ -f2-)";
+            let vers = "$(helios_build_git_version_func | cut -d/ -f2-)";
             (999999, vers.into(), "Oxide Helios Version ^v ^w-bit (onu)")
         }
     };
@@ -564,6 +564,11 @@ fn regen_illumos_sh<P: AsRef<Path>>(
      * Construct an environment file to build illumos-gate.
      */
     let mut env = String::new();
+    env += "helios_build_git_version_func() {\n    \
+        git describe --all --long --dirty \
+        --match $(git branch --show-current) --exact-match 2>/dev/null || \
+        git describe --all --long --dirty\n\
+        }\n";
     match bt {
         BuildType::Full => env += "export NIGHTLY_OPTIONS='-nCDAprt'\n",
         BuildType::Release => env += "export NIGHTLY_OPTIONS='-nCDAprt'\n",
@@ -604,7 +609,7 @@ fn regen_illumos_sh<P: AsRef<Path>>(
             env += "SHADOW_CCS+=\" smatch,$SMATCHBIN,smatch\"\n";
         }
     }
-    env += "export BUILDVERSION_EXEC=\"git describe --all --long --dirty\"\n";
+    env += "export BUILDVERSION_EXEC=helios_build_git_version_func\n";
     env += &format!("export DMAKE_MAX_JOBS={}\n", maxjobs);
     env += "export ENABLE_SMB_PRINTING='#'\n";
     match relver {
