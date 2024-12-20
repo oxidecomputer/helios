@@ -530,13 +530,14 @@ fn regen_illumos_sh<P: AsRef<Path>>(
     gate: P,
     bt: BuildType,
     relver: RelVer,
+    parent_branch: &Option<String>,
 ) -> Result<PathBuf> {
     let gate = gate.as_ref();
     let path_env = rel_path(Some(gate), &[bt.script_name()])?;
 
     let maxjobs = ncpus()?;
 
-    let (rnum, vers, banner) = match bt {
+    let (pkgvers, vers, banner) = match bt {
         /*
          * Though git does not support an SVN- or Mercurial-like revision
          * number, our history is sufficiently linear that we can approximate
@@ -544,9 +545,35 @@ fn regen_illumos_sh<P: AsRef<Path>>(
          * beyond the release version, and as the value for "uname -v":
          */
         BuildType::Release => {
-            let rnum = git_commit_count(&gate)?;
-            let vers = format!("helios-{}.{}.{}", relver, DASHREV, rnum);
-            (rnum, vers, "Oxide Helios Version ^v ^w-bit")
+            let pkgvers = if let Some(br) = parent_branch.as_deref() {
+                /*
+                 * If this is a respin with backports, we need a more complex
+                 * version number.  First, determine where we branched from the
+                 * parent, and determine the commit count at that point:
+                 */
+                let bp = git_branch_point(&gate, br, "HEAD")?;
+                let rnum = git_commit_count(&gate, &bp)?;
+                info!(log, "base commit: {bp:?}, branch {br:?}, count {rnum}");
+
+                /*
+                 * Next, calculate a fourth octet based on the number of commits
+                 * from our common branch point up to the current commit on the
+                 * respin branch:
+                 */
+                let extra = git_commit_count(&gate, &format!("{bp}..HEAD"))?;
+
+                format!("{relver}.{DASHREV}.{rnum}.{extra}")
+            } else {
+                /*
+                 * For regular release builds, just count the number of commits
+                 * in the current branch:
+                 */
+                let rnum = git_commit_count(&gate, "HEAD")?;
+
+                format!("{relver}.{DASHREV}.{rnum}")
+            };
+            let vers = format!("helios-{pkgvers}");
+            (pkgvers, vers, "Oxide Helios Version ^v ^w-bit")
         }
         /*
          * If this is a quick build that one intends to install on the local
@@ -555,8 +582,9 @@ fn regen_illumos_sh<P: AsRef<Path>>(
          * numbers:
          */
         BuildType::Quick | BuildType::QuickDebug | BuildType::Full => {
+            let pkgvers = format!("{relver}.{DASHREV}.999999");
             let vers = "$(git describe --long --all HEAD | cut -d/ -f2-)";
-            (999999, vers.into(), "Oxide Helios Version ^v ^w-bit (onu)")
+            (pkgvers, vers.into(), "Oxide Helios Version ^v ^w-bit (onu)")
         }
     };
 
@@ -591,9 +619,11 @@ fn regen_illumos_sh<P: AsRef<Path>>(
 
             for v in GCC_VERSIONS {
                 env += &format!(
-                    "SHADOW_CCS+=\" gcc{v},/opt/gcc-{v}/bin/gcc,gnu\"\n");
+                    "SHADOW_CCS+=\" gcc{v},/opt/gcc-{v}/bin/gcc,gnu\"\n"
+                );
                 env += &format!(
-                    "SHADOW_CCCS+=\" gcc{v},/opt/gcc-{v}/bin/g++,gnu\"\n");
+                    "SHADOW_CCCS+=\" gcc{v},/opt/gcc-{v}/bin/g++,gnu\"\n"
+                );
             }
 
             /*
@@ -657,7 +687,7 @@ fn regen_illumos_sh<P: AsRef<Path>>(
     env += "export MULTI_PROTO=\"yes\"\n";
     env += "export ONBLD_BIN=/opt/onbld/bin\n";
     env += "export ON_CLOSED_BINS=/opt/onbld/closed\n";
-    env += &format!("export PKGVERS_BRANCH={}.{}.{}\n", relver, DASHREV, rnum);
+    env += &format!("export PKGVERS_BRANCH='{pkgvers}'\n");
 
     ensure::file_str(log, &env, &path_env, 0o644, ensure::Create::Always)?;
 
@@ -675,6 +705,7 @@ fn cmd_build_illumos(ca: &CommandArg) -> Result<()> {
     opts.optflag("r", "release", "build a release build");
     opts.optopt("g", "", "use an external gate directory", "DIR");
     opts.optflag("i", "incremental", "perform an incremental build");
+    opts.optopt("b", "", "use a parent branch for respin versioning", "BRANCH");
 
     let usage = || {
         println!(
@@ -726,7 +757,8 @@ fn cmd_build_illumos(ca: &CommandArg) -> Result<()> {
     } else {
         top_path(&["projects", "illumos"])?
     };
-    let env_sh = regen_illumos_sh(log, &gate, bt, relver)?;
+    let parent = res.opt_str("b");
+    let env_sh = regen_illumos_sh(log, &gate, bt, relver, &parent)?;
 
     let script = format!(
         "cd {} && ./usr/src/tools/scripts/nightly{} {}",
@@ -982,6 +1014,7 @@ fn cmd_illumos_onu(ca: &CommandArg) -> Result<()> {
 fn cmd_illumos_genenv(ca: &CommandArg) -> Result<()> {
     let mut opts = baseopts();
     opts.optopt("g", "", "use an external gate directory", "DIR");
+    opts.optopt("b", "", "use a parent branch for respin versioning", "BRANCH");
 
     let usage = || {
         println!("{}", opts.usage("Usage: helios [OPTIONS] genenv [OPTIONS]"));
@@ -1006,10 +1039,11 @@ fn cmd_illumos_genenv(ca: &CommandArg) -> Result<()> {
         top_path(&["projects", "illumos"])?
     };
 
-    regen_illumos_sh(ca.log, &gate, BuildType::Quick, relver)?;
-    regen_illumos_sh(ca.log, &gate, BuildType::QuickDebug, relver)?;
-    regen_illumos_sh(ca.log, &gate, BuildType::Full, relver)?;
-    regen_illumos_sh(ca.log, &gate, BuildType::Release, relver)?;
+    let parent = res.opt_str("b");
+    regen_illumos_sh(ca.log, &gate, BuildType::Quick, relver, &parent)?;
+    regen_illumos_sh(ca.log, &gate, BuildType::QuickDebug, relver, &parent)?;
+    regen_illumos_sh(ca.log, &gate, BuildType::Full, relver, &parent)?;
+    regen_illumos_sh(ca.log, &gate, BuildType::Release, relver, &parent)?;
 
     info!(ca.log, "ok");
     Ok(())
@@ -1024,6 +1058,7 @@ fn cmd_illumos_bldenv(ca: &CommandArg) -> Result<()> {
     opts.optflag("q", "quick", "quick build (no shadows, no DEBUG)");
     opts.optflag("d", "debug", "build a debug build");
     opts.optflag("r", "release", "build a release build");
+    opts.optopt("b", "", "use a parent branch for respin versioning", "BRANCH");
 
     let usage = || {
         println!("{}", opts.usage("Usage: helios [OPTIONS] bldenv [OPTIONS]"));
@@ -1063,7 +1098,8 @@ fn cmd_illumos_bldenv(ca: &CommandArg) -> Result<()> {
     let relver = determine_release_version()?;
 
     let gate = top_path(&["projects", "illumos"])?;
-    regen_illumos_sh(ca.log, &gate, t, relver)?;
+    let parent = res.opt_str("b");
+    regen_illumos_sh(ca.log, &gate, t, relver, &parent)?;
 
     let env = rel_path(Some(&gate), &[t.script_name()])?;
     let src = rel_path(Some(&gate), &["usr", "src"])?;
@@ -2011,17 +2047,55 @@ fn mk_rom_config(
     Ok(())
 }
 
-fn git_commit_count<P: AsRef<Path>>(path: P) -> Result<u32> {
+/**
+ * When we respin a release build with a backport, we first create a branch that
+ * is a child of the original commit we used from the main branch; e.g.,
+ * "rel/v12" is a branch from some point in the history of "stlouis" with one
+ * extra commit).  Use "git merge-base" to find a common ancestor commit; i.e.,
+ * one which appears both in the specified parent branch, and in the history of
+ * the nominated commit.
+ */
+fn git_branch_point<P: AsRef<Path>>(
+    path: P,
+    parent_branch: &str,
+    commit: &str,
+) -> Result<String> {
     let out = Command::new("git")
         .env_clear()
-        .arg("rev-list")
-        .arg("--count")
-        .arg("HEAD")
+        .arg("merge-base")
+        .arg(parent_branch)
+        .arg(commit)
         .current_dir(path.as_ref())
         .output()?;
 
     if !out.status.success() {
-        bail!("git commit count failed: {}", out.info());
+        bail!(
+            "git merge-base ({parent_branch:?}, {commit:?}) failed: {}",
+            out.info()
+        );
+    }
+
+    let res = String::from_utf8(out.stdout)?;
+    Ok(res.trim().parse()?)
+}
+
+/**
+ * Count commits.  If a branch or commit ID is provided, the count of commits
+ * will be from the beginning of the repository up to the named reference; e.g.,
+ * "HEAD" is a common argument.  One can also specify a range, and the count
+ * will be from the first point to the second point; e.g., "stlouis..HEAD".
+ */
+fn git_commit_count<P: AsRef<Path>>(path: P, commit: &str) -> Result<u32> {
+    let out = Command::new("git")
+        .env_clear()
+        .arg("rev-list")
+        .arg("--count")
+        .arg(commit)
+        .current_dir(path.as_ref())
+        .output()?;
+
+    if !out.status.success() {
+        bail!("git commit count ({commit:?}) failed: {}", out.info());
     }
 
     let res = String::from_utf8(out.stdout)?;
@@ -2297,10 +2371,18 @@ fn cmd_setup(ca: &CommandArg) -> Result<()> {
         }
 
         if name == "illumos" {
-            regen_illumos_sh(&log, &path, BuildType::Full, relver)?;
-            regen_illumos_sh(&log, &path, BuildType::QuickDebug, relver)?;
-            regen_illumos_sh(&log, &path, BuildType::Quick, relver)?;
-            regen_illumos_sh(&log, &path, BuildType::Release, relver)?;
+            /*
+             * When doing initial setup, we don't care about the potential for a
+             * parent branch for versioning purposes.  The actual build of the
+             * branch must be done with the "-b" argument, which will result in
+             * new and correct environment files.
+             */
+            let br = None;
+
+            regen_illumos_sh(&log, &path, BuildType::Full, relver, &br)?;
+            regen_illumos_sh(&log, &path, BuildType::QuickDebug, relver, &br)?;
+            regen_illumos_sh(&log, &path, BuildType::Quick, relver, &br)?;
+            regen_illumos_sh(&log, &path, BuildType::Release, relver, &br)?;
         }
     }
 
