@@ -2826,6 +2826,1162 @@
 								{
 									header: {
 										group_id: 0x1704,
+										entry_id: 0x0055,
+										instance_id: 0x0000,
+										context_type: "Struct",
+										context_format: "Raw",
+										unit_size: 0x00,
+										priority_mask: {
+											normal: true,
+										},
+										key_size: 0x00,
+										key_pos: 0x00,
+										board_instance_mask: 0xffff
+									},
+									LrdimmDdr4CadBusElement: [
+										{
+											dimm_slots_per_channel: 0x00000001,
+											ddr_rates: {
+												ddr400: false,
+												ddr533: false,
+												ddr667: false,
+												ddr800: false,
+												ddr1066: false,
+												ddr1333: false,
+												ddr1600: true,
+												ddr1866: false,
+												ddr2133: false,
+												ddr2400: false,
+												ddr2667: false,
+												ddr2933: false,
+												ddr3200: false,
+											},
+											vdd_io: {
+												"1.2 V": true,
+											},
+											dimm0_ranks: {
+												unpopulated: false,
+												lr: true
+											},
+											dimm1_ranks: {
+												unpopulated: true,
+												lr: false
+											},
+											gear_down_mode: 0x00000000,
+											slow_mode: 0x00000000,
+											address_command_control: 0x393939,
+											cke_drive_strength: "30 Ω",
+											cs_odt_drive_strength: "30 Ω",
+											address_command_drive_strength: "30 Ω",
+											clk_drive_strength: "30 Ω"
+										},
+										{
+											dimm_slots_per_channel: 0x00000001,
+											ddr_rates: {
+												ddr400: false,
+												ddr533: false,
+												ddr667: false,
+												ddr800: false,
+												ddr1066: false,
+												ddr1333: false,
+												ddr1600: false,
+												ddr1866: true,
+												ddr2133: false,
+												ddr2400: false,
+												ddr2667: false,
+												ddr2933: false,
+												ddr3200: false
+											},
+											vdd_io: {
+												"1.2 V": true
+											},
+											dimm0_ranks: {
+												unpopulated: false,
+												lr: true
+											},
+											dimm1_ranks: {
+												unpopulated: true,
+												lr: false
+											},
+											gear_down_mode: 0x00000000,
+											slow_mode: 0x00000000,
+											address_command_control: 0x373737,
+											cke_drive_strength: "30 Ω",
+											cs_odt_drive_strength: "30 Ω",
+											address_command_drive_strength: "30 Ω",
+											clk_drive_strength: "30 Ω"
+										},
+										{
+											dimm_slots_per_channel: 0x00000001,
+											ddr_rates: {
+												ddr400: false,
+												ddr533: false,
+												ddr667: false,
+												ddr800: false,
+												ddr1066: false,
+												ddr1333: false,
+												ddr1600: false,
+												ddr1866: false,
+												ddr2133: true,
+												ddr2400: false,
+												ddr2667: false,
+												ddr2933: false,
+												ddr3200: false
+											},
+											vdd_io: {
+												"1.2 V": true
+											},
+											dimm0_ranks: {
+												unpopulated: false,
+												lr: true
+											},
+											dimm1_ranks: {
+												unpopulated: true,
+												lr: false
+											},
+											gear_down_mode: 0,
+											slow_mode: 0,
+											address_command_control: 0x353535,
+											cke_drive_strength: "30 Ω",
+											cs_odt_drive_strength: "30 Ω",
+											address_command_drive_strength: "30 Ω",
+											clk_drive_strength: "30 Ω"
+										},
+										{
+											dimm_slots_per_channel: 0x00000001,
+											ddr_rates: {
+												ddr400: false,
+												ddr533: false,
+												ddr667: false,
+												ddr800: false,
+												ddr1066: false,
+												ddr1333: false,
+												ddr1600: false,
+												ddr1866: false,
+												ddr2133: false,
+												ddr2400: true,
+												ddr2667: false,
+												ddr2933: false,
+												ddr3200: false
+											},
+											vdd_io: {
+												"1.2 V": true
+											},
+											dimm0_ranks: {
+												unpopulated: false,
+												lr: true
+											},
+											dimm1_ranks: {
+												unpopulated: true,
+												lr: false
+											},
+											gear_down_mode: 0x00000000,
+											slow_mode: 0x00000000,
+											address_command_control: 0x333333,
+											cke_drive_strength: "30 Ω",
+											cs_odt_drive_strength: "30 Ω",
+											address_command_drive_strength: "30 Ω",
+											clk_drive_strength: "30 Ω"
+										},
+										{
+											dimm_slots_per_channel: 0x00000001,
+											ddr_rates: {
+												ddr400: false,
+												ddr533: false,
+												ddr667: false,
+												ddr800: false,
+												ddr1066: false,
+												ddr1333: false,
+												ddr1600: false,
+												ddr1866: false,
+												ddr2133: false,
+												ddr2400: false,
+												ddr2667: true,
+												ddr2933: false,
+												ddr3200: false
+											},
+											vdd_io: {
+												"1.2 V": true
+											},
+											dimm0_ranks: {
+												unpopulated: false,
+												lr: true
+											},
+											dimm1_ranks: {
+												unpopulated: true,
+												lr: false
+											},
+											gear_down_mode: 0x00000000,
+											slow_mode: 0x00000000,
+											address_command_control: 0x313131,
+											cke_drive_strength: "30 Ω",
+											cs_odt_drive_strength: "30 Ω",
+											address_command_drive_strength: "30 Ω",
+											clk_drive_strength: "30 Ω"
+										},
+										{
+											dimm_slots_per_channel: 0x00000001,
+											ddr_rates: {
+												ddr400: false,
+												ddr533: false,
+												ddr667: false,
+												ddr800: false,
+												ddr1066: false,
+												ddr1333: false,
+												ddr1600: false,
+												ddr1866: false,
+												ddr2133: false,
+												ddr2400: false,
+												ddr2667: false,
+												ddr2933: true,
+												ddr3200: false
+											},
+											vdd_io: {
+												"1.2 V": true
+											},
+											dimm0_ranks: {
+												unpopulated: false,
+												lr: true
+											},
+											dimm1_ranks: {
+												unpopulated: true,
+												lr: false
+											},
+											gear_down_mode: 0x00000000,
+											slow_mode: 0x00000000,
+											address_command_control: 0x2f2f2f,
+											cke_drive_strength: "30 Ω",
+											cs_odt_drive_strength: "30 Ω",
+											address_command_drive_strength: "30 Ω",
+											clk_drive_strength: "30 Ω"
+										},
+										{
+											dimm_slots_per_channel: 0x00000001,
+											ddr_rates: {
+												ddr400: false,
+												ddr533: false,
+												ddr667: false,
+												ddr800: false,
+												ddr1066: false,
+												ddr1333: false,
+												ddr1600: false,
+												ddr1866: false,
+												ddr2133: false,
+												ddr2400: false,
+												ddr2667: false,
+												ddr2933: false,
+												ddr3200: true
+											},
+											vdd_io: {
+												"1.2 V": true
+											},
+											dimm0_ranks: {
+												unpopulated: false,
+												lr: true
+											},
+											dimm1_ranks: {
+												unpopulated: true,
+												lr: false
+											},
+											gear_down_mode: 0x00000000,
+											slow_mode: 0x00000000,
+											address_command_control: 0x2d2d2d,
+											cke_drive_strength: "30 Ω",
+											cs_odt_drive_strength: "30 Ω",
+											address_command_drive_strength: "30 Ω",
+											clk_drive_strength: "30 Ω"
+										},
+										{
+											dimm_slots_per_channel: 0x00000002,
+											ddr_rates: {
+												ddr400: false,
+												ddr533: false,
+												ddr667: false,
+												ddr800: false,
+												ddr1066: false,
+												ddr1333: false,
+												ddr1600: true,
+												ddr1866: false,
+												ddr2133: false,
+												ddr2400: false,
+												ddr2667: false,
+												ddr2933: false,
+												ddr3200: false
+											},
+											vdd_io: {
+												"1.2 V": true
+											},
+											dimm0_ranks: {
+												unpopulated: true,
+												lr: false
+											},
+											dimm1_ranks: {
+												unpopulated: false,
+												lr: true
+											},
+											gear_down_mode: 0x00000000,
+											slow_mode: 0x00000000,
+											address_command_control: 0x393939,
+											cke_drive_strength: "30 Ω",
+											cs_odt_drive_strength: "30 Ω",
+											address_command_drive_strength: "30 Ω",
+											clk_drive_strength: "30 Ω"
+										},
+										{
+											dimm_slots_per_channel: 0x00000002,
+											ddr_rates: {
+												ddr400: false,
+												ddr533: false,
+												ddr667: false,
+												ddr800: false,
+												ddr1066: false,
+												ddr1333: false,
+												ddr1600: true,
+												ddr1866: false,
+												ddr2133: false,
+												ddr2400: false,
+												ddr2667: false,
+												ddr2933: false,
+												ddr3200: false
+											},
+											vdd_io: {
+												"1.2 V": true
+											},
+											dimm0_ranks: {
+												unpopulated: false,
+												lr: true
+											},
+											dimm1_ranks: {
+												unpopulated: false,
+												lr: true
+											},
+											gear_down_mode: 0x00000000,
+											slow_mode: 0x00000000,
+											address_command_control: 0x353939,
+											cke_drive_strength: "30 Ω",
+											cs_odt_drive_strength: "30 Ω",
+											address_command_drive_strength: "30 Ω",
+											clk_drive_strength: "30 Ω"
+										},
+										{
+											dimm_slots_per_channel: 0x00000002,
+											ddr_rates: {
+												ddr400: false,
+												ddr533: false,
+												ddr667: false,
+												ddr800: false,
+												ddr1066: false,
+												ddr1333: false,
+												ddr1600: false,
+												ddr1866: true,
+												ddr2133: false,
+												ddr2400: false,
+												ddr2667: false,
+												ddr2933: false,
+												ddr3200: false
+											},
+											vdd_io: {
+												"1.2 V": true
+											},
+											dimm0_ranks: {
+												unpopulated: true,
+												lr: false
+											},
+											dimm1_ranks: {
+												unpopulated: false,
+												lr: true
+											},
+											gear_down_mode: 0x00000000,
+											slow_mode: 0x00000000,
+											address_command_control: 0x373737,
+											cke_drive_strength: "30 Ω",
+											cs_odt_drive_strength: "30 Ω",
+											address_command_drive_strength: "30 Ω",
+											clk_drive_strength: "30 Ω"
+										},
+										{
+											dimm_slots_per_channel: 0x00000002,
+											ddr_rates: {
+												ddr400: false,
+												ddr533: false,
+												ddr667: false,
+												ddr800: false,
+												ddr1066: false,
+												ddr1333: false,
+												ddr1600: false,
+												ddr1866: true,
+												ddr2133: false,
+												ddr2400: false,
+												ddr2667: false,
+												ddr2933: false,
+												ddr3200: false
+											},
+											vdd_io: {
+												"1.2 V": true
+											},
+											dimm0_ranks: {
+												unpopulated: false,
+												lr: true
+											},
+											dimm1_ranks: {
+												unpopulated: false,
+												lr: true
+											},
+											gear_down_mode: 0x00000000,
+											slow_mode: 0x00000000,
+											address_command_control: 0x333939,
+											cke_drive_strength: "30 Ω",
+											cs_odt_drive_strength: "30 Ω",
+											address_command_drive_strength: "30 Ω",
+											clk_drive_strength: "30 Ω"
+										},
+										{
+											dimm_slots_per_channel: 0x00000002,
+											ddr_rates: {
+												ddr400: false,
+												ddr533: false,
+												ddr667: false,
+												ddr800: false,
+												ddr1066: false,
+												ddr1333: false,
+												ddr1600: false,
+												ddr1866: false,
+												ddr2133: true,
+												ddr2400: false,
+												ddr2667: false,
+												ddr2933: false,
+												ddr3200: false
+											},
+											vdd_io: {
+												"1.2 V": true
+											},
+											dimm0_ranks: {
+												unpopulated: true,
+												lr: false
+											},
+											dimm1_ranks: {
+												unpopulated: false,
+												lr: true
+											},
+											gear_down_mode: 0x00000000,
+											slow_mode: 0x00000000,
+											address_command_control: 0x353535,
+											cke_drive_strength: "30 Ω",
+											cs_odt_drive_strength: "30 Ω",
+											address_command_drive_strength: "30 Ω",
+											clk_drive_strength: "30 Ω"
+										},
+										{
+											dimm_slots_per_channel: 0x00000002,
+											ddr_rates: {
+												ddr400: false,
+												ddr533: false,
+												ddr667: false,
+												ddr800: false,
+												ddr1066: false,
+												ddr1333: false,
+												ddr1600: false,
+												ddr1866: false,
+												ddr2133: true,
+												ddr2400: false,
+												ddr2667: false,
+												ddr2933: false,
+												ddr3200: false
+											},
+											vdd_io: {
+												"1.2 V": true
+											},
+											dimm0_ranks: {
+												unpopulated: false,
+												lr: true
+											},
+											dimm1_ranks: {
+												unpopulated: false,
+												lr: true
+											},
+											gear_down_mode: 0x00000000,
+											slow_mode: 0x00000000,
+											address_command_control: 0x313535,
+											cke_drive_strength: "30 Ω",
+											cs_odt_drive_strength: "30 Ω",
+											address_command_drive_strength: "30 Ω",
+											clk_drive_strength: "30 Ω"
+										},
+										{
+											dimm_slots_per_channel: 0x00000002,
+											ddr_rates: {
+												ddr400: false,
+												ddr533: false,
+												ddr667: false,
+												ddr800: false,
+												ddr1066: false,
+												ddr1333: false,
+												ddr1600: false,
+												ddr1866: false,
+												ddr2133: false,
+												ddr2400: true,
+												ddr2667: false,
+												ddr2933: false,
+												ddr3200: false
+											},
+											vdd_io: {
+												"1.2 V": true
+											},
+											dimm0_ranks: {
+												unpopulated: true,
+												lr: false
+											},
+											dimm1_ranks: {
+												unpopulated: false,
+												lr: true
+											},
+											gear_down_mode: 0x00000000,
+											slow_mode: 0x00000000,
+											address_command_control: 0x333333,
+											cke_drive_strength: "30 Ω",
+											cs_odt_drive_strength: "30 Ω",
+											address_command_drive_strength: "30 Ω",
+											clk_drive_strength: "30 Ω"
+										},
+										{
+											dimm_slots_per_channel: 0x00000002,
+											ddr_rates: {
+												ddr400: false,
+												ddr533: false,
+												ddr667: false,
+												ddr800: false,
+												ddr1066: false,
+												ddr1333: false,
+												ddr1600: false,
+												ddr1866: false,
+												ddr2133: false,
+												ddr2400: true,
+												ddr2667: false,
+												ddr2933: false,
+												ddr3200: false
+											},
+											vdd_io: {
+												"1.2 V": true
+											},
+											dimm0_ranks: {
+												unpopulated: false,
+												lr: true
+											},
+											dimm1_ranks: {
+												unpopulated: false,
+												lr: true
+											},
+											gear_down_mode: 0x00000000,
+											slow_mode: 0x00000000,
+											address_command_control: 0x2f3333,
+											cke_drive_strength: "30 Ω",
+											cs_odt_drive_strength: "30 Ω",
+											address_command_drive_strength: "30 Ω",
+											clk_drive_strength: "30 Ω"
+										},
+										{
+											dimm_slots_per_channel: 0x00000002,
+											ddr_rates: {
+												ddr400: false,
+												ddr533: false,
+												ddr667: false,
+												ddr800: false,
+												ddr1066: false,
+												ddr1333: false,
+												ddr1600: false,
+												ddr1866: false,
+												ddr2133: false,
+												ddr2400: false,
+												ddr2667: true,
+												ddr2933: false,
+												ddr3200: false
+											},
+											vdd_io: {
+												"1.2 V": true
+											},
+											dimm0_ranks: {
+												unpopulated: true,
+												lr: false
+											},
+											dimm1_ranks: {
+												unpopulated: false,
+												lr: true
+											},
+											gear_down_mode: 0x00000000,
+											slow_mode: 0x00000000,
+											address_command_control: 0x313131,
+											cke_drive_strength: "30 Ω",
+											cs_odt_drive_strength: "30 Ω",
+											address_command_drive_strength: "30 Ω",
+											clk_drive_strength: "30 Ω"
+										},
+										{
+											dimm_slots_per_channel: 0x00000002,
+											ddr_rates: {
+												ddr400: false,
+												ddr533: false,
+												ddr667: false,
+												ddr800: false,
+												ddr1066: false,
+												ddr1333: false,
+												ddr1600: false,
+												ddr1866: false,
+												ddr2133: false,
+												ddr2400: false,
+												ddr2667: true,
+												ddr2933: false,
+												ddr3200: false
+											},
+											vdd_io: {
+												"1.2 V": true
+											},
+											dimm0_ranks: {
+												unpopulated: false,
+												lr: true
+											},
+											dimm1_ranks: {
+												unpopulated: false,
+												lr: true
+											},
+											gear_down_mode: 0x00000000,
+											slow_mode: 0x00000000,
+											address_command_control: 0x2d3131,
+											cke_drive_strength: "30 Ω",
+											cs_odt_drive_strength: "30 Ω",
+											address_command_drive_strength: "30 Ω",
+											clk_drive_strength: "30 Ω"
+										},
+										{
+											dimm_slots_per_channel: 0x00000002,
+											ddr_rates: {
+												ddr400: false,
+												ddr533: false,
+												ddr667: false,
+												ddr800: false,
+												ddr1066: false,
+												ddr1333: false,
+												ddr1600: false,
+												ddr1866: false,
+												ddr2133: false,
+												ddr2400: false,
+												ddr2667: false,
+												ddr2933: true,
+												ddr3200: false
+											},
+											vdd_io: {
+												"1.2 V": true
+											},
+											dimm0_ranks: {
+												unpopulated: true,
+												lr: false
+											},
+											dimm1_ranks: {
+												unpopulated: false,
+												lr: true
+											},
+											gear_down_mode: 0x00000000,
+											slow_mode: 0x00000000,
+											address_command_control: 0x2f2f2f,
+											cke_drive_strength: "30 Ω",
+											cs_odt_drive_strength: "30 Ω",
+											address_command_drive_strength: "30 Ω",
+											clk_drive_strength: "30 Ω"
+										},
+										{
+											dimm_slots_per_channel: 0x00000002,
+											ddr_rates: {
+												ddr400: false,
+												ddr533: false,
+												ddr667: false,
+												ddr800: false,
+												ddr1066: false,
+												ddr1333: false,
+												ddr1600: false,
+												ddr1866: false,
+												ddr2133: false,
+												ddr2400: false,
+												ddr2667: false,
+												ddr2933: true,
+												ddr3200: false
+											},
+											vdd_io: {
+												"1.2 V": true
+											},
+											dimm0_ranks: {
+												unpopulated: false,
+												lr: true
+											},
+											dimm1_ranks: {
+												unpopulated: false,
+												lr: true
+											},
+											gear_down_mode: 0x00000000,
+											slow_mode: 0x00000000,
+											address_command_control: 0x2c2f2f,
+											cke_drive_strength: "30 Ω",
+											cs_odt_drive_strength: "30 Ω",
+											address_command_drive_strength: "30 Ω",
+											clk_drive_strength: "30 Ω"
+										},
+										{
+											dimm_slots_per_channel: 0x00000002,
+											ddr_rates: {
+												ddr400: false,
+												ddr533: false,
+												ddr667: false,
+												ddr800: false,
+												ddr1066: false,
+												ddr1333: false,
+												ddr1600: false,
+												ddr1866: false,
+												ddr2133: false,
+												ddr2400: false,
+												ddr2667: false,
+												ddr2933: false,
+												ddr3200: true
+											},
+											vdd_io: {
+												"1.2 V": true,
+											},
+											dimm0_ranks: {
+												unpopulated: true,
+												lr: false
+											},
+											dimm1_ranks: {
+												unpopulated: false,
+												lr: true
+											},
+											gear_down_mode: 0x00000000,
+											slow_mode: 0x00000000,
+											address_command_control: 0x2d2d2d,
+											cke_drive_strength: "30 Ω",
+											cs_odt_drive_strength: "30 Ω",
+											address_command_drive_strength: "30 Ω",
+											clk_drive_strength: "30 Ω"
+										},
+										{
+											dimm_slots_per_channel: 0x00000002,
+											ddr_rates: {
+												ddr400: false,
+												ddr533: false,
+												ddr667: false,
+												ddr800: false,
+												ddr1066: false,
+												ddr1333: false,
+												ddr1600: false,
+												ddr1866: false,
+												ddr2133: false,
+												ddr2400: false,
+												ddr2667: false,
+												ddr2933: false,
+												ddr3200: true
+											},
+											vdd_io: {
+												"1.2 V": true
+											},
+											dimm0_ranks: {
+												unpopulated: false,
+												lr: true
+											},
+											dimm1_ranks: {
+												unpopulated: false,
+												lr: true
+											},
+											gear_down_mode: 0x00000000,
+											slow_mode: 0x00000000,
+											address_command_control: 0x2a2d2d,
+											cke_drive_strength: "30 Ω",
+											cs_odt_drive_strength: "30 Ω",
+											address_command_drive_strength: "30 Ω",
+											clk_drive_strength: "30 Ω"
+										}
+									]
+								},
+								{
+									header: {
+										group_id: 0x1704,
+										entry_id: 0x0056,
+										instance_id: 0x0000,
+										context_type: "Struct",
+										context_format: "Raw",
+										unit_size: 0x00,
+										priority_mask: {
+											normal: true,
+										},
+										key_size: 0x00,
+										key_pos: 0x00,
+										board_instance_mask: 0xffff
+									},
+									LrdimmDdr4DataBusElement: [
+										{
+											dimm_slots_per_channel: 0x00000001,
+											ddr_rates: {
+												ddr400: false,
+												ddr533: false,
+												ddr667: false,
+												ddr800: false,
+												ddr1066: false,
+												ddr1333: false,
+												ddr1600: true,
+												ddr1866: true,
+												ddr2133: true,
+												ddr2400: true,
+												ddr2667: true,
+												ddr2933: true,
+												ddr3200: true
+											},
+											vdd_io: {
+												"1.2 V": true
+											},
+											dimm0_ranks: {
+												unpopulated: false,
+												lr: true
+											},
+											dimm1_ranks: {
+												unpopulated: true,
+												lr: false
+											},
+											rtt_nom: "Off",
+											rtt_wr: "Off",
+											rtt_park: "48 Ω",
+											dq_drive_strength: 0x0000003e,
+											dqs_drive_strength: 0x0000003e,
+											odt_drive_strength: 0x00000018,
+											pmu_phy_vref: 0x0000005d,
+											vref_dq: 0x00000017
+										},
+										{
+											dimm_slots_per_channel: 0x00000002,
+											ddr_rates: {
+												ddr400: false,
+												ddr533: false,
+												ddr667: false,
+												ddr800: false,
+												ddr1066: false,
+												ddr1333: false,
+												ddr1600: true,
+												ddr1866: true,
+												ddr2133: true,
+												ddr2400: true,
+												ddr2667: true,
+												ddr2933: true,
+												ddr3200: true,
+											},
+											vdd_io: {
+												"1.2 V": true
+											},
+											dimm0_ranks: {
+												unpopulated: true,
+												lr: false
+											},
+											dimm1_ranks: {
+												unpopulated: false,
+												lr: true
+											},
+											rtt_nom: "Off",
+											rtt_wr: "Off",
+											rtt_park: "48 Ω",
+											dq_drive_strength: 0x0000003e,
+											dqs_drive_strength: 0x0000003e,
+											odt_drive_strength: 0x00000018,
+											pmu_phy_vref: 0x0000005d,
+											vref_dq: 0x00000017
+										},
+										{
+											dimm_slots_per_channel: 0x00000002,
+											ddr_rates: {
+												ddr400: false,
+												ddr533: false,
+												ddr667: false,
+												ddr800: false,
+												ddr1066: false,
+												ddr1333: false,
+												ddr1600: true,
+												ddr1866: true,
+												ddr2133: true,
+												ddr2400: true,
+												ddr2667: true,
+												ddr2933: true,
+												ddr3200: true
+											},
+											vdd_io: {
+												"1.2 V": true
+											},
+											dimm0_ranks: {
+												unpopulated: false,
+												lr: true
+											},
+											dimm1_ranks: {
+												unpopulated: true,
+												lr: false
+											},
+											rtt_nom: "Off",
+											rtt_wr: "Off",
+											rtt_park: "48 Ω",
+											dq_drive_strength: 0x0000003e,
+											dqs_drive_strength: 0x0000003e,
+											odt_drive_strength: 0x00000018,
+											pmu_phy_vref: 0x0000005d,
+											vref_dq: 0x00000017
+										},
+										{
+											dimm_slots_per_channel: 0x00000002,
+											ddr_rates: {
+												ddr400: false,
+												ddr533: false,
+												ddr667: false,
+												ddr800: false,
+												ddr1066: false,
+												ddr1333: false,
+												ddr1600: true,
+												ddr1866: true,
+												ddr2133: true,
+												ddr2400: true,
+												ddr2667: true,
+												ddr2933: true,
+												ddr3200: true
+											},
+											vdd_io: {
+												"1.2 V": true
+											},
+											dimm0_ranks: {
+												unpopulated: false,
+												lr: true
+											},
+											dimm1_ranks: {
+												unpopulated: false,
+												lr: true
+											},
+											rtt_nom: "Off",
+											rtt_wr: "80 Ω",
+											rtt_park: "34 Ω",
+											dq_drive_strength: 0x0000003e,
+											dqs_drive_strength: 0x0000003e,
+											odt_drive_strength: 0x00000018,
+											pmu_phy_vref: 0x0000006a,
+											vref_dq: 0x00000022
+										}
+									]
+								},
+								{
+									header: {
+										group_id: 0x1704,
+										entry_id: 0x0054,
+										instance_id: 0x0000,
+										context_type: "Struct",
+										context_format: "Raw",
+										unit_size: 0x00,
+										priority_mask: {
+											normal: true,
+										},
+										key_size: 0x00,
+										key_pos: 0x00,
+										board_instance_mask: 0xffff
+									},
+									LrdimmDdr4OdtPatElement: [
+										{
+											dimm_rank_bitmaps: {
+												dimm0: {
+													unpopulated: true,
+													lr: false
+												},
+												dimm1: {
+													unpopulated: false,
+													lr: true
+												},
+												dimm2: {
+													unpopulated: false,
+													lr: false
+												}
+											},
+											cs0_odt_patterns: {
+												reading_pattern: 0x00,
+												writing_pattern: 0x00
+											},
+											cs1_odt_patterns: {
+												reading_pattern: 0x00,
+												writing_pattern: 0x00
+											},
+											cs2_odt_patterns: {
+												reading_pattern: 0x00,
+												writing_pattern: 0x00
+											},
+											cs3_odt_patterns: {
+												reading_pattern: 0x00,
+												writing_pattern: 0x00
+											}
+										},
+										{
+											dimm_rank_bitmaps: {
+												dimm0: {
+													unpopulated: false,
+													lr: true
+												},
+												dimm1: {
+													unpopulated: true,
+													lr: false
+												},
+												dimm2: {
+													unpopulated: false,
+													lr: false
+												}
+											},
+											cs0_odt_patterns: {
+												reading_pattern: 0x00,
+												writing_pattern: 0x00
+											},
+											cs1_odt_patterns: {
+												reading_pattern: 0x00,
+												writing_pattern: 0x00
+											},
+											cs2_odt_patterns: {
+												reading_pattern: 0x00,
+												writing_pattern: 0x00
+											},
+											cs3_odt_patterns: {
+												reading_pattern: 0x00,
+												writing_pattern: 0x00
+											}
+										},
+										{
+											dimm_rank_bitmaps: {
+												dimm0: {
+													unpopulated: false,
+													lr: true
+												},
+												dimm1: {
+													unpopulated: false,
+													lr: true
+												},
+												dimm2: {
+													unpopulated: false,
+													lr: false
+												}
+											},
+											cs0_odt_patterns: {
+												reading_pattern: 0x00,
+												writing_pattern: 0x00
+											},
+											cs1_odt_patterns: {
+												reading_pattern: 0x00,
+												writing_pattern: 0x00
+											},
+											cs2_odt_patterns: {
+												reading_pattern: 0x00,
+												writing_pattern: 0x00
+											},
+											cs3_odt_patterns: {
+												reading_pattern: 0x00,
+												writing_pattern: 0x00
+											}
+										}
+									]
+								},
+								{
+									header: {
+										group_id: 0x1704,
+										entry_id: 0x0057,
+										instance_id: 0x0000,
+										context_type: "Struct",
+										context_format: "Raw",
+										unit_size: 0x00,
+										priority_mask: {
+											normal: true,
+										},
+										key_size: 0x00,
+										key_pos: 0x00,
+										board_instance_mask: 0xffff
+									},
+									LrMaxFreqElement: [
+										{
+											dimm_slots_per_channel: 0x00000001,
+											conditions: [
+												0x0001,
+												0x0000,
+												0x0001,
+												0x0000
+											],
+											speeds: [
+												0x0640,
+												0x1131,
+												0x1131
+											]
+										},
+										{
+											dimm_slots_per_channel: 0x00000001,
+											conditions: [
+												0x0001,
+												0x0000,
+												0x0000,
+												0x0001
+											],
+											speeds: [
+												0x0640,
+												0x1131,
+												0x1131
+											]
+										},
+										{
+											dimm_slots_per_channel: 0x00000002,
+											conditions: [
+												0x0001,
+												0x0000,
+												0x0001,
+												0x0000
+											],
+											speeds: [
+												0x0640,
+												0x1131,
+												0x1131
+											]
+										},
+										{
+											dimm_slots_per_channel: 0x00000002,
+											conditions: [
+												0x0001,
+												0x0000,
+												0x0000,
+												0x0001
+											],
+											speeds: [
+												0x0640,
+												0x1131,
+												0x1131
+											]
+										},
+										{
+											dimm_slots_per_channel: 0x00000002,
+											conditions: [
+												0x0002,
+												0x0000,
+												0x0002,
+												0x0000
+											],
+											speeds: [
+												0x5bb,
+												0x1131,
+												0x1131
+											]
+										},
+										{
+											dimm_slots_per_channel: 0x00000002,
+											conditions: [
+												0x0002,
+												0x0000,
+												0x0000,
+												0x0002
+											],
+											speeds: [
+												0x5bb,
+												0x1131,
+												0x1131
+											]
+										}
+									]
+								},
+								{
+									header: {
+										group_id: 0x1704,
 										entry_id: 0x004a,
 										instance_id: 0x0000,
 										context_type: "Struct",
@@ -4632,6 +5788,26 @@
 				},
 				{
 					source: {
+						BlobFile: "Appb_GN_1D_Ddr4_Lrdimm_Imem.csbin"
+					},
+					target: {
+						type: "PmuFirmwareInstructions",
+						instance: 3,
+						sub_program: 1
+					}
+				},
+				{
+					source: {
+						BlobFile: "Appb_GN_1D_Ddr4_Lrdimm_Dmem.csbin"
+					},
+					target: {
+						type: "PmuFirmwareData",
+						instance: 3,
+						sub_program: 1
+					}
+				},
+				{
+					source: {
 						BlobFile: "Appb_GN_2D_Ddr4_Udimm_Imem.csbin"
 					},
 					target: {
@@ -4672,6 +5848,26 @@
 				},
 				{
 					source: {
+						BlobFile: "Appb_GN_2D_Ddr4_Lrdimm_Imem.csbin"
+					},
+					target: {
+						type: "PmuFirmwareInstructions",
+						instance: 6,
+						sub_program: 1
+					}
+				},
+				{
+					source: {
+						BlobFile: "Appb_GN_2D_Ddr4_Lrdimm_Dmem.csbin"
+					},
+					target: {
+						type: "PmuFirmwareData",
+						instance: 6,
+						sub_program: 1
+					}
+				},
+				{
+					source: {
 						BlobFile: "Appb_GN_BIST_Ddr4_Udimm_Imem.csbin"
 					},
 					target: {
@@ -4695,7 +5891,7 @@
 						BlobFile: "Appb_GN_BIST_Ddr4_Rdimm_Imem.csbin"
 					},
 					target: {
-						type: "PmuFirmwareData",
+						type: "PmuFirmwareInstructions",
 						instance: 9,
 						sub_program: 1
 					}
