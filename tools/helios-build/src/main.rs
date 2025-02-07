@@ -2357,7 +2357,7 @@ fn cmd_setup(ca: &CommandArg) -> Result<()> {
             site_sh += &format!("RELVER={}\n", relver);
             site_sh += &format!("DASHREV={}\n", DASHREV);
             site_sh += "PVER=$RELVER.$DASHREV\n";
-            site_sh += "IPS_REPO=https://pkg.oxide.computer/helios-dev\n";
+            site_sh += "IPS_REPO=https://pkg.oxide.computer/helios/2/dev\n";
             site_sh += &format!("TMPDIR={}\n", &tmp.to_str().unwrap());
             site_sh += "DTMPDIR=$TMPDIR\n";
 
