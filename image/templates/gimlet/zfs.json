@@ -81,6 +81,12 @@
             "name": "genproto", "file": "${genproto}" },
 
         { "t": "include", "name": "smf-reduce" },
-        { "t": "seed_smf", "apply_site": true, "skip_seed": true }
+        { "t": "seed_smf", "skip_seed": true,
+            "apply_profiles": [
+                "generic",
+                "platform",
+                "site"
+            ]
+        }
     ]
 }
