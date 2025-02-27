@@ -43,6 +43,8 @@ kernel/crypto/amd64/sha2
 kernel/crypto/amd64/skein
 kernel/crypto/amd64/swrand
 kernel/dacf/amd64/net_dacf
+kernel/drv/amd64/amdzen
+kernel/drv/amd64/amdzen_stub
 kernel/drv/amd64/bl
 kernel/drv/amd64/blkdev
 kernel/drv/amd64/clone
@@ -87,7 +89,9 @@ kernel/drv/amd64/t4nex
 kernel/drv/amd64/ucode
 kernel/drv/amd64/ufm
 kernel/drv/amd64/vnic
+kernel/drv/amd64/zen_umc
 kernel/drv/amd64/zfs
+kernel/drv/amdzen.conf
 kernel/drv/bl.conf
 kernel/drv/bridge.conf
 kernel/drv/clone.conf
@@ -206,6 +210,7 @@ kernel/misc/amd64/sha2
 kernel/misc/amd64/skein
 kernel/misc/amd64/strplumb
 kernel/misc/amd64/tlimod
+kernel/misc/amd64/zen_data
 kernel/sched/amd64/SDC
 kernel/sched/amd64/TS
 kernel/sched/amd64/TS_DPTBL
