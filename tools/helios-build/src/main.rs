@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 Oxide Computer Company
+ * Copyright 2025 Oxide Computer Company
  */
 
 mod common;
@@ -1828,9 +1828,11 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
      * Create the reset image for the Gimlet SPI ROM:
      */
     info!(log, "creating reset image...");
+    let phbl_path = top_path(&["projects", "phbl"])?;
+    rustup_install_toolchain(log, &phbl_path)?;
     ensure::run_in(
         log,
-        &top_path(&["projects", "phbl"])?,
+        &phbl_path,
         &[
             "cargo",
             "xtask",
@@ -2416,6 +2418,8 @@ fn cmd_setup(ca: &CommandArg) -> Result<()> {
         }
 
         let path = top_path(&["projects", &name])?;
+        rustup_install_toolchain(log, &path)?;
+
         info!(log, "building project {:?} at {}", name, path.display());
         let start = Instant::now();
         let mut args = vec!["cargo", "build", "--locked"];
@@ -2616,6 +2620,37 @@ fn extract_hash(s: &str) -> Option<&str> {
             None
         }
     })
+}
+
+fn rustup_install_toolchain<P: AsRef<Path>>(log: &Logger, p: P) -> Result<()> {
+    let p = p.as_ref();
+
+    /*
+     * rustup 1.28.0 removed the long-standing default behavior of automatically
+     * installing toolchains for projects.  It also introduces the ability to
+     * call "rustup toolchain install" with no argument to automatically install
+     * the current toolchain.  Of course, this does not exist in earlier
+     * releases, and there was no transition period.
+     *
+     * "rustup show active-toolchain || rustup toolchain install" is the
+     * recommended way to just install the toolchain regardless of rustup
+     * version.
+     */
+    info!(log, "checking rust toolchain is installed for {p:?}");
+    let out = Command::new("rustup")
+        .args(["show", "active-toolchain"])
+        .current_dir(p)
+        .output()?;
+
+    if out.status.success() {
+        let ver = String::from_utf8_lossy(&out.stdout).trim().to_string();
+        info!(log, "rust toolchain for {p:?}: {ver:?}");
+    } else {
+        info!(log, "installing rust toolchain for {p:?}...");
+        ensure::run_in(log, p, &["rustup", "toolchain", "install"])?;
+    }
+
+    Ok(())
 }
 
 #[test]
