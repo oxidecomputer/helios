@@ -17,6 +17,7 @@ use std::os::unix::fs::PermissionsExt;
 use std::os::unix::process::CommandExt;
 use std::path::Path;
 use std::process::Command;
+use std::process::Stdio;
 use std::time::{Instant, SystemTime};
 use time::{format_description, OffsetDateTime};
 use walkdir::WalkDir;
@@ -1828,9 +1829,11 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
      * Create the reset image for the Gimlet SPI ROM:
      */
     info!(log, "creating reset image...");
+    let phbl_path = top_path(&["projects", "phbl"])?;
+    rustup_install_toolchain(log, &phbl_path)?;
     ensure::run_in(
         log,
-        &top_path(&["projects", "phbl"])?,
+        &phbl_path,
         &[
             "cargo",
             "xtask",
@@ -2418,6 +2421,7 @@ fn cmd_setup(ca: &CommandArg) -> Result<()> {
         let path = top_path(&["projects", &name])?;
         info!(log, "building project {:?} at {}", name, path.display());
         let start = Instant::now();
+        rustup_install_toolchain(log, &path)?;
         let mut args = vec!["cargo", "build", "--locked"];
         if !project.use_debug {
             args.push("--release");
@@ -2616,6 +2620,33 @@ fn extract_hash(s: &str) -> Option<&str> {
             None
         }
     })
+}
+
+fn rustup_install_toolchain<P: AsRef<Path>>(
+    log: &Logger,
+    pwd: P,
+) -> Result<()> {
+    /*
+     * rustup 1.28.0 removed the long-standing default behavior of automatically
+     * installing toolchains for projects. It also introduces the ability
+     * to call `rustup toolchain install` with no argument to automatically
+     * install the current toolchain. Of course, this does not exist in earlier
+     * releases, and there was no transition period.
+     *
+     * `rustup show active-toolchain || rustup toolchain install` is the
+     * recommended way to just install the toolchain regardless of rustup
+     * version.
+     */
+    let status = Command::new("rustup")
+        .args(["show", "active-toolchain"])
+        .current_dir(pwd.as_ref())
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .status()?;
+    if !status.success() {
+        ensure::run_in(log, pwd, &["rustup", "toolchain", "install"])?;
+    }
+    Ok(())
 }
 
 #[test]
