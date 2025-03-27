@@ -68,6 +68,7 @@
             "/network/netcat",
             "/network/rsync",
             "/network/snoop",
+            "/network/overwatch",
             "/compress/gzip",
             "/locale/en",
             "/system/network/routing",
