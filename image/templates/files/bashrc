@@ -55,6 +55,7 @@ export PATH=$(IFS=':'; printf '%s' "${pathdirs[*]}")
 #
 # Bracketed paste in bash is a deeply questionable facility, and on a serial
 # console where one may reset the system at any time it leaves the terminal in
-# a state where one cannot then paste correctly into nanobl-rs.
+# a state where one cannot then paste correctly into one of the development
+# loaders, such as bldb or nanobl-rs.
 #
 bind 'set enable-bracketed-paste off'
