@@ -1,5 +1,5 @@
 #
-# Copyright 2024 Oxide Computer Company
+# Copyright 2025 Oxide Computer Company
 #
 
 [project.illumos]
@@ -56,11 +56,10 @@ auto_update = true
 
 [project.amd-host-image-builder]
 github = "oxidecomputer/amd-host-image-builder"
-use_ssh = true
+use_ssh = false
 cargo_build = true
 use_debug = true
 auto_update = true
-unless_env = "OXIDE_STAFF"
 
 [[project.amd-host-image-builder.fixup]]
 #
