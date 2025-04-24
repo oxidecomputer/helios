@@ -103,8 +103,12 @@
             "src": "bashrc",
             "owner": "root", "group": "root", "mode": "0644" },
         { "t": "ensure_file",
-            "file": "/etc/motd",
+            "file": "/etc/motd", "without": "cosmo",
             "src": "motd",
+            "owner": "root", "group": "sys", "mode": "0644" },
+        { "t": "ensure_file",
+            "file": "/etc/motd", "with": "cosmo",
+            "src": "motd.cosmo",
             "owner": "root", "group": "sys", "mode": "0644" },
 
         { "t": "ensure_file",
