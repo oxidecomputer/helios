@@ -109,6 +109,10 @@
             "/driver/network/opte@${optever}"
         ] },
 
+        { "t": "pkg_install", "with": "bringup", "pkgs": [
+            "/driver/developer/amd/zen"
+        ] },
+
         { "t": "pkg_install", "with": "mfg", "pkgs": [
             "/driver/developer/amd/zen"
         ] },
