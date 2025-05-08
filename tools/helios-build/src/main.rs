@@ -1247,6 +1247,69 @@ fn genproto(proto: &Path, output_template: &Path) -> Result<()> {
     Ok(())
 }
 
+struct Publisher {
+    name: String,
+    origins: Vec<String>,
+}
+
+#[derive(Default)]
+struct Publishers {
+    publishers: Vec<Publisher>,
+}
+
+impl Publishers {
+    fn has_publisher(&self, publisher: &str) -> bool {
+        self.publishers.iter().any(|p| p.name == publisher)
+    }
+
+    fn append_origin(&mut self, publisher: &str, url: &str) {
+        /*
+         * First, make sure the publisher appears in the list of publishers:
+         */
+        if !self.has_publisher(publisher) {
+            self.publishers.push(Publisher {
+                name: publisher.to_string(),
+                origins: Default::default(),
+            });
+        }
+
+        /*
+         * Add the origin URL to the end of the list for the specified
+         * publisher:
+         */
+        let urls = &mut self
+            .publishers
+            .iter_mut()
+            .find(|p| p.name == publisher)
+            .unwrap()
+            .origins;
+
+        if !urls.iter().any(|u| u == url) {
+            urls.push(url.to_string());
+        }
+    }
+
+    fn display(&self) -> String {
+        let mut s = String::new();
+
+        for p in self.publishers.iter() {
+            if !s.is_empty() {
+                s += ", ";
+            }
+            s += &format!("{}={{", p.name);
+            for o in p.origins.iter() {
+                s += &format!(" {o}");
+            }
+            if !p.origins.is_empty() {
+                s += " ";
+            }
+            s += "}";
+        }
+
+        s
+    }
+}
+
 fn cmd_image(ca: &CommandArg) -> Result<()> {
     let mut opts = baseopts();
     opts.optflag("d", "", "use DEBUG packages");
@@ -1259,7 +1322,12 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
     opts.optflag("R", "", "recovery image");
     opts.optmulti("X", "", "skip this phase", "PHASE");
     opts.optflag("", "ddr-testing", "build ROMs for other DDR frequencies");
-    opts.optopt("p", "", "use an external package repository", "PUBLISHER=URL");
+    opts.optmulti(
+        "p",
+        "",
+        "use an external package repository",
+        "PUBLISHER=URL",
+    );
     opts.optopt("P", "", "include all files from extra proto area", "DIR");
     opts.optmulti(
         "Y",
@@ -1280,15 +1348,30 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
     let log = ca.log;
     let res = opts.parse(ca.args.iter())?;
     let brand = res.opt_present("B");
-    let (publisher, extrepo) = if let Some(arg) = res.opt_str("p") {
-        if let Some((key, val)) = arg.split_once('=') {
-            (key.to_string(), Some(val.to_string()))
-        } else {
-            bail!("-p argument must be PUBLISHER=URL");
+
+    let mut publishers = Publishers::default();
+    let local_build = if res.opt_present("p") {
+        for arg in res.opt_strs("p") {
+            if let Some((key, val)) = arg.split_once('=') {
+                if val.trim().is_empty() {
+                    bail!("missing url for publisher {key:?}?");
+                }
+
+                publishers.append_origin(key, val);
+            } else {
+                bail!("-p arguments must be PUBLISHER=URL");
+            }
         }
+
+        false
     } else {
-        ("on-nightly".to_string(), None)
+        /*
+         * If no -p argument is provided, we want to use locally built
+         * illumos packages.
+         */
+        true
     };
+
     let ddr_testing = res.opt_present("ddr-testing");
     let skips = res.opt_strs("X");
     let recovery = res.opt_present("R");
@@ -1459,29 +1542,59 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
         }
     };
 
-    let repo = if let Some(extrepo) = &extrepo {
-        /*
-         * If we have been instructed to use a repository URL, we do not need to
-         * do local transformation.  That transformation was done as part of
-         * publishing the packages.
-         */
-        info!(log, "using external package repository {}", extrepo);
-        None
-    } else {
+    if local_build {
         /*
          * In order to install development illumos bits, we first need to elide
          * any files that would conflict with packages delivered from other
          * consolidations.  To do this, we create an onu-specific repository:
          */
         info!(log, "creating temporary repository...");
-        Some(create_transformed_repo(
+        let repo = create_transformed_repo(
             log,
             &gate,
             &tempdir,
             res.opt_present("d"),
             false,
-        )?)
+        )?;
+
+        publishers
+            .append_origin("on-nightly", &format!("file://{}", repo.display()));
+
+        /*
+         * For images using locally built illumos packages, include a
+         * fallback origin for "helios-dev" as a source for other packages
+         * that aren't built locally:
+         */
+        let relver = determine_release_version()?;
+        publishers.append_origin(
+            "helios-dev",
+            &format!("https://pkg.oxide.computer/helios/{relver}/dev/"),
+        );
+    } else {
+        /*
+         * If we have been instructed to use a repository URL, we do not need to
+         * do local transformation.  That transformation was done as part of
+         * publishing the packages.
+         */
+        info!(
+            log,
+            "using external package repositories: {}",
+            publishers.display()
+        );
     };
+
+    /*
+     * The number of unique publishers is currently constrained by the way the
+     * template is constructed.  Make sure we are not trying to use more slots
+     * than are available:
+     */
+    const MAXPUBS: usize = 4;
+    if publishers.publishers.len() > MAXPUBS {
+        bail!(
+            "specified {} publishers, but a maximum of {MAXPUBS} are supported",
+            publishers.publishers.len(),
+        );
+    }
 
     /*
      * Use the image builder to begin creating the image from locally built OS
@@ -1490,7 +1603,6 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
     let templates = top_path(&["image", "templates"])?;
     let brand_extras = rel_path(Some(&tempdir), &["omicron1"])?;
     let projects_extras = top_path(&["projects"])?;
-    let relver = determine_release_version()?;
     std::fs::create_dir_all(&brand_extras)?;
     let basecmd = || -> Command {
         let mut cmd = Command::new("pfexec");
@@ -1499,7 +1611,6 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
         cmd.arg("-d").arg(&imgds);
         cmd.arg("-g").arg("gimlet");
         cmd.arg("-T").arg(&templates);
-        cmd.arg("-F").arg(&format!("relver={}", relver));
         if let Some(genproto) = &genproto {
             cmd.arg("-E").arg(extra_proto.as_deref().unwrap());
             cmd.arg("-F")
@@ -1507,15 +1618,17 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
         }
         cmd.arg("-E").arg(&brand_extras);
         cmd.arg("-E").arg(&projects_extras);
-        cmd.arg("-F").arg(format!("repo_publisher={}", publisher));
-        if let Some(url) = &extrepo {
-            cmd.arg("-F").arg(format!("repo_url={}", url));
-            if res.opt_present("d") {
-                cmd.arg("-F").arg("debug_variant");
+
+        assert!(publishers.publishers.len() <= MAXPUBS);
+        for (i, p) in publishers.publishers.iter().enumerate() {
+            cmd.arg("-F").arg(format!("publisher_{i}_name={}", p.name));
+            for o in p.origins.iter() {
+                cmd.arg("-F").arg(format!("publisher_{i}_url+={o}"));
             }
-        } else if let Some(repo) = &repo {
-            cmd.arg("-F")
-                .arg(format!("repo_redist={}", repo.to_str().unwrap()));
+        }
+
+        if res.opt_present("d") {
+            cmd.arg("-F").arg("debug_variant");
         }
         cmd.arg("-F").arg("baud=3000000");
         if brand {
