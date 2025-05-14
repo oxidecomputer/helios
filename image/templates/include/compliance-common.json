@@ -19,6 +19,15 @@
             "owner": "root", "group": "bin", "mode": "0644" },
 
         { "t": "ensure_file",
+            "file": "/usr/lib/compliance-cpu-loadgen",
+            "src": "compliance-cpu-loadgen.sh",
+            "owner": "root", "group": "bin", "mode": "0755" },
+        { "t": "ensure_file",
+            "file": "/lib/svc/manifest/site/compliance-cpu-loadgen.xml",
+            "src": "compliance-cpu-loadgen.xml",
+            "owner": "root", "group": "bin", "mode": "0644" },
+
+        { "t": "ensure_file",
             "file": "/usr/lib/compliance-beacon",
             "src": "compliance-beacon.sh",
             "owner": "root", "group": "bin", "mode": "0755" },

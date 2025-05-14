@@ -1,0 +1,48 @@
+<?xml version="1.0"?>
+<!DOCTYPE service_bundle SYSTEM "/usr/share/lib/xml/dtd/service_bundle.dtd.1">
+<!--
+    Copyright 2025 Oxide Computer Company
+-->
+
+<service_bundle type='manifest' name='site-compliance-cpu-loadgen'>
+
+<service name='site/compliance/cpu-loadgen' type='service' version='1'>
+    <create_default_instance enabled='false' />
+
+    <!-- Wait for multi-user. -->
+    <dependency name="multi_user"
+                grouping="require_all"
+                restart_on="none"
+                type="service">
+        <service_fmri value="svc:/milestone/multi-user:default" />
+    </dependency>
+
+    <exec_method
+        type='method'
+        name='start'
+        exec='/usr/lib/compliance-cpu-loadgen %{config/nthreads}'
+        timeout_seconds='60' />
+
+    <exec_method
+        type='method'
+        name='stop'
+        exec=':kill'
+        timeout_seconds='60' />
+
+    <property_group name='config' type='application'>
+        <propval name='nthreads' type='count' value='0' />
+    </property_group>
+
+    <stability value='Unstable' />
+
+    <template>
+        <common_name>
+            <loctext xml:lang='C'>compliance ad hoc cpu load gen</loctext>
+        </common_name>
+        <description>
+            <loctext xml:lang='C'>generates CPU load</loctext>
+        </description>
+    </template>
+</service>
+
+</service_bundle>
