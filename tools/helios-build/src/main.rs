@@ -1900,14 +1900,15 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
     )?;
 
     /*
-     * Create a compressed CPIO and kernel to be passed to nanobl-rs via XMODEM.
-     * These will also be included in the archive, just in case they are
-     * required for engineering activities later.
+     * Create a compressed cpio archive and kernel suitable for passing
+     * to a development loader over the UART.  These will also be included
+     * in the archive, in case they are required for engineering
+     * activities later.
      */
     let cpioz = rel_path(Some(&outdir), &["cpio.z"])?;
     let unix = format!("{}/platform/oxide/kernel/amd64/unix", root);
     let unixz = rel_path(Some(&outdir), &["unix.z"])?;
-    info!(log, "creating compressed cpio/unix for nanobl-rs...");
+    info!(log, "creating compressed cpio/unix for dev loaders...");
     ensure::run(
         log,
         &[
