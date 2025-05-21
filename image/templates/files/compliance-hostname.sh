@@ -10,7 +10,7 @@ set -o xtrace
 #
 # Use the system serial number for the hostname:
 #
-if sn=$(pilot gimlet info -i); then
+if sn=$(pilot local info -i); then
 	echo "$sn" > /etc/nodename
 	sed -i -e "s/unknown/$sn/g" /etc/inet/hosts
 fi

@@ -4,12 +4,11 @@
         "bename": "ramdisk",
         "ashift": 9,
         "uefi": false,
-        "size": 2000,
+        "size": 1000,
         "label": false,
         "no_features": false,
-        "compression": "off",
+        "compression": "gzip-9",
         "autoexpand": true,
-        "trim": true,
         "options": [ "failmode=panic" ],
         "fsoptions": []
     },
@@ -17,7 +16,7 @@
     "steps": [
         { "t": "create_be" },
 
-        { "t": "unpack_tar", "name": "gimlet-recovery-ramdisk.tar" },
+        { "t": "unpack_tar", "name": "compute-sled-ramdisk.tar" },
 
         { "t": "include", "name": "devfs" },
 
@@ -45,21 +44,38 @@
 
         { "t": "include", "name": "t6-firmware" },
 
-        { "t": "ensure_file",
-            "file": "/usr/lib/recovery-hostname",
-            "src": "recovery-hostname.sh",
+        { "t": "ensure_file", "without": "mfg",
+            "file": "/usr/lib/postboot",
+            "src": "sled-postboot.sh",
             "owner": "root", "group": "bin", "mode": "0755" },
-        { "t": "ensure_file",
-            "file": "/lib/svc/manifest/site/recovery-hostname.xml",
-            "src": "recovery-hostname.xml",
+        { "t": "ensure_file", "without": "mfg",
+            "file": "/lib/svc/manifest/site/postboot.xml",
+            "src": "sled-postboot.xml",
             "owner": "root", "group": "bin", "mode": "0644" },
 
         { "t": "ensure_file",
             "file": "/var/svc/profile/site.xml",
-            "src": "site.xml",
+            "src": "site${mfg?-mfg}${compliance?-compliance}.xml",
             "owner": "root", "group": "root", "mode": "644" },
 
+        { "t": "include", "with": "stress", "name": "stress" },
+
         { "t": "include", "name": "root-noauth" },
+
+        { "t": "ensure_file", "with": "mfg",
+            "file": "/lib/svc/method/mfg",
+            "src": "mfg.sh",
+            "owner": "root", "group": "sys", "mode": "0755" },
+        { "t": "ensure_file", "with": "mfg",
+            "file": "/lib/svc/manifest/site/mfg.xml",
+            "src": "mfg.xml",
+            "owner": "root", "group": "sys", "mode": "0644" },
+
+        { "t": "ensure_file", "without": "no-pilot",
+            "file": "/usr/bin/pilot",
+            "extsrc": "pilot/target/release/pilot",
+            "owner": "root", "group": "bin", "mode": "0755" },
+        { "t": "include", "without": "no-pilot", "name": "compliance-common" },
 
         { "t": "include", "with": "genproto",
             "name": "genproto", "file": "${genproto}" },

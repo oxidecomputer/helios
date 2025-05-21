@@ -9,6 +9,7 @@ use anyhow::{bail, Context, Result};
 use helios_build_utils::metadata::{self, ArchiveType};
 use helios_build_utils::tree;
 use serde::Deserialize;
+use serde_json::{Map, Value};
 use slog::Logger;
 use std::collections::HashMap;
 use std::fs::File;
@@ -1312,6 +1313,12 @@ impl Publishers {
 
 fn cmd_image(ca: &CommandArg) -> Result<()> {
     let mut opts = baseopts();
+    opts.optopt(
+        "b",
+        "board",
+        "specify target board. If not specified, all boards will be built",
+        "BOARD",
+    );
     opts.optflag("d", "", "use DEBUG packages");
     opts.optopt("g", "", "use an external gate directory", "DIR");
     opts.optopt("s", "", "tempdir name suffix", "SUFFIX");
@@ -1329,20 +1336,11 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
         "PUBLISHER=URL",
     );
     opts.optopt("P", "", "include all files from extra proto area", "DIR");
-    opts.optmulti(
-        "Y",
-        "",
-        "AMD firmware blob directories override \
-        (e.g., \"GN/1.0.0.1\")",
-        "DIR",
-    );
-    opts.optopt("Z", "", "AMD firmware configuration file override", "FILE");
+
+    let group = "compute-sled";
 
     let usage = || {
-        println!(
-            "{}",
-            opts.usage("Usage: helios [OPTIONS] experiment-image [OPTIONS]")
-        );
+        println!("{}", opts.usage("Usage: helios [OPTIONS] image [OPTIONS]"));
     };
 
     let log = ca.log;
@@ -1399,66 +1397,30 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
         bail!("unexpected arguments");
     }
 
-    /*
-     * Check that we understand the AMD firmware version and configuration file
-     * overrides before we get going.
-     */
-    let amdconf = if let Some(amdconf) = res.opt_str("Z") {
-        /*
-         * If the override is an absolute path, just pass it through.  Otherwise
-         * look in the place where we usually store the configuration files:
-         */
-        let f = if amdconf.starts_with("/") {
-            let p = PathBuf::from(amdconf);
-            assert!(p.is_absolute());
-            p
-        } else {
-            top_path(&["image", "amd", &amdconf])?
-        };
-
-        f
+    let boardcfgfile =
+        top_path(&["image", "templates", &group, "targets.json5"])?;
+    let boards = if let Ok(content) = std::fs::read_to_string(&boardcfgfile) {
+        content
     } else {
-        /*
-         * If there is no override, use the default:
-         */
-        top_path(&["image", "amd", "milan-gimlet-b.efs.json5"])?
+        bail!("Could not read board config {}", boardcfgfile.display());
     };
-    if !amdconf.is_file() {
-        bail!("AMD firmware configuration file {amdconf:?} does not exist?");
-    }
-    info!(log, "using AMD firmware configuration file {amdconf:?}");
+    let boardcfg: serde_json::Value = json5::from_str(&boards)?;
 
-    let amdblobs = if res.opt_present("Y") {
-        res.opt_strs("Y")
-            .into_iter()
-            .map(|y| {
-                /*
-                 * If the override is an absolute path, just pass it through.
-                 * Otherwise look in the place where we usually store the
-                 * firmware blobs:
-                 */
-                let d = if y.starts_with("/") {
-                    let p = PathBuf::from(y);
-                    assert!(p.is_absolute());
-                    p
-                } else {
-                    top_path(&["projects", "amd-firmware", &y])?
-                };
-
-                Ok(d)
-            })
-            .collect::<Result<Vec<_>>>()?
+    let target_boards = if let Some(board) = res.opt_str("b") {
+        let mut filtered = Map::new();
+        let board_val = boardcfg.get(&board).ok_or_else(|| {
+            anyhow::anyhow!(
+                "Unknown board name ({board}) specified."
+            )
+        })?;
+        filtered.insert(board, board_val.clone());
+        Value::Object(filtered)
     } else {
-        /*
-         * If there is no override, use the default:
-         */
-        vec![top_path(&["projects", "amd-firmware", "GN", "1.0.0.a"])?]
+        boardcfg.clone()
     };
-    let missing = amdblobs.iter().filter(|d| !d.is_dir()).collect::<Vec<_>>();
-    if !missing.is_empty() {
-        bail!("These AMD firmware blob directories do not exist? {missing:?}");
-    }
-    info!(log, "using AMD firmware blob directories {amdblobs:?}");
+    let board_objs = target_boards
+        .as_object()
+        .ok_or_else(|| anyhow::anyhow!("Expected top-level boards object"))?;
 
     /*
      * Check for the commands we need before we start doing any expensive work.
@@ -1609,7 +1571,7 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
         cmd.arg(&builder);
         cmd.arg("build");
         cmd.arg("-d").arg(&imgds);
-        cmd.arg("-g").arg("gimlet");
+        cmd.arg("-g").arg(&group);
         cmd.arg("-T").arg(&templates);
         if let Some(genproto) = &genproto {
             cmd.arg("-E").arg(extra_proto.as_deref().unwrap());
@@ -1643,7 +1605,7 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
         cmd
     };
 
-    let root = format!("{}/work/gimlet/ramdisk", mp);
+    let root = format!("{}/work/{}/ramdisk", mp, group);
     if !skips.iter().any(|s| s == "install") {
         info!(log, "image builder template: ramdisk-01-os...");
         let mut cmd = basecmd();
@@ -1718,7 +1680,7 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
     let image_name = Expansion::parse(&image_template)?.evaluate(&tokens)?;
     info!(log, "expanded image name: {:?} -> {:?}", image_template, image_name);
 
-    let raw = format!("{}/output/gimlet-{}.raw", mp, tname);
+    let raw = format!("{}/output/{}-{}.raw", mp, group, tname);
 
     /*
      * Store built image artefacts together.  Ensure the output directory is
@@ -1939,7 +1901,7 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
     tar.add_file(&cpioz, "cpio.z")?;
 
     /*
-     * Create the reset image for the Gimlet SPI ROM:
+     * Create the reset image for the Compute Sled SPI ROM:
      */
     info!(log, "creating reset image...");
     let phbl_path = top_path(&["projects", "phbl"])?;
@@ -1956,92 +1918,154 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
             cpioz.to_str().unwrap(),
         ],
     )?;
-    info!(log, "building host image...");
-    let rom = rel_path(Some(&outdir), &["rom"])?;
-    let reset = top_path(&[
-        "projects",
-        "phbl",
-        "target",
-        "x86_64-oxide-none-elf",
-        "release",
-        "phbl",
-    ])?;
-    let ahibdir = top_path(&["projects", "amd-host-image-builder"])?;
-    let ahibargs_base = {
-        let mut t: Vec<String> = vec![ahib.as_str().into()];
-        for blob in amdblobs {
-            t.push("-B".into());
-            t.push(blob.to_str().unwrap().into());
+
+    /*
+     * Go through and create the per-board phase 1 images.
+     */
+    for (board, board_obj) in board_objs {
+        info!(log, "checking board: {}", board);
+
+        let efs = board_obj
+            .get("efs")
+            .and_then(|v| v.as_str())
+            .unwrap_or("<missing efs>");
+        let efsfile = if efs.starts_with("/") {
+            let p = PathBuf::from(efs);
+            assert!(p.is_absolute());
+            p
+        } else {
+            top_path(&["image", "amd", &efs])?
+        };
+        if !efsfile.is_file() {
+            bail!("AMD configuration file {efs:?} does not exist");
         }
-        t
-    };
-    let ahibargs = {
-        let mut t = ahibargs_base.clone();
+        info!(log, "  efs: {efsfile:?}");
+        let fws = board_obj
+            .get("firmware")
+            .and_then(|v| v.as_array())
+            .ok_or_else(|| {
+                anyhow::anyhow!("Missing or invalid 'firmware' array for board")
+            })?;
 
-        t.push("--config".into());
-        t.push(amdconf.to_str().unwrap().into());
+        let amdblobs = fws
+            .iter()
+            .map(|y| {
+                let y = y.as_str().ok_or_else(|| {
+                    anyhow::anyhow!("Invalid firmware entry: {:?}", y)
+                })?;
+                /*
+                 * If the entry is an absolute path, just pass it
+                 * through. Otherwise look in the place where we
+                 * usually store the firmware blobs:
+                 */
+                let d = if y.starts_with("/") {
+                    let p = PathBuf::from(y);
+                    assert!(p.is_absolute());
+                    p
+                } else {
+                    top_path(&["projects", "amd-firmware", &y])?
+                };
+                info!(log, "  firmware: {d:?}");
+                Ok(d)
+            })
+            .collect::<Result<Vec<_>>>()?;
+        let missing =
+            amdblobs.iter().filter(|d| !d.is_dir()).collect::<Vec<_>>();
+        if !missing.is_empty() {
+            bail!(
+                "These AMD firmware blob directories do not exist {missing:?}"
+            );
+        }
 
-        t.push("--output-file".into());
-        t.push(rom.to_str().unwrap().into());
-
-        t.push("--reset-image".into());
-        t.push(reset.to_str().unwrap().into());
-
-        t
-    };
-    ensure::run_in(
-        log,
-        &ahibdir,
-        &ahibargs.iter().map(String::as_str).collect::<Vec<_>>(),
-    )?;
-    tar.add_file(&rom, "rom")?;
-
-    if ddr_testing {
-        /*
-         * The configuration for amd-host-image-builder is stored in JSON5
-         * format.  Read the file as a generic JSON object:
-         */
-        let f = std::fs::read_to_string(&amdconf)?;
-        let inputcfg: serde_json::Value = json5::from_str(&f)?;
-
-        for limit in [1600, 1866, 2133, 2400, 2667, 2933, 3200] {
-            let romname = format!("rom.ddr{limit}");
-            let rom = rel_path(Some(&outdir), &[&romname])?;
-
+        info!(log, "building host image for board {board}...");
+        let romname = &format!("rom.{board}");
+        let rom = rel_path(Some(&outdir), &[romname])?;
+        let reset = top_path(&[
+            "projects",
+            "phbl",
+            "target",
+            "x86_64-oxide-none-elf",
+            "release",
+            "phbl",
+        ])?;
+        let ahibdir = top_path(&["projects", "amd-host-image-builder"])?;
+        let ahibargs_base = {
+            let mut t: Vec<String> = vec![ahib.as_str().into()];
+            for blob in amdblobs {
+                t.push("--blobdir".into());
+                t.push(blob.to_str().unwrap().into());
+            }
+            t
+        };
+        let ahibargs = {
+            let mut t = ahibargs_base.clone();
+            t.push("--config".into());
+            t.push(efsfile.to_str().unwrap().into());
+            t.push("--output-file".into());
+            t.push(rom.to_str().unwrap().into());
+            t.push("--reset-image".into());
+            t.push(reset.to_str().unwrap().into());
+            t
+        };
+        ensure::run_in(
+            log,
+            &ahibdir,
+            &ahibargs.iter().map(String::as_str).collect::<Vec<_>>(),
+        )?;
+        tar.add_file(&rom, romname)?;
+        // For now, add the gimlet rom again as just "rom".
+        // Tufaceaous doesn't parse symlinks.
+        if board == "gimlet" {
+            tar.add_file(&rom, "rom")?;
+        }
+        if board == "gimlet" && ddr_testing {
             /*
-             * Produce a new configuration file with the specified
-             * MemBusFrequencyLimit:
+             * The configuration for amd-host-image-builder is stored in JSON5
+             * format.  Read the file as a generic JSON object:
              */
-            let tmpcfg = rel_path(
-                Some(&tempdir),
-                &[&format!("milan-gimlet-b.ddr{}.efs.json", limit)],
-            )?;
-            maybe_unlink(&tmpcfg)?;
-            mk_rom_config(inputcfg.clone(), &tmpcfg, limit)?;
+            let f = std::fs::read_to_string(&efsfile)?;
+            let inputcfg: serde_json::Value = json5::from_str(&f)?;
 
-            /*
-             * Build the frequency-specific ROM file for this frequency limit:
-             */
-            let ahibargs = {
-                let mut t = ahibargs_base.clone();
+            for limit in [1600, 1866, 2133, 2400, 2667, 2933, 3200] {
+                let romname = format!("rom.ddr{limit}");
+                let rom = rel_path(Some(&outdir), &[&romname])?;
 
-                t.push("--config".into());
-                t.push(tmpcfg.to_str().unwrap().into());
+                /*
+                 * Produce a new configuration file with the specified
+                 * MemBusFrequencyLimit:
+                 */
+                let tmpcfg = rel_path(
+                    Some(&tempdir),
+                    &[&format!("milan-gimlet-b.ddr{}.efs.json", limit)],
+                )?;
+                maybe_unlink(&tmpcfg)?;
+                mk_rom_config(inputcfg.clone(), &tmpcfg, limit)?;
 
-                t.push("--output-file".into());
-                t.push(rom.to_str().unwrap().into());
+                /*
+                 * Build the frequency-specific ROM file for this frequency
+                 * limit:
+                 */
+                let ahibargs = {
+                    let mut t = ahibargs_base.clone();
 
-                t.push("--reset-image".into());
-                t.push(reset.to_str().unwrap().into());
+                    t.push("--config".into());
+                    t.push(tmpcfg.to_str().unwrap().into());
 
-                t
-            };
-            ensure::run_in(
-                log,
-                &ahibdir,
-                &ahibargs.iter().map(String::as_str).collect::<Vec<_>>(),
-            )?;
-            tar.add_file(&rom, &romname)?;
+                    t.push("--output-file".into());
+                    t.push(rom.to_str().unwrap().into());
+
+                    t.push("--reset-image".into());
+                    t.push(reset.to_str().unwrap().into());
+
+                    t
+                };
+                ensure::run_in(
+                    log,
+                    &ahibdir,
+                    &ahibargs.iter().map(String::as_str).collect::<Vec<_>>(),
+                )?;
+                tar.add_file(&rom, &romname)?;
+            }
         }
     }
 
@@ -2610,14 +2634,14 @@ fn main() -> Result<()> {
     });
     handlers.push(CommandInfo {
         name: "experiment-image".into(),
-        desc: "experimental image construction for Gimlets".into(),
+        desc: "experimental image construction for Compute Sleds".into(),
         func: cmd_image,
         hide: false,
         blank: false,
     });
     handlers.push(CommandInfo {
         name: "image".into(),
-        desc: "experimental image construction for Gimlets".into(),
+        desc: "image construction for Compute Sleds".into(),
         func: cmd_image,
         hide: true,
         blank: false,

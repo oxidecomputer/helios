@@ -109,7 +109,7 @@
 
         { "t": "ensure_file",
             "file": "/etc/system.d/zfs:dbuf",
-            "src": "gimlet-system-zfs:dbuf",
+            "src": "sled-system-zfs:dbuf",
             "owner": "root", "group": "sys", "mode": "0644" },
 
         { "t": "assemble_files",
@@ -133,6 +133,6 @@
             "extsrc": "gzonly.txt",
             "owner": "root", "group": "sys", "mode": "0644" },
 
-        { "t": "pack_tar", "name": "gimlet-ramdisk.tar" }
+        { "t": "pack_tar", "name": "compute-sled-ramdisk.tar" }
     ]
 }
