@@ -1441,7 +1441,7 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
         };
 
     for (name, board) in target_boards.iter() {
-        info!(log, "Checking files for board {name}");
+        info!(log, "Checking files for board '{name}'");
         let efsfile = board.efs_path()?;
         info!(log, "    {efsfile:?}");
         if !efsfile.is_file() {
@@ -1990,6 +1990,7 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
         )?;
 
         tar.add_file(&rom, &romname)?;
+
         /*
          * Add the Gimlet ROM image again at the original path "rom" for
          * compatibility with older tools that do not understand multi-image

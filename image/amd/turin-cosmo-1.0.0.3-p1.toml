@@ -1,7 +1,7 @@
 cpu = 'turin'
 board = 'cosmo'
 firmware_version = '1.0.0.3-p1'
-size = 16
+size = 32
 blobs = [
     'TypeId0x00_AmdPubKey_BRH.tkn',
     'TypeId0x01_PspBl_BRH.esbin',
