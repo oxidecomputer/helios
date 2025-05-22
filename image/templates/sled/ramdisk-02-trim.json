@@ -133,6 +133,6 @@
             "extsrc": "gzonly.txt",
             "owner": "root", "group": "sys", "mode": "0644" },
 
-        { "t": "pack_tar", "name": "compute-sled-ramdisk.tar" }
+        { "t": "pack_tar", "name": "sled-ramdisk.tar" }
     ]
 }

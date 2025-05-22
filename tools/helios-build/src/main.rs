@@ -9,7 +9,6 @@ use anyhow::{bail, Context, Result};
 use helios_build_utils::metadata::{self, ArchiveType};
 use helios_build_utils::tree;
 use serde::Deserialize;
-use serde_json::{Map, Value};
 use slog::Logger;
 use std::collections::HashMap;
 use std::fs::File;
@@ -1311,6 +1310,34 @@ impl Publishers {
     }
 }
 
+#[derive(Clone, Debug, Deserialize)]
+struct Board {
+    efs: String,
+    app: String,
+}
+
+impl Board {
+    fn efs_path(&self) -> Result<PathBuf> {
+        if self.efs.starts_with("/") {
+            let p = PathBuf::from(self.efs.clone());
+            assert!(p.is_absolute());
+            Ok(p)
+        } else {
+            top_path(&["image", "amd", &self.efs])
+        }
+    }
+
+    fn app_path(&self) -> Result<PathBuf> {
+        if self.app.starts_with("/") {
+            let p = PathBuf::from(self.app.clone());
+            assert!(p.is_absolute());
+            Ok(p)
+        } else {
+            top_path(&["image", "amd", &self.app])
+        }
+    }
+}
+
 fn cmd_image(ca: &CommandArg) -> Result<()> {
     let mut opts = baseopts();
     opts.optopt(
@@ -1337,7 +1364,7 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
     );
     opts.optopt("P", "", "include all files from extra proto area", "DIR");
 
-    let group = "compute-sled";
+    let group = "sled";
 
     let usage = || {
         println!("{}", opts.usage("Usage: helios [OPTIONS] image [OPTIONS]"));
@@ -1397,46 +1424,48 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
         bail!("unexpected arguments");
     }
 
-    let boardcfgfile =
-        top_path(&["image", "templates", &group, "targets.json5"])?;
-    let boards = if let Ok(content) = std::fs::read_to_string(&boardcfgfile) {
-        content
-    } else {
-        bail!("Could not read board config {}", boardcfgfile.display());
-    };
-    let boardcfg: serde_json::Value = json5::from_str(&boards)?;
+    let boards: HashMap<String, Board> =
+        read_toml(top_path(&["image", "templates", group, "targets.toml"])?)?;
 
-    let target_boards = if let Some(board) = res.opt_str("b") {
-        let mut filtered = Map::new();
-        let board_val = boardcfg.get(&board).ok_or_else(|| {
-            anyhow::anyhow!(
-                "Unknown board name ({board}) specified."
-            )
-        })?;
-        filtered.insert(board, board_val.clone());
-        Value::Object(filtered)
-    } else {
-        boardcfg.clone()
-    };
-    let board_objs = target_boards
-        .as_object()
-        .ok_or_else(|| anyhow::anyhow!("Expected top-level boards object"))?;
+    let target_boards: HashMap<String, Board> =
+        if let Some(board) = res.opt_str("b") {
+            let board_val = boards.get(&board).ok_or_else(|| {
+                anyhow::anyhow!("Unknown board name ({board}) specified.")
+            })?;
+
+            let mut filtered = HashMap::new();
+            filtered.insert(board, board_val.clone());
+            filtered
+        } else {
+            boards.clone()
+        };
+
+    for (name, board) in target_boards.iter() {
+        info!(log, "Checking files for board {name}");
+        let efsfile = board.efs_path()?;
+        info!(log, "    {efsfile:?}");
+        if !efsfile.is_file() {
+            bail!("Missing AMD configuration file {efsfile:?} for {name}");
+        }
+        let appfile = board.app_path()?;
+        info!(log, "    {appfile:?}");
+        if !appfile.is_file() {
+            bail!("Missing app file {appfile:?} for {name}");
+        }
+    }
 
     /*
-     * Check for the commands we need before we start doing any expensive work.
+     * Check for the commands and directories  we need before we start doing
+     * any expensive work.
      */
     let builder = cargo_target_cmd("image-builder", "image-builder", true)?;
     let mkimage = cargo_target_cmd("bootserver", "mkimage", false)?;
     let pinprick = cargo_target_cmd("pinprick", "pinprick", false)?;
-    let ahib = cargo_target_cmd(
-        "amd-host-image-builder",
-        "amd-host-image-builder",
-        true,
-    )?;
     let baseline = "/usr/lib/brand/omicron1/baseline";
     if brand && !PathBuf::from(baseline).is_file() {
         bail!("Please run: pkg install /system/zones/brand/omicron1/tools");
     }
+    let fw_path = top_path(&["projects", "amd-firmware"])?;
 
     /*
      * Make sure the dataset that we want to use for image construction exists.
@@ -1571,7 +1600,7 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
         cmd.arg(&builder);
         cmd.arg("build");
         cmd.arg("-d").arg(&imgds);
-        cmd.arg("-g").arg(&group);
+        cmd.arg("-g").arg(group);
         cmd.arg("-T").arg(&templates);
         if let Some(genproto) = &genproto {
             cmd.arg("-E").arg(extra_proto.as_deref().unwrap());
@@ -1605,7 +1634,7 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
         cmd
     };
 
-    let root = format!("{}/work/{}/ramdisk", mp, group);
+    let root = format!("{mp}/work/{group}/ramdisk");
     if !skips.iter().any(|s| s == "install") {
         info!(log, "image builder template: ramdisk-01-os...");
         let mut cmd = basecmd();
@@ -1680,7 +1709,7 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
     let image_name = Expansion::parse(&image_template)?.evaluate(&tokens)?;
     info!(log, "expanded image name: {:?} -> {:?}", image_template, image_name);
 
-    let raw = format!("{}/output/{}-{}.raw", mp, group, tname);
+    let raw = format!("{mp}/output/{group}-{tname}.raw");
 
     /*
      * Store built image artefacts together.  Ensure the output directory is
@@ -1919,111 +1948,63 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
         ],
     )?;
 
+    let reset = top_path(&[
+        "projects",
+        "phbl",
+        "target",
+        "x86_64-oxide-none-elf",
+        "release",
+        "phbl",
+    ])?;
+
+    let ahib_path = top_path(&["projects", "amd-host-image-builder"])?;
+    rustup_install_toolchain(log, &ahib_path)?;
+
     /*
-     * Go through and create the per-board phase 1 images.
+     * Go through and create the per-board ROM images.
      */
-    for (board, board_obj) in board_objs {
-        info!(log, "checking board: {}", board);
+    for (name, board) in target_boards.iter() {
+        info!(log, "building ROM for {name}");
 
-        let efs = board_obj
-            .get("efs")
-            .and_then(|v| v.as_str())
-            .unwrap_or("<missing efs>");
-        let efsfile = if efs.starts_with("/") {
-            let p = PathBuf::from(efs);
-            assert!(p.is_absolute());
-            p
-        } else {
-            top_path(&["image", "amd", &efs])?
-        };
-        if !efsfile.is_file() {
-            bail!("AMD configuration file {efs:?} does not exist");
-        }
-        info!(log, "  efs: {efsfile:?}");
-        let fws = board_obj
-            .get("firmware")
-            .and_then(|v| v.as_array())
-            .ok_or_else(|| {
-                anyhow::anyhow!("Missing or invalid 'firmware' array for board")
-            })?;
+        let romname = format!("rom.{name}");
+        let rom = rel_path(Some(&outdir), &[&romname])?;
 
-        let amdblobs = fws
-            .iter()
-            .map(|y| {
-                let y = y.as_str().ok_or_else(|| {
-                    anyhow::anyhow!("Invalid firmware entry: {:?}", y)
-                })?;
-                /*
-                 * If the entry is an absolute path, just pass it
-                 * through. Otherwise look in the place where we
-                 * usually store the firmware blobs:
-                 */
-                let d = if y.starts_with("/") {
-                    let p = PathBuf::from(y);
-                    assert!(p.is_absolute());
-                    p
-                } else {
-                    top_path(&["projects", "amd-firmware", &y])?
-                };
-                info!(log, "  firmware: {d:?}");
-                Ok(d)
-            })
-            .collect::<Result<Vec<_>>>()?;
-        let missing =
-            amdblobs.iter().filter(|d| !d.is_dir()).collect::<Vec<_>>();
-        if !missing.is_empty() {
-            bail!(
-                "These AMD firmware blob directories do not exist {missing:?}"
-            );
-        }
-
-        info!(log, "building host image for board {board}...");
-        let romname = &format!("rom.{board}");
-        let rom = rel_path(Some(&outdir), &[romname])?;
-        let reset = top_path(&[
-            "projects",
-            "phbl",
-            "target",
-            "x86_64-oxide-none-elf",
-            "release",
-            "phbl",
-        ])?;
-        let ahibdir = top_path(&["projects", "amd-host-image-builder"])?;
-        let ahibargs_base = {
-            let mut t: Vec<String> = vec![ahib.as_str().into()];
-            for blob in amdblobs {
-                t.push("--blobdir".into());
-                t.push(blob.to_str().unwrap().into());
-            }
-            t
-        };
-        let ahibargs = {
-            let mut t = ahibargs_base.clone();
-            t.push("--config".into());
-            t.push(efsfile.to_str().unwrap().into());
-            t.push("--output-file".into());
-            t.push(rom.to_str().unwrap().into());
-            t.push("--reset-image".into());
-            t.push(reset.to_str().unwrap().into());
-            t
-        };
         ensure::run_in(
             log,
-            &ahibdir,
-            &ahibargs.iter().map(String::as_str).collect::<Vec<_>>(),
+            &ahib_path,
+            &[
+                "cargo",
+                "xtask",
+                "gen",
+                "--amd-firmware",
+                fw_path.to_str().unwrap(),
+                "--payload",
+                reset.to_str().unwrap(),
+                "--config",
+                board.efs_path()?.to_str().unwrap(),
+                "--app",
+                board.app_path()?.to_str().unwrap(),
+                "--image",
+                rom.to_str().unwrap(),
+            ],
         )?;
-        tar.add_file(&rom, romname)?;
-        // For now, add the gimlet rom again as just "rom".
-        // Tufaceaous doesn't parse symlinks.
-        if board == "gimlet" {
+
+        tar.add_file(&rom, &romname)?;
+        /*
+         * Add the Gimlet ROM image again at the original path "rom" for
+         * compatibility with older tools that do not understand multi-image
+         * archives:
+         */
+        if name == "gimlet" {
             tar.add_file(&rom, "rom")?;
         }
-        if board == "gimlet" && ddr_testing {
+
+        if name == "gimlet" && ddr_testing {
             /*
              * The configuration for amd-host-image-builder is stored in JSON5
              * format.  Read the file as a generic JSON object:
              */
-            let f = std::fs::read_to_string(&efsfile)?;
+            let f = std::fs::read_to_string(board.efs_path()?)?;
             let inputcfg: serde_json::Value = json5::from_str(&f)?;
 
             for limit in [1600, 1866, 2133, 2400, 2667, 2933, 3200] {
@@ -2045,24 +2026,24 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
                  * Build the frequency-specific ROM file for this frequency
                  * limit:
                  */
-                let ahibargs = {
-                    let mut t = ahibargs_base.clone();
-
-                    t.push("--config".into());
-                    t.push(tmpcfg.to_str().unwrap().into());
-
-                    t.push("--output-file".into());
-                    t.push(rom.to_str().unwrap().into());
-
-                    t.push("--reset-image".into());
-                    t.push(reset.to_str().unwrap().into());
-
-                    t
-                };
                 ensure::run_in(
                     log,
-                    &ahibdir,
-                    &ahibargs.iter().map(String::as_str).collect::<Vec<_>>(),
+                    &ahib_path,
+                    &[
+                        "cargo",
+                        "xtask",
+                        "gen",
+                        "--amd-firmware",
+                        fw_path.to_str().unwrap(),
+                        "--payload",
+                        reset.to_str().unwrap(),
+                        "--config",
+                        tmpcfg.to_str().unwrap(),
+                        "--app",
+                        board.app_path()?.to_str().unwrap(),
+                        "--image",
+                        rom.to_str().unwrap(),
+                    ],
                 )?;
                 tar.add_file(&rom, &romname)?;
             }
@@ -2634,7 +2615,7 @@ fn main() -> Result<()> {
     });
     handlers.push(CommandInfo {
         name: "experiment-image".into(),
-        desc: "experimental image construction for Compute Sleds".into(),
+        desc: "image construction for Compute Sleds".into(),
         func: cmd_image,
         hide: false,
         blank: false,

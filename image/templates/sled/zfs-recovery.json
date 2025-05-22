@@ -17,7 +17,7 @@
     "steps": [
         { "t": "create_be" },
 
-        { "t": "unpack_tar", "name": "compute-sled-recovery-ramdisk.tar" },
+        { "t": "unpack_tar", "name": "sled-recovery-ramdisk.tar" },
 
         { "t": "include", "name": "devfs" },
 
