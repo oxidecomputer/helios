@@ -14,8 +14,9 @@ set zfs:dbuf_metadata_cache_max_bytes = 0x40000000
 * By default, ZFS tries to internally aggregate multiple I/O operations, so it
 * can dispatch them as a single operation to the disk.  This logic comes from
 * the era of spinning drives, where putting in the work to issue fewer, larger
-* commands would increase throughput.  For SSDs, and especially the Gimlet
-* SSDs, it instead generates extra work within ZFS that reduces throughput.
+* commands would increase throughput.  For SSDs, and especially the compute
+* sled SSDs, it instead generates extra work within ZFS that reduces
+* throughput.
 *
 * We set the limit to 0 disable aggregation entirely.
 *
@@ -23,10 +24,10 @@ set zfs:zfs_vdev_aggregation_limit = 0
 
 *
 * These task queues will allocate threads equal to 75% of the number of CPU
-* threads on the system.  On the Gimlet, that means that it allocates 96
-* threads.  These queues are per-zpool, so actually that means it allocates 960
-* threads by default.  This is a bit excessive.  These parameters bring it down
-* to allocate 5% per pool instead, significantly reducing mutex contention
+* threads on the system.  On Gimlet, for example, that means that it allocates
+* 96 threads.  These queues are per-zpool, so actually that means it allocates
+* 960 threads by default.  This is a bit excessive.  These parameters bring it
+* down to allocate 5% per pool instead, significantly reducing mutex contention
 * between the worker threads.
 *
 set zfs:zfs_sync_taskq_batch_pct = 5

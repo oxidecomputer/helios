@@ -1,0 +1,35 @@
+cpu = 'milan'
+board = 'gimlet-b'
+firmware_version = '1.0.0.a'
+size = 32
+blobs = [
+    'AmdPubKey_gn.tkn',
+    'PspBootLoader_gn.sbin',
+    'PspRecoveryBootLoader_gn.sbin',
+    'SmuFirmwareGn.csbin',
+    'SecureDebugToken_gn.stkn',
+    'PspABLFw_gn.stkn',
+    'SmuFirmware2Gn.csbin',
+    'SecureDebugUnlock_gn.sbin',
+    'PspIkek_gn.bin',
+    'SecureEmptyToken.bin',
+    'RsmuSecPolicy_gn.sbin',
+    'Mp5Gn.csbin',
+    'AgesaBootloader_U_prod_GN.csbin',
+    'GnPhyFw.sbin',
+    'PSP-Key-DB_gn.sbin',
+    'Appb_GN_1D_Ddr4_Udimm_Imem.csbin',
+    'Appb_GN_1D_Ddr4_Udimm_Dmem.csbin',
+    'Appb_GN_1D_Ddr4_Rdimm_Imem.csbin',
+    'Appb_GN_1D_Ddr4_Rdimm_Dmem.csbin',
+    'Appb_GN_2D_Ddr4_Udimm_Imem.csbin',
+    'Appb_GN_2D_Ddr4_Udimm_Dmem.csbin',
+    'Appb_GN_2D_Ddr4_Rdimm_Imem.csbin',
+    'Appb_GN_2D_Ddr4_Rdimm_Dmem.csbin',
+    'Appb_GN_BIST_Ddr4_Udimm_Imem.csbin',
+    'Appb_GN_BIST_Ddr4_Udimm_Dmem.csbin',
+    'Appb_GN_BIST_Ddr4_Rdimm_Imem.csbin',
+    'Appb_GN_BIST_Ddr4_Rdimm_Dmem.csbin',
+    'Appb_GN_BIST_Ddr4_Lrdimm_Imem.csbin',
+    'Appb_GN_BIST_Ddr4_Lrdimm_Dmem.csbin',
+]

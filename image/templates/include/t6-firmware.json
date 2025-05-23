@@ -12,6 +12,11 @@
         { "t": "ensure_symlink",
             "link": "/platform/Oxide,Gimlet/firmware/t6srom.bin",
             "target": "Oxide_t6_2x100Gbase_kr_nomemory_v8C_6_26_10.bin",
+            "owner": "root", "group": "root" },
+
+        { "t": "ensure_symlink",
+            "link": "/platform/Oxide,Cosmo",
+            "target": "Oxide,Gimlet",
             "owner": "root", "group": "root" }
     ]
 }
