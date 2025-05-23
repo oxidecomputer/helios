@@ -5,7 +5,7 @@
 mod common;
 use common::*;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use helios_build_utils::metadata::{self, ArchiveType};
 use helios_build_utils::tree;
 use serde::Deserialize;
@@ -1430,7 +1430,7 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
     let target_boards: HashMap<String, Board> =
         if let Some(board) = res.opt_str("b") {
             let board_val = boards.get(&board).ok_or_else(|| {
-                anyhow::anyhow!("Unknown board name ({board}) specified.")
+                anyhow!("Unknown board name ({board}) specified.")
             })?;
 
             let mut filtered = HashMap::new();
@@ -1966,7 +1966,7 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
     for (name, board) in target_boards.iter() {
         info!(log, "building ROM for {name}");
 
-        let romname = format!("rom.{name}");
+        let romname = format!("{name}.rom");
         let rom = rel_path(Some(&outdir), &[&romname])?;
 
         ensure::run_in(
@@ -2009,7 +2009,7 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
             let inputcfg: serde_json::Value = json5::from_str(&f)?;
 
             for limit in [1600, 1866, 2133, 2400, 2667, 2933, 3200] {
-                let romname = format!("rom.ddr{limit}");
+                let romname = format!("{name}.ddr{limit}.rom");
                 let rom = rel_path(Some(&outdir), &[&romname])?;
 
                 /*
