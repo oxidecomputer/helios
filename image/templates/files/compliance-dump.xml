@@ -22,7 +22,7 @@
     </dependent>
 
     <exec_method type='method' name='start'
-        exec='/usr/bin/pilot gimlet dump setup' timeout_seconds='600' />
+        exec='/usr/bin/pilot local dump setup' timeout_seconds='600' />
 
     <exec_method type='method' name='stop' exec=':kill' timeout_seconds='30' />
 

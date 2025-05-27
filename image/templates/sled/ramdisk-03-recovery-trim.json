@@ -7,6 +7,6 @@
 
     "steps": [
         { "t": "include", "name": "recovery-elide" },
-        { "t": "pack_tar", "name": "gimlet-recovery-ramdisk.tar" }
+        { "t": "pack_tar", "name": "sled-recovery-ramdisk.tar" }
     ]
 }

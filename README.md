@@ -530,11 +530,11 @@ just to streamline your workflow, please don't hesitate to reach out!
 
 ## OS Image Archives
 
-As part of building OS images for Gimlets, an image archive is produced that
-includes the boot ROM and the root file system ramdisk image.  It also includes
-some metadata in a JSON file, using the same format as [the **omicron1**
-brand](https://github.com/oxidecomputer/helios-omicron-brand/) (see **IMAGE
-ARCHIVES** in **omicron1(7)**).
+As part of building OS images for Oxide compute sleds, an image archive is
+produced that includes the boot ROM and the root file system ramdisk image.  It
+also includes some metadata in a JSON file, using the same format as [the
+**omicron1** brand](https://github.com/oxidecomputer/helios-omicron-brand/)
+(see **IMAGE ARCHIVES** in **omicron1(7)**).
 
 The contents of the file represents a committed interface between Helios and
 the parts of [Omicron](https://github.com/oxidecomputer/omicron) which need to
