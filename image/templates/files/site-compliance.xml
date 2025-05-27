@@ -1,7 +1,7 @@
 <?xml version='1.0'?>
 <!DOCTYPE service_bundle SYSTEM '/usr/share/lib/xml/dtd/service_bundle.dtd.1'>
 <!--
-    Copyright 2024 Oxide Computer Company
+    Copyright 2025 Oxide Computer Company
 -->
 
 <service_bundle type='profile' name='helios'
@@ -14,6 +14,13 @@
     <!-- Enable pilot-based dump device and crash dump management: -->
     <service name='site/compliance/dump' version='1' type='service'>
         <instance name='default' enabled='true' />
+    </service>
+
+    <!-- Setup networking: -->
+    <service name='site/compliance/net-setup' version='1' type='service'>
+        <instance name='igb' enabled='true' />
+        <instance name='e1000g' enabled='true' />
+        <instance name='cxgbe' enabled='true' />
     </service>
 
     <!-- See: https://www.illumos.org/issues/14006 -->
