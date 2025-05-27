@@ -1,10 +1,6 @@
 {
     "steps": [
-        { "t": "ensure_file",
-            "file": "/usr/lib/postboot",
-            "src": "compliance-postboot.sh",
-            "owner": "root", "group": "bin", "mode": "0755" },
-        { "t": "ensure_file",
+        { "t": "ensure_file", "with": "compliance",
             "file": "/lib/svc/manifest/site/postboot.xml",
             "src": "compliance-postboot.xml",
             "owner": "root", "group": "bin", "mode": "0644" },
@@ -62,6 +58,15 @@
         { "t": "ensure_file",
             "file": "/lib/svc/manifest/site/compliance-dump.xml",
             "src": "compliance-dump.xml",
+            "owner": "root", "group": "bin", "mode": "0644" },
+
+        { "t": "ensure_file",
+            "file": "/usr/lib/compliance-net-setup",
+            "src": "compliance-net-setup.sh",
+            "owner": "root", "group": "bin", "mode": "0755" },
+        { "t": "ensure_file",
+            "file": "/lib/svc/manifest/site/compliance-net-setup.xml",
+            "src": "compliance-net-setup.xml",
             "owner": "root", "group": "bin", "mode": "0644" }
     ]
 }
