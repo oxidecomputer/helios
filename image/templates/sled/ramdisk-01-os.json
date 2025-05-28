@@ -124,6 +124,11 @@
             "/system/test/fio"
         ] },
 
+        { "t": "pkg_install", "with": "compliance", "pkgs": [
+            "/ooce/util/stress-ng",
+            "/system/test/fio"
+        ] },
+
         { "t": "pkg_install", "with": "nfs", "pkgs": [
             "/system/file-system/autofs",
             "/system/file-system/nfs"

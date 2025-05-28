@@ -1,0 +1,58 @@
+<?xml version="1.0"?>
+<!DOCTYPE service_bundle SYSTEM "/usr/share/lib/xml/dtd/service_bundle.dtd.1">
+<!--
+    Copyright 2025 Oxide Computer Company
+-->
+
+<service_bundle type='manifest' name='site-compliance-mem-loadgen'>
+
+<service name='site/compliance/mem-loadgen' type='service' version='1'>
+    <create_default_instance enabled='false' />
+
+    <!-- Wait for multi-user. -->
+    <dependency name="multi_user"
+                grouping="require_all"
+                restart_on="none"
+                type="service">
+        <service_fmri value="svc:/milestone/multi-user:default" />
+    </dependency>
+
+    <!-- Also depend on the stress-ng binary -->
+    <dependency
+        name='stress-ng'
+        grouping='require_all'
+        restart_on='none'
+        type='path'>
+            <service_fmri
+                value='file://localhost//opt/ooce/bin/stress-ng' />
+    </dependency>
+
+    <exec_method
+        type='method'
+        name='start'
+        exec='/usr/lib/compliance-mem-loadgen %{config/jobfile}'
+        timeout_seconds='60' />
+
+    <exec_method
+        type='method'
+        name='stop'
+        exec=':kill'
+        timeout_seconds='60' />
+
+    <property_group name='config' type='application'>
+        <propval name='jobfile' type='astring' value='/root/max-power.stress-ng' />
+    </property_group>
+
+    <stability value='Unstable' />
+
+    <template>
+        <common_name>
+            <loctext xml:lang='C'>compliance ad hoc DRAM load gen</loctext>
+        </common_name>
+        <description>
+            <loctext xml:lang='C'>generates DRAM load</loctext>
+        </description>
+    </template>
+</service>
+
+</service_bundle>
