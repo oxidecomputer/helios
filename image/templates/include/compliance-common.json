@@ -28,6 +28,15 @@
             "owner": "root", "group": "bin", "mode": "0644" },
 
         { "t": "ensure_file",
+            "file": "/usr/lib/compliance-mem-loadgen",
+            "src": "compliance-mem-loadgen.sh",
+            "owner": "root", "group": "bin", "mode": "0755" },
+        { "t": "ensure_file",
+            "file": "/lib/svc/manifest/site/compliance-mem-loadgen.xml",
+            "src": "compliance-mem-loadgen.xml",
+            "owner": "root", "group": "bin", "mode": "0644" },
+
+        { "t": "ensure_file",
             "file": "/usr/lib/compliance-beacon",
             "src": "compliance-beacon.sh",
             "owner": "root", "group": "bin", "mode": "0755" },
