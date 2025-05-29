@@ -1934,6 +1934,7 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
      */
     info!(log, "creating reset image...");
     let phbl_path = top_path(&["projects", "phbl"])?;
+    let phbl_target = rel_path(Some(&outdir), &["phbl"])?;
     rustup_install_toolchain(log, &phbl_path)?;
     ensure::run_in(
         log,
@@ -1945,17 +1946,15 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
             "--release",
             "--cpioz",
             cpioz.to_str().unwrap(),
+            "--target-dir",
+            phbl_target.to_str().unwrap(),
         ],
     )?;
 
-    let reset = top_path(&[
-        "projects",
-        "phbl",
-        "target",
-        "x86_64-oxide-none-elf",
-        "release",
-        "phbl",
-    ])?;
+    let reset = rel_path(
+        Some(&outdir),
+        &["phbl", "x86_64-oxide-none-elf", "release", "phbl"],
+    )?;
 
     let ahib_path = top_path(&["projects", "amd-host-image-builder"])?;
     rustup_install_toolchain(log, &ahib_path)?;
