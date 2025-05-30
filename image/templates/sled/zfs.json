@@ -59,6 +59,7 @@
             "owner": "root", "group": "root", "mode": "644" },
 
         { "t": "include", "with": "stress", "name": "stress" },
+        { "t": "include", "with": "compliance", "name": "stress" },
 
         { "t": "include", "name": "root-noauth" },
 
