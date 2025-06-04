@@ -19,7 +19,7 @@
          cxgbe links have been assigned link-local v6 addresses. -->
     <dependency name='net-setup-cxgbe' grouping='require_all' restart_on='none'
         type='service'>
-        <service_fmri value='svc:/site/compliance/net-setup:cxgbe' />
+        <service_fmri value='svc:/oxide/net-setup:cxgbe' />
     </dependency>
 
     <!-- Compliance postboot is just a milestone service. -->

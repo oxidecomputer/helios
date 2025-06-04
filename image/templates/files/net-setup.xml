@@ -4,9 +4,9 @@
     Copyright 2025 Oxide Computer Company
 -->
 
-<service_bundle type='manifest' name='site-compliance-net-setup'>
+<service_bundle type='manifest' name='oxide-net-setup'>
 
-<service name='site/compliance/net-setup' type='service' version='1'>
+<service name='oxide/net-setup' type='service' version='1'>
     <create_default_instance enabled='false' />
 
     <!-- File systems should all be mounted before we begin: -->
@@ -34,7 +34,7 @@
     <exec_method
         type='method'
         name='start'
-        exec='/usr/lib/compliance-net-setup %i'
+        exec='/usr/lib/oxide/net-setup %i'
         timeout_seconds='3600' />
 
     <exec_method type='method' name='stop' exec=':true' timeout_seconds='30' />
@@ -67,11 +67,10 @@
 
     <template>
         <common_name>
-            <loctext xml:lang='C'>compliance network setup</loctext>
+            <loctext xml:lang='C'>sled network setup</loctext>
         </common_name>
         <description>
-            <loctext xml:lang='C'>brings network up for compliance testing
-            </loctext>
+            <loctext xml:lang='C'>brings up basic sled networking</loctext>
         </description>
     </template>
 </service>
