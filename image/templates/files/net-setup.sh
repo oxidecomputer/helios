@@ -10,12 +10,16 @@ set -o xtrace
 . /lib/svc/share/smf_include.sh
 
 if (( $# != 1 )); then
-	echo "usage: compliance-net-setup.sh <NIC dev>" >&2
+	printf 'usage: $0 LINK\n' >&2
 	exit $SMF_EXIT_ERR_FATAL
 fi
 nicdev=$1
 
-fail_not_found=$(svcprop -p 'config/fail_not_found' $SMF_FMRI)
+if [[ -z $SMF_FMRI ]]; then
+	printf 'ERROR: must run under SMF\n' >&2
+	exit $SMF_EXIT_ERR_FATAL
+fi
+fail_not_found=$(svcprop -p 'config/fail_not_found' "$SMF_FMRI")
 
 #
 # Find the NICs we want to bring up for IPv6:
@@ -28,7 +32,7 @@ for try in $(dladm show-ether -po link); do
 done
 
 if (( ${#nics[@]} == 0 )); then
-	if [[ "$fail_not_found" = "true" ]]; then
+	if [[ $fail_not_found == true ]]; then
 		exit $SMF_EXIT_ERR_FATAL
 	else
 		exit $SMF_EXIT_OK
@@ -36,7 +40,7 @@ if (( ${#nics[@]} == 0 )); then
 fi
 
 #
-# First, ensure any Chelsio NICs are configured to allow for jumbo frames.
+# Ensure any Chelsio NICs are configured to allow for jumbo frames.
 #
 for (( i = 0; i < ${#nics[@]}; i++ )); do
 	nic=${nics[$i]}

@@ -16,8 +16,8 @@
         <!-- Make sure we have an appropriate NIC setup: -->
         <dependency name='net' grouping='require_any' restart_on='none'
             type='service'>
-            <service_fmri value='svc:/site/compliance/net-setup:igb' />
-            <service_fmri value='svc:/site/compliance/net-setup:e1000' />
+            <service_fmri value='svc:/oxide/net-setup:igb' />
+            <service_fmri value='svc:/oxide/net-setup:e1000g' />
         </dependency>
 
         <exec_method type="method" name="start" timeout_seconds="30"
