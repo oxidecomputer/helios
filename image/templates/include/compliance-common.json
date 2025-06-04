@@ -58,15 +58,6 @@
         { "t": "ensure_file",
             "file": "/lib/svc/manifest/site/compliance-dump.xml",
             "src": "compliance-dump.xml",
-            "owner": "root", "group": "bin", "mode": "0644" },
-
-        { "t": "ensure_file",
-            "file": "/usr/lib/oxide/net-setup",
-            "src": "net-setup.sh",
-            "owner": "root", "group": "bin", "mode": "0755" },
-        { "t": "ensure_file",
-            "file": "/lib/svc/manifest/oxide/net-setup.xml",
-            "src": "net-setup.xml",
             "owner": "root", "group": "bin", "mode": "0644" }
     ]
 }
