@@ -8,3 +8,5 @@ iodepth=${IODEPTH}
 size=${SIZE}
 filename=${FILENAME}
 numjobs=${NUMJOBS}
+runtime=2d
+time_based
