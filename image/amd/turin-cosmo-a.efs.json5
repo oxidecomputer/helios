@@ -29,6 +29,22 @@
         },
         {
           source: {
+            BlobFile: "TypeId0x02_PspOS_BRH.ecsbin"
+          },
+          target: {
+            type: "PspOs"
+          }
+        },
+        {
+          source: {
+            BlobFile: "TypeId0x03_PspRecBl_BRH.esbin"
+          },
+          target: {
+            type: "PspRecoveryBootloader"
+          }
+        },
+        {
+          source: {
             BlobFile: "TypeId0x08_SmuFirmware_breithorn.ecsbin"
           },
           target: {
@@ -46,10 +62,26 @@
         },
         {
           source: {
+            BlobFile: "TypeId0x09_PspDebugUnlockToken_BRH.stkn"
+          },
+          target: {
+            type: "AmdSecureDebugKey"
+          }
+        },
+        {
+          source: {
             BlobFile: "TypeId0x0A_PspAblPubKey_BRH.stkn"
           },
           target: {
             type: "AblPublicKey"
+          }
+        },
+        {
+          source: {
+            BlobFile: "TypeId0x13_SduFw_BRH.ecsbin"
+          },
+          target: {
+            type: "PspEarlySecureUnlockDebugImage"
           }
         },
         {
@@ -62,34 +94,10 @@
         },
         {
           source: {
-            BlobFile: "TypeId0x55_SPLTable_BRH.sbin"
-          },
-          target: {
-            type: "BootloaderSplTable"
-          }
-        },
-        {
-          source: {
-            BlobFile: "TypeId0x9D_AspSramFwExt_BRH.sbin"
-          },
-          target: {
-            type: "AspSramFirmwareExtension"
-          }
-        },
-        {
-          source: {
             BlobFile: "TypeId0x21_PspAmdIkek_BRH.bin"
           },
           target: {
             type: "WrappedIkek"
-          }
-        },
-        {
-          source: {
-            BlobFile: "TypeId0x13_SduFw_BRH.ecsbin"
-          },
-          target: {
-            type: "PspEarlySecureUnlockDebugImage"
           }
         },
         {
@@ -209,6 +217,14 @@
         },
         {
           source: {
+            BlobFile: "TypeId0x55_SPLTable_BRH.sbin"
+          },
+          target: {
+            type: "BootloaderSplTable"
+          }
+        },
+        {
+          source: {
             BlobFile: "TypeId0x5DMpioFw_BRH.cesbin"
           },
           target: {
@@ -269,6 +285,14 @@
           },
           target: {
             type: "MpdmaPageMigrationFirmware"
+          }
+        },
+        {
+          source: {
+            BlobFile: "TypeId0x9D_AspSramFwExt_BRH.sbin"
+          },
+          target: {
+            type: "AspSramFirmwareExtension"
           }
         },
         {
@@ -342,12 +366,12 @@
         {
           source: {
             ApcbJson: {
-              version: "0.4.5",
+              version: "0.5.1",
               header: {
                 signature: "APCB",
                 header_size: 128,
                 version: 48,
-                unique_apcb_instance: 2729
+                unique_apcb_instance: 30817,
               },
               v3_header_ext: {
                 signature: "ECB2",
@@ -355,7 +379,6 @@
                 data_version: 256,
                 ext_header_size: 96,
                 data_offset: 88,
-                header_checksum: 0,
                 signature_ending: "BCPA"
               },
               groups: [
@@ -10366,7 +10389,7 @@
                     },
                     {
                       Byte: {
-                        MemMbistAggressorsChannelDdrMode: "SubChannel"
+                        MemMbistAggressorsChannelDdrMode: "All"
                       }
                     },
                     {
@@ -10416,7 +10439,7 @@
                     },
                     {
                       Byte: {
-                        MemMbistPatternLengthDdr: 8
+                        MemMbistPatternLengthDdr: 6
                       }
                     },
                     {
@@ -10633,12 +10656,22 @@
                     },
                     {
                       Byte: {
+                        DfPdrMode: "Selective"
+                      }
+                    },
+                    {
+                      Byte: {
                         DfInvertDramMap: "Auto"
                       }
                     },
                     {
                       Byte: {
                         DfProbeFilter: "Auto"
+                      }
+                    },
+                    {
+                      Byte: {
+                        DfGmiSubTxRxMode: "Disabled"
                       }
                     },
                     {
@@ -10862,7 +10895,7 @@
                     },
                     {
                       Byte: {
-                        AblSerialBaudRate: "115200 Baud"
+                        AblSerialBaudRate: "3000000 Baud"
                       }
                     },
                     {
@@ -10878,11 +10911,6 @@
                     {
                       Byte: {
                         MemTrainingHdtControl: "StageCompletionMessages"
-                      }
-                    },
-                    {
-                      Byte: {
-                        ReservedDramModuleDrtmMode: "Disabled"
                       }
                     },
                     {
@@ -10912,7 +10940,7 @@
                     },
                     {
                       Byte: {
-                        MemMbistAggressorsDdr: "Disabled"
+                        MemMbistAggressorsDdr: "Auto"
                       }
                     },
                     {
