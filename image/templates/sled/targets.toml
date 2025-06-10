@@ -4,5 +4,5 @@ app = "milan-gimlet-b-1.0.0.a.toml"
 
 [cosmo]
 efs = "turin-cosmo-a.efs.json5"
-app = "turin-cosmo-1.0.0.3-p1.toml"
+app = "turin-cosmo-1.0.0.5.toml"
 
