@@ -1,0 +1,70 @@
+<?xml version="1.0"?>
+<!DOCTYPE service_bundle SYSTEM "/usr/share/lib/xml/dtd/service_bundle.dtd.1">
+<!--
+    Copyright 2025 Oxide Computer Company
+-->
+
+<service_bundle type='manifest' name='site-compliance-nvme-loadgen'>
+
+<service name='site/compliance/nvme-loadgen' type='service' version='1'>
+    <create_default_instance enabled='false' />
+
+    <!-- Wait for multi-user. -->
+    <dependency name="multi_user"
+                grouping="require_all"
+                restart_on="none"
+                type="service">
+        <service_fmri value="svc:/milestone/multi-user:default" />
+    </dependency>
+
+    <exec_method
+        type='method'
+        name='start'
+        exec='/usr/lib/compliance-nvme-loadgen %{config/workload} %i'
+        timeout_seconds='60' />
+
+    <exec_method
+        type='method'
+        name='stop'
+        exec=':kill'
+        timeout_seconds='60' />
+
+    <property_group name='config' type='application'>
+        <propval name='workload' type='astring' value='seqread' />
+
+        <propval name='ioengine' type='astring' value='solarisaio' />
+        <propval name='block_size' type='astring' value='4k' />
+        <propval name='direct' type='boolean' value='false' />
+        <propval name='buffered' type='boolean' value='true' />
+        <propval name='iodepth' type='count' value='64' />
+        <propval name='size' type='astring' value='64g' />
+        <propval name='numjobs' type='astring' value='1' />
+        <propval name='devdir' type='astring' value='/dev/rdsk' />
+    </property_group>
+
+    <instance name='East' enabled='false' />
+    <instance name='West' enabled='false' />
+    <instance name='N0' enabled='false' />
+    <instance name='N1' enabled='false' />
+    <instance name='N2' enabled='false' />
+    <instance name='N3' enabled='false' />
+    <instance name='N4' enabled='false' />
+    <instance name='N5' enabled='false' />
+    <instance name='N6' enabled='false' />
+    <instance name='N7' enabled='false' />
+    <instance name='N8' enabled='false' />
+    <instance name='N9' enabled='false' />
+
+    <stability value='Unstable' />
+
+    <template>
+        <common_name>
+            <loctext xml:lang='C'>compliance NVMe load gen</loctext>
+        </common_name>
+        <description>
+            <loctext xml:lang='C'>generates NVMe load</loctext>
+        </description>
+    </template>
+</service>
+
+</service_bundle>

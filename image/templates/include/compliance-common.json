@@ -37,6 +37,15 @@
             "owner": "root", "group": "bin", "mode": "0644" },
 
         { "t": "ensure_file",
+            "file": "/usr/lib/compliance-nvme-loadgen",
+            "src": "compliance-nvme-loadgen.sh",
+            "owner": "root", "group": "bin", "mode": "0755" },
+        { "t": "ensure_file",
+            "file": "/lib/svc/manifest/site/compliance-nvme-loadgen.xml",
+            "src": "compliance-nvme-loadgen.xml",
+            "owner": "root", "group": "bin", "mode": "0644" },
+
+        { "t": "ensure_file",
             "file": "/usr/lib/compliance-beacon",
             "src": "compliance-beacon.sh",
             "owner": "root", "group": "bin", "mode": "0755" },

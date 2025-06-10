@@ -5,3 +5,5 @@ bs=${BLOCK_SIZE}
 iodepth=${IODEPTH}
 filename=${FILENAME}
 numjobs=${NUMJOBS}
+runtime=2d
+time_based
