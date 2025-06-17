@@ -7,8 +7,6 @@
 <service_bundle type='manifest' name='site-compliance-nvme-loadgen'>
 
 <service name='site/compliance/nvme-loadgen' type='service' version='1'>
-    <create_default_instance enabled='false' />
-
     <!-- Wait for multi-user. -->
     <dependency name="multi_user"
                 grouping="require_all"
