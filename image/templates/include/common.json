@@ -33,6 +33,17 @@
 
         { "t": "ensure_file", "file": "/etc/resolv.conf",
             "contents": "",
-            "owner": "root", "group": "root", "mode": "644" }
+            "owner": "root", "group": "root", "mode": "644" },
+
+        { "t": "ensure_dir", "dir": "/usr/lib/oxide",
+            "owner": "root", "group": "sys", "mode": "0755" },
+        { "t": "ensure_file", "file": "/usr/lib/oxide/net-setup",
+            "src": "net-setup.sh",
+            "owner": "root", "group": "bin", "mode": "0755" },
+        { "t": "ensure_dir", "dir": "/lib/svc/manifest/oxide",
+            "owner": "root", "group": "sys", "mode": "0755" },
+        { "t": "ensure_file", "file": "/lib/svc/manifest/oxide/net-setup.xml",
+            "src": "net-setup.xml",
+            "owner": "root", "group": "sys", "mode": "0644" }
     ]
 }

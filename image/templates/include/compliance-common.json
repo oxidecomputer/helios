@@ -1,10 +1,6 @@
 {
     "steps": [
-        { "t": "ensure_file",
-            "file": "/usr/lib/postboot",
-            "src": "compliance-postboot.sh",
-            "owner": "root", "group": "bin", "mode": "0755" },
-        { "t": "ensure_file",
+        { "t": "ensure_file", "with": "compliance",
             "file": "/lib/svc/manifest/site/postboot.xml",
             "src": "compliance-postboot.xml",
             "owner": "root", "group": "bin", "mode": "0644" },

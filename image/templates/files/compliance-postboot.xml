@@ -1,5 +1,8 @@
 <?xml version="1.0"?>
 <!DOCTYPE service_bundle SYSTEM "/usr/share/lib/xml/dtd/service_bundle.dtd.1">
+<!--
+    Copyright 2025 Oxide Computer Company
+-->
 
 <service_bundle type='manifest' name='postboot'>
 
@@ -12,15 +15,15 @@
         <service_fmri value='svc:/milestone/multi-user-server' />
     </dependency>
 
-    <!-- ... and make sure we run after the T6 has been configured. -->
-    <dependency name='t6init' grouping='require_all' restart_on='none'
+    <!-- ... and make sure we run after the T6 has been configured and the
+         cxgbe links have been assigned link-local v6 addresses. -->
+    <dependency name='net-setup-cxgbe' grouping='require_all' restart_on='none'
         type='service'>
-        <service_fmri value='svc:/system/t6init' />
+        <service_fmri value='svc:/oxide/net-setup:cxgbe' />
     </dependency>
 
-    <exec_method type='method' name='start'
-        exec='/usr/lib/postboot' timeout_seconds='3600' />
-
+    <!-- Compliance postboot is just a milestone service. -->
+    <exec_method type='method' name='start' exec=':true' timeout_seconds='30' />
     <exec_method type='method' name='stop' exec=':true' timeout_seconds='30' />
 
     <property_group name='startd' type='framework'>
@@ -34,7 +37,7 @@
             <loctext xml:lang='C'>compliance postboot</loctext>
         </common_name>
         <description>
-            <loctext xml:lang='C'>brings network up for compliance testing
+            <loctext xml:lang='C'>milestone indicating we started successfully
             </loctext>
         </description>
     </template>

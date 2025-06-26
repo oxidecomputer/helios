@@ -8,9 +8,16 @@
     <service name="site/mfg" type="service" version="1">
         <create_default_instance enabled="true" />
 
-        <dependency name="dep0" grouping="require_all" restart_on="error"
+        <dependency name="multi-user" grouping="require_all" restart_on="error"
             type="service">
             <service_fmri value="svc:/milestone/multi-user:default" />
+        </dependency>
+
+        <!-- Make sure we have an appropriate NIC setup: -->
+        <dependency name='net' grouping='require_any' restart_on='none'
+            type='service'>
+            <service_fmri value='svc:/oxide/net-setup:igb' />
+            <service_fmri value='svc:/oxide/net-setup:e1000g' />
         </dependency>
 
         <exec_method type="method" name="start" timeout_seconds="30"
