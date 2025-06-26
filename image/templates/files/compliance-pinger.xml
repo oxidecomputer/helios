@@ -1,0 +1,52 @@
+<?xml version="1.0"?>
+<!DOCTYPE service_bundle SYSTEM "/usr/share/lib/xml/dtd/service_bundle.dtd.1">
+<!--
+    Copyright 2025 Oxide Computer Company
+-->
+
+<service_bundle type='manifest' name='site-compliance-pinger'>
+
+<service name='site/compliance/ping-loadgen' type='service' version='1'>
+    <!-- Wait for multi-user. -->
+    <dependency name="multi_user"
+                grouping="require_all"
+                restart_on="none"
+                type="service">
+        <service_fmri value="svc:/milestone/multi-user:default" />
+    </dependency>
+
+    <dependency name="net_setup_cxgbe"
+                grouping="require_all"
+                restart_on="none"
+                type="service">
+        <service_fmri value="svc:/oxide/net-setup:cxgbe" />
+    </dependency>
+
+    <exec_method
+        type='method'
+        name='start'
+        exec='/usr/lib/compliance-pinger %i'
+        timeout_seconds='60' />
+
+    <exec_method
+        type='method'
+        name='stop'
+        exec=':kill'
+        timeout_seconds='60' />
+
+    <instance name='cxgbe0' enabled='false' />
+    <instance name='cxgbe1' enabled='false' />
+
+    <stability value='Unstable' />
+
+    <template>
+        <common_name>
+            <loctext xml:lang='C'>compliance ad hoc ping generator</loctext>
+        </common_name>
+        <description>
+            <loctext xml:lang='C'>generates ping traffic</loctext>
+        </description>
+    </template>
+</service>
+
+</service_bundle>
