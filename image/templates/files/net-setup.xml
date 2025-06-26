@@ -7,8 +7,6 @@
 <service_bundle type='manifest' name='oxide-net-setup'>
 
 <service name='oxide/net-setup' type='service' version='1'>
-    <create_default_instance enabled='false' />
-
     <!-- File systems should all be mounted before we begin: -->
     <dependency name='fs-root' grouping='require_all' restart_on='none'
         type='service'>
