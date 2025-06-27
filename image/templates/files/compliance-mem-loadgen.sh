@@ -27,7 +27,5 @@ if [[ ! -f $JOB_FILE ]]; then
 fi
 
 $STRESS_NG --job  $JOB_FILE &
-pid=$!
-kill -0 $pid || fatal "stress-ng did not start"
 
 exit $SMF_EXIT_OK

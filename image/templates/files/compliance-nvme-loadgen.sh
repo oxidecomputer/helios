@@ -78,9 +78,4 @@ env \
 	NUMJOBS="${NUMJOBS:-${#out_files[@]}}" \
 	fio /root/nvme-${workload}.fio &
 
-pid=$!
-if ! kill -0 $pid; then
-	fatal "fio did not start"
-fi
-
 exit $SMF_EXIT_OK
