@@ -42,6 +42,15 @@
             "owner": "root", "group": "bin", "mode": "0644" },
 
         { "t": "ensure_file",
+            "file": "/usr/lib/compliance-pinger",
+            "src": "compliance-pinger.sh",
+            "owner": "root", "group": "bin", "mode": "0755" },
+        { "t": "ensure_file",
+            "file": "/lib/svc/manifest/site/compliance-pinger.xml",
+            "src": "compliance-pinger.xml",
+            "owner": "root", "group": "bin", "mode": "0644" },
+
+        { "t": "ensure_file",
             "file": "/usr/lib/compliance-beacon",
             "src": "compliance-beacon.sh",
             "owner": "root", "group": "bin", "mode": "0755" },
