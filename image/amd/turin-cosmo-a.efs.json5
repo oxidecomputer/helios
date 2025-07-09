@@ -86,7 +86,11 @@
         },
         {
           source: {
-            Value: 1
+            Value: {
+              PspSoftFuseChain: {
+                secure_debug_unlock: true
+              }
+            }
           },
           target: {
             type: "PspSoftFuseChain"
@@ -249,6 +253,94 @@
         },
         {
           source: {
+            BlobFile: "TypeId0x1A_SevDriver_BRH.ecsbin"
+          },
+          target: {
+            type: "TeeSevDriver"
+          }
+        },
+        {
+          source: {
+            BlobFile: "TypeId0x15_IpKeyManagerDriver_BRH.ecsbin"
+          },
+          target: {
+            type: "TeeIpKeyManagerDriver"
+          }
+        },
+        {
+          source: {
+            BlobFile: "TypeId0x1B_BootDriver_BRH.ecsbin"
+          },
+          target: {
+            type: "TeeBootDriver"
+          }
+        },
+        {
+          source: {
+            BlobFile: "TypeId0x1C_SocDriver_BRH.ecsbin"
+          },
+          target: {
+            type: "TeeSocDriver"
+          }
+        },
+        {
+          source: {
+            BlobFile: "TypeId0x1D_HadDriver_BRH.ecsbin"
+          },
+          target: {
+            type: "TeeDebugDriver"
+          }
+        },
+        {
+          source: {
+            BlobFile: "TypeId0x1F_InterfaceDriver_BRH.ecsbin"
+          },
+          target: {
+            type: "TeeInterfaceDriver"
+          }
+        },
+        {
+          source: {
+            BlobFile: "TypeId0x38_PspSevEmptyData.bin"
+          },
+          target: {
+            type: "SevData"
+          }
+        },
+        {
+          source: {
+            BlobFile: "TypeId0x47_DRTMDriver_BRH.ecsbin"
+          },
+          target: {
+            type: "DrtmTa"
+          }
+        },
+        {
+          source: {
+            BlobFile: "TypeId0x67_FHPDriver_BRH.ecsbin"
+          },
+          target: {
+            type: "TeeFhpDriver"
+          }
+        },
+        {
+          source: {
+            BlobFile: "TypeId0x68_SPDMDriver_BRH.ecsbin"
+          },
+          target: {
+            type: "TeeSpdmDriver"
+          }
+        },
+        {
+          source: {
+            BlobFile: "TypeId0x69_DPEDriver_BRH.ecsbin"
+          },
+          target: {
+            type: "TeeDpeDriver"
+          }
+        },
+        {
+          source: {
             BlobFile: "TypeId0x73_PspBl_BRH.ecsbin"
           },
           target: {
@@ -366,12 +458,12 @@
         {
           source: {
             ApcbJson: {
-              version: "0.5.1",
+              version: "0.5.2",
               header: {
                 signature: "APCB",
                 header_size: 128,
                 version: 48,
-                unique_apcb_instance: 30817,
+                unique_apcb_instance: 15990,
               },
               v3_header_ext: {
                 signature: "ECB2",
@@ -10398,6 +10490,36 @@
                       }
                     },
                     {
+                      Unknown: {
+                        entry_id: "Byte",
+                        // APCB_TOKEN_UID_SEC_I2C_VOLT_MODE
+                        // Select the voltage mode of SEC I2C SDA/SCL
+                        // 11 = VOLT_MODE_1_1 (1.1 V)
+                        tag: 0xD55E9490,
+                        value: 11
+                      }
+                    },
+                    {
+                      Unknown: {
+                        entry_id: "Byte",
+                        // APCB_TOKEN_UID_MEM_ECC_DIS_ERR_INJECTION_DDR
+                        // Specifies if UMC error injection configuration writes are disabled.
+                        // 0 = False
+                        tag: 0xF77A05F1,
+                        value: 0
+                      }
+                    },
+                    {
+                      Unknown: {
+                        entry_id: "Byte",
+                        // APCB_TOKEN_UID_MEM_SPECIFIC_VENDOR_DIE_CE_WA
+                        // Workaround for CE on certain vendor
+                        // 0 = Disabled (default)
+                        tag: 0x0636BDA8,
+                        value: 0
+                      }
+                    },
+                    {
                       Byte: {
                         FourthPcieLinkSpeed: "Gen2"
                       }
@@ -10570,6 +10692,15 @@
                       }
                     },
                     {
+                      Unknown: {
+                        entry_id: "Byte",
+                        // APCB_TOKEN_UID_MEM_T_WRWR_SCDLR_3DS_4800_WA_EN
+                        // XXX: Supposedly Boolean but showed up in Byte section?
+                        tag: 0x3EE89212,
+                        value: 0
+                      }
+                    },
+                    {
                       Byte: {
                         Df4LinkMaxXgmiSpeed: "Auto"
                       }
@@ -10597,6 +10728,16 @@
                     {
                       Byte: {
                         MemDataPoison: "Enabled"
+                      }
+                    },
+                    {
+                      Unknown: {
+                        entry_id: "Byte",
+                        // APCB_TOKEN_UID_MEM_SPECIFIC_VENDOR_DIE_CACS_WA
+                        // Workaround for VREF CACS for Certain Vendor
+                        // 1 = Enabled (default)
+                        tag: 0x4A0B4129,
+                        value: 1
                       }
                     },
                     {
