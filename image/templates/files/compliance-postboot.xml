@@ -15,13 +15,6 @@
         <service_fmri value='svc:/milestone/multi-user-server' />
     </dependency>
 
-    <!-- ... and make sure we run after the T6 has been configured and the
-         cxgbe links have been assigned link-local v6 addresses. -->
-    <dependency name='net-setup-cxgbe' grouping='require_all' restart_on='none'
-        type='service'>
-        <service_fmri value='svc:/oxide/net-setup:cxgbe' />
-    </dependency>
-
     <!-- Compliance postboot is just a milestone service. -->
     <exec_method type='method' name='start' exec=':true' timeout_seconds='30' />
     <exec_method type='method' name='stop' exec=':true' timeout_seconds='30' />
