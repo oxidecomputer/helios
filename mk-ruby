@@ -1,0 +1,40 @@
+#!/bin/ksh
+
+set -e
+
+TOP=$PWD
+
+# Build phbl image
+
+#cd $TOP/projects/phbl
+#cargo xtask build --release \
+#	--cpioz $TOP/image/output/cpio.z \
+#	--target-dir $TOP/image/output/phbl
+
+# Build PSP image
+
+cd $TOP/projects/amd-host-image-builder
+cargo xtask gen \
+	--amd-firmware $TOP/projects/amd-firmware \
+	--payload $TOP/image/output/phbl/x86_64-oxide-none-elf/release/phbl \
+	--config $TOP/image/amd/turin-ruby-1.0.0.6.efs.json5 \
+	--app $TOP/image/amd/turin-ruby-1.0.0.6.toml \
+	--image $TOP/image/output/ruby.rom
+
+cd $TOP
+
+TGT=oxide-turin-ruby-1.0.0.6
+
+rm -f ${TGT}*
+
+cp $TOP/image/output/ruby.rom $TGT.img
+
+cat <<EOM >| MANIFEST
+purpose=xyz.openbmc_project.Software.Version.VersionPurpose.Host
+version=$TGT
+MachineName=sp5
+EOM
+
+gtar --transform "s|\.img$|.FD|" -czvf $TGT.tar.gz MANIFEST $TGT.img
+rm -f $TGT.img
+
