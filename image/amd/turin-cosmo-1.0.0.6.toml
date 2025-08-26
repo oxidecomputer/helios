@@ -1,6 +1,6 @@
 cpu = 'turin'
 board = 'cosmo'
-firmware_version = '1.0.0.5'
+firmware_version = '1.0.0.6'
 size = 32
 blobs = [
     'TypeId0x00_AmdPubKey_BRH.tkn',
@@ -31,6 +31,17 @@ blobs = [
     'TypeId0x5DMpioFw_BRH.cesbin',
     'TypeId0x64_RasDriver_BRH.ecsbin',
     'TypeId0x65_ta_ras_prod_amdTEE.ecsbin',
+    'TypeId0x1A_SevDriver_BRH.ecsbin',
+    'TypeId0x15_IpKeyManagerDriver_BRH.ecsbin',
+    'TypeId0x1B_BootDriver_BRH.ecsbin',
+    'TypeId0x1C_SocDriver_BRH.ecsbin',
+    'TypeId0x1D_HadDriver_BRH.ecsbin',
+    'TypeId0x1F_InterfaceDriver_BRH.ecsbin',
+    'TypeId0x38_PspSevEmptyData.bin',
+    'TypeId0x47_DRTMDriver_BRH.ecsbin',
+    'TypeId0x67_FHPDriver_BRH.ecsbin',
+    'TypeId0x68_SPDMDriver_BRH.ecsbin',
+    'TypeId0x69_DPEDriver_BRH.ecsbin',
     'TypeId0x73_PspBl_BRH.ecsbin',
     'TypeId0x76_DfRib_BRH.csbin',
     'TypeId0x8C_MPDMATF_BRH.sbin',
@@ -63,4 +74,5 @@ blobs = [
     'Type0x65_AppbDdr5RdimmPosttrainDmem10_BRH_C0.ecsbin',
     'Type0x65_AppbDdr5RdimmQuickbootDmem11_BRH_C0.ecsbin',
     'Type0x65_AppbDdr5RdimmQuickbootDmem12_BRH_C0.ecsbin',
+    'APOB_NV_BRH.bin',
 ]
