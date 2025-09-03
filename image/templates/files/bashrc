@@ -44,6 +44,7 @@ pathdirs=(
 	'/opt/ooce/sbin'
 	'/opt/ooce/bin'
 	'/opt/oxide/opte/bin'
+	'/opt/oxide/oxlog'
 	'/opt/oxide/mg-ddm'
 	'/usr/sbin'
 	'/usr/bin'
