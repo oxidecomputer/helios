@@ -1,6 +1,6 @@
 cpu = 'milan'
 board = 'gimlet-b'
-firmware_version = '1.0.0.a'
+firmware_version = '1.0.0.g'
 size = 32
 blobs = [
     'AmdPubKey_gn.tkn',
