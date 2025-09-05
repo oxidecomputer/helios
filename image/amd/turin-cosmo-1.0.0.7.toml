@@ -1,6 +1,6 @@
 cpu = 'turin'
 board = 'cosmo'
-firmware_version = '1.0.0.6'
+firmware_version = '1.0.0.7'
 size = 32
 blobs = [
     'TypeId0x00_AmdPubKey_BRH.tkn',
@@ -54,6 +54,7 @@ blobs = [
     'TypeId0xA0_S3Image_BRH_B0.sbin',
     'TypeId0xA0_S3Image_BRH_C0.sbin',
     'TypeId0xA0_S3Image_BRHD_B0.sbin',
+    'TypeId0xA0_S3Image_BRH_B1.sbin',
     'TypeId0xA0_S3Image_BRH_C1.sbin',
     'Type0x64_AppbDdr5RdimmImem3_BRH.ecsbin',
     'Type0x64_AppbDdr5RdimmImem3_BRH_C0.ecsbin',

@@ -442,6 +442,15 @@
         },
         {
           source: {
+            BlobFile: "TypeId0xA0_S3Image_BRH_B1.sbin"
+          },
+          target: {
+            type: "S3Image",
+            instance: 5
+          }
+        },
+        {
+          source: {
             BlobFile: "TypeId0xA0_S3Image_BRH_C1.sbin"
           },
           target: {
@@ -458,12 +467,12 @@
         {
           source: {
             ApcbJson: {
-              version: "0.5.2",
+              version: "0.5.4",
               header: {
                 signature: "APCB",
                 header_size: 128,
                 version: 48,
-                unique_apcb_instance: 15990,
+                unique_apcb_instance: 4298,
               },
               v3_header_ext: {
                 signature: "ECB2",
@@ -3134,6 +3143,128 @@
                         ca_drv: 40,
                         phy_vref: 93,
                         dq_vref: 40,
+                        ca_vref: 63,
+                        cs_vref: 56,
+                        d_ca_vref: 48,
+                        d_cs_vref: 58,
+                        rx_dfe: 1,
+                        tx_dfe: 1
+                      }
+                    }
+                  ]
+                },
+                {
+                  header: {
+                    group_id: 5892,
+                    entry_id: 137,
+                    instance_id: 388,
+                    context_type: "Struct",
+                    context_format: "Raw",
+                    unit_size: 0,
+                    priority_mask: {
+                      normal: true,
+                    },
+                    key_size: 0,
+                    key_pos: 0,
+                    board_instance_mask: 65535
+                  },
+                  RdimmDdr5BusElement: [
+                    {
+                      header: {
+                        total_size: 12,
+                        target_memclk: 3200,
+                        dimm_slots_per_channel: 1,
+                        dimm0_rank_bitmap: 4,
+                        dimm1_rank_bitmap: 1,
+                        sdram_io_width_bitmap: 1
+                      },
+                      payload: {
+                        total_size: 124,
+                        ca_timing_mode: 1,
+                        dimm0_rttnomwr: 0,
+                        dimm0_rttnomrd: 40,
+                        dimm0_rttwr: 120,
+                        dimm0_rttpack: 40,
+                        dimm0_dqs_rttpark: 60,
+                        dimm1_rttnomwr: 0,
+                        dimm1_rttnomrd: 0,
+                        dimm1_rttwr: 0,
+                        dimm1_rttpack: 0,
+                        dimm1_dqs_rttpark: 0,
+                        dram_drv: 34,
+                        ck_odt_a: 0,
+                        cs_odt_a: 0,
+                        ca_odt_a: 0,
+                        ck_odt_b: 40,
+                        cs_odt_b: 40,
+                        ca_odt_b: 60,
+                        p_odt: 53,
+                        dq_drv: 34,
+                        alert_pullup: 80,
+                        ca_drv: 40,
+                        phy_vref: 45,
+                        dq_vref: 45,
+                        ca_vref: 63,
+                        cs_vref: 56,
+                        d_ca_vref: 48,
+                        d_cs_vref: 58,
+                        rx_dfe: 1,
+                        tx_dfe: 1
+                      }
+                    }
+                  ]
+                },
+                {
+                  header: {
+                    group_id: 5892,
+                    entry_id: 137,
+                    instance_id: 390,
+                    context_type: "Struct",
+                    context_format: "Raw",
+                    unit_size: 0,
+                    priority_mask: {
+                      normal: true,
+                    },
+                    key_size: 0,
+                    key_pos: 0,
+                    board_instance_mask: 65535
+                  },
+                  RdimmDdr5BusElement: [
+                    {
+                      header: {
+                        total_size: 12,
+                        target_memclk: 3200,
+                        dimm_slots_per_channel: 1,
+                        dimm0_rank_bitmap: 4,
+                        dimm1_rank_bitmap: 1,
+                        sdram_io_width_bitmap: 1
+                      },
+                      payload: {
+                        total_size: 124,
+                        ca_timing_mode: 1,
+                        dimm0_rttnomwr: 0,
+                        dimm0_rttnomrd: 40,
+                        dimm0_rttwr: 120,
+                        dimm0_rttpack: 40,
+                        dimm0_dqs_rttpark: 40,
+                        dimm1_rttnomwr: 0,
+                        dimm1_rttnomrd: 0,
+                        dimm1_rttwr: 0,
+                        dimm1_rttpack: 0,
+                        dimm1_dqs_rttpark: 0,
+                        dram_drv: 34,
+                        ck_odt_a: 0,
+                        cs_odt_a: 0,
+                        ca_odt_a: 0,
+                        ck_odt_b: 40,
+                        cs_odt_b: 40,
+                        ca_odt_b: 60,
+                        p_odt: 53,
+                        dq_drv: 34,
+                        alert_pullup: 80,
+                        ca_drv: 40,
+                        phy_vref: 45,
+                        dq_vref: 45,
                         ca_vref: 63,
                         cs_vref: 56,
                         d_ca_vref: 48,
@@ -7696,6 +7827,78 @@
                   header: {
                     group_id: 5892,
                     entry_id: 162,
+                    instance_id: 399,
+                    context_type: "Struct",
+                    context_format: "Raw",
+                    unit_size: 0,
+                    priority_mask: {
+                      normal: true,
+                    },
+                    key_size: 0,
+                    key_pos: 0,
+                    board_instance_mask: 65535
+                  },
+                  Ddr5RawCardConfigElement: [
+                    {
+                      header: {
+                        total_size: 32,
+                        mem_clk: "Ddr7200",
+                        dimm_type: 255,
+                        dev_width: 255,
+                        rcd_manufacturer_id: 65535,
+                        rcd_generation: 255,
+                        raw_card_dev: 65535,
+                        dram_die_stepping_revision: 65535,
+                        dram_density: 255,
+                      },
+                      payload: {
+                        total_size: 80,
+                        qck_dev0: "Off",
+                        qck_dev1: "Off",
+                        qck_dev2: "Off",
+                        qck_dev3: "Off",
+                        qck_dev4: "60 Ω",
+                        qck_dev5: "Off",
+                        qck_dev6: "Off",
+                        qck_dev7: "Off",
+                        qck_dev8: "Off",
+                        qck_dev9: "60 Ω",
+                        qck_drive_strength: 2,
+                        qck_slew: "Moderate",
+                        qcs_dev0: "Off",
+                        qcs_dev1: "Off",
+                        qcs_dev2: "Off",
+                        qcs_dev3: "Off",
+                        qcs_dev4: "40 Ω",
+                        qcs_dev5: "Off",
+                        qcs_dev6: "Off",
+                        qcs_dev7: "Off",
+                        qcs_dev8: "Off",
+                        qcs_dev9: "40 Ω",
+                        qcs_drive_strength: 1,
+                        qcs_slew: "Moderate",
+                        qcs_vref: "66.0%",
+                        qca_dev0: "Off",
+                        qca_dev1: "Off",
+                        qca_dev2: "Off",
+                        qca_dev3: "Off",
+                        qca_dev4: "40 Ω",
+                        qca_dev5: "Off",
+                        qca_dev6: "Off",
+                        qca_dev7: "Off",
+                        qca_dev8: "Off",
+                        qca_dev9: "40 Ω",
+                        qca_drive_strength: 1,
+                        qca_slew: "Moderate",
+                        qca_vref: "75.0%"
+                      }
+                    }
+                  ]
+                },
+                {
+                  header: {
+                    group_id: 5892,
+                    entry_id: 162,
                     instance_id: 11392,
                     context_type: "Struct",
                     context_format: "Raw",
@@ -11028,6 +11231,11 @@
                     {
                       Byte: {
                         MemTrainingHdtControl: "StageCompletionMessages"
+                      }
+                    },
+                    {
+                      Byte: {
+                        ReservedDramModuleDrtmMode: "Disabled"
                       }
                     },
                     {
