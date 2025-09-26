@@ -15,6 +15,7 @@
     <service name='oxide/net-setup' version='1' type='service'>
         <instance name='igb' enabled='true' />
         <instance name='e1000g' enabled='true' />
+        <instance name='ixgbe' enabled='true' />
     </service>
 
     <!-- See: https://www.illumos.org/issues/14006 -->

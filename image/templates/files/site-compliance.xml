@@ -20,6 +20,7 @@
     <service name='oxide/net-setup' version='1' type='service'>
         <instance name='igb' enabled='true' />
         <instance name='e1000g' enabled='true' />
+        <instance name='ixgbe' enabled='true' />
         <instance name='cxgbe' enabled='true' />
     </service>
 
