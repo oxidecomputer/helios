@@ -18,6 +18,7 @@
             type='service'>
             <service_fmri value='svc:/oxide/net-setup:igb' />
             <service_fmri value='svc:/oxide/net-setup:e1000g' />
+            <service_fmri value='svc:/oxide/net-setup:ixgbe' />
         </dependency>
 
         <exec_method type="method" name="start" timeout_seconds="30"

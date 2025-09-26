@@ -20,6 +20,7 @@
         type='service'>
         <service_fmri value='svc:/oxide/net-setup:igb' />
         <service_fmri value='svc:/oxide/net-setup:e1000g' />
+        <service_fmri value='svc:/oxide/net-setup:ixgbe' />
         <service_fmri value='svc:/oxide/net-setup:cxgbe' />
     </dependency>
 
