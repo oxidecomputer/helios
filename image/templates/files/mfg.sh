@@ -6,7 +6,7 @@
 set -o pipefail
 
 #
-# Find the PCI NIC we want; it will either use the driver igb, e1000g, or ixgbe.
+# Find the PCI NIC we want; it will use one of the igb, e1000g, or ixgbe drivers.
 #
 nic=
 for try in $(dladm show-ether -po link); do
