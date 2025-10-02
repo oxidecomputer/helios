@@ -1,6 +1,6 @@
 cpu = 'turin'
 board = 'cosmo'
-firmware_version = '1.0.0.6'
+firmware_version = '1.0.0.7'
 size = 32
 blobs = [
     'TypeId0x00_AmdPubKey_BRH.tkn',
