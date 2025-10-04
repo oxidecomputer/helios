@@ -111,11 +111,15 @@
         ] },
 
         { "t": "pkg_install", "with": "mfg", "pkgs": [
-            "/driver/developer/amd/zen"
+            "/driver/developer/amd/zen",
+            "/driver/cpu/amd/psp",
+            "/driver/developer/amd/psp/einj"
         ] },
 
         { "t": "pkg_install", "with": "compliance", "pkgs": [
             "/driver/developer/amd/zen",
+            "/driver/cpu/amd/psp",
+            "/driver/developer/amd/psp/einj",
             "/developer/debug/humility"
         ] },
 
