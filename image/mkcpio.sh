@@ -240,6 +240,7 @@ platform/oxide/kernel/misc/amd64/pci_prd
 platform/oxide/kernel/misc/amd64/pcie
 platform/oxide/kernel/sys/amd64/cpc
 platform/oxide/ucode/AuthenticAMD/A011-00
+platform/oxide/ucode/AuthenticAMD/fallback/A011-00
 platform/oxide/ucode/AuthenticAMD/B021-00
 platform/oxide/ucode/AuthenticAMD/B110-00
 platform/oxide/ucode/AuthenticAMD/equivalence-table
