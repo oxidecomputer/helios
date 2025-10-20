@@ -1,0 +1,56 @@
+--- turin-cosmo-1.0.0.7.efs.json5	Sat Oct  4 20:42:22 2025
++++ turin-cosmo-1.0.0.7.mbist-mfg-v0-dext-len3.efs.json5	Wed Oct 15 20:06:13 2025
+@@ -10684,7 +10684,7 @@
+                     },
+                     {
+                       Byte: {
+-                        MemMbistAggressorsChannelDdrMode: "All"
++                        MemMbistAggressorsChannelDdrMode: "SubChannel"
+                       }
+                     },
+                     {
+@@ -10749,7 +10749,7 @@
+                     },
+                     {
+                       Byte: {
+-                        MemMbistPatternLengthDdr: 6
++                        MemMbistPatternLengthDdr: 3
+                       }
+                     },
+                     {
+@@ -10966,7 +10966,7 @@
+                     },
+                     {
+                       Byte: {
+-                        MemMbistPatternSelectDdr: "Auto"
++                        MemMbistPatternSelectDdr: "Prbs"
+                       }
+                     },
+                     {
+@@ -11046,7 +11046,7 @@
+                     },
+                     {
+                       Byte: {
+-                        MemMbistDataEyeSilentExecutionDdr: "Disabled"
++                        MemMbistDataEyeSilentExecutionDdr: "Enabled"
+                       }
+                     },
+                     {
+@@ -11136,7 +11136,7 @@
+                     },
+                     {
+                       Byte: {
+-                        MemMbistTestModeDdr: "Both"
++                        MemMbistTestModeDdr: "DataEye"
+                       }
+                     },
+                     {
+@@ -11265,7 +11265,7 @@
+                     },
+                     {
+                       Byte: {
+-                        MemMbistAggressorsDdr: "Auto"
++                        MemMbistAggressorsDdr: "Enabled"
+                       }
+                     },
+                     {
