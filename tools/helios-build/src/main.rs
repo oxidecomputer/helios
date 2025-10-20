@@ -10,7 +10,7 @@ use helios_build_utils::metadata::{self, ArchiveType};
 use helios_build_utils::tree;
 use serde::Deserialize;
 use slog::Logger;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::{BufReader, Read, Write};
 use std::os::unix::fs::PermissionsExt;
@@ -1314,6 +1314,7 @@ impl Publishers {
 struct Board {
     efs: Option<String>,
     app: String,
+    feature: Option<String>,
 }
 
 impl Board {
@@ -1599,6 +1600,7 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
     let templates = top_path(&["image", "templates"])?;
     let brand_extras = rel_path(Some(&tempdir), &["omicron1"])?;
     let projects_extras = top_path(&["projects"])?;
+    let features = res.opt_strs("F").into_iter().collect::<HashSet<_>>();
     std::fs::create_dir_all(&brand_extras)?;
     let basecmd = || -> Command {
         let mut cmd = Command::new("pfexec");
@@ -1633,7 +1635,7 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
         if recovery {
             cmd.arg("-F").arg("recovery");
         }
-        for farg in res.opt_strs("F") {
+        for farg in &features {
             cmd.arg("-F").arg(farg);
         }
         cmd
@@ -1968,6 +1970,15 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
      * Go through and create the per-board ROM images.
      */
     for (name, board) in target_boards.iter() {
+        if let Some(feat) = &board.feature {
+            if !features.contains(feat) {
+                info!(
+                    log,
+                    "skipping building ROM for {name} ('{feat}' disabled)"
+                );
+                continue;
+            }
+        }
         info!(log, "building ROM for {name}");
 
         let romname = format!("{name}.rom");
