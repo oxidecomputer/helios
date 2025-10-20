@@ -88,3 +88,9 @@ use_ssh = true
 cargo_build = true
 auto_update = true
 unless_env = "OXIDE_STAFF"
+
+[project.dmar-report]
+github = "oxidecomputer/dmar-report"
+use_ssh = true
+cargo_build = true
+auto_update = true

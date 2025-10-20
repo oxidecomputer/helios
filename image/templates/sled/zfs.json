@@ -78,6 +78,11 @@
             "owner": "root", "group": "bin", "mode": "0755" },
         { "t": "include", "without": "no-pilot", "name": "compliance-common" },
 
+        { "t": "ensure_file", "with": "mbist",
+            "file": "/usr/bin/dmar-report",
+            "extsrc": "dmar-report/target/release/dmar-report",
+            "owner": "root", "group": "bin", "mode": "0755" },
+
         { "t": "include", "with": "genproto",
             "name": "genproto", "file": "${genproto}" },
 
