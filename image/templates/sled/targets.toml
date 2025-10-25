@@ -1,6 +1,6 @@
 [gimlet]
 efs = "milan-gimlet-b.efs.json5"
-app = "milan-gimlet-b-1.0.0.g.toml"
+app = "milan-gimlet-b-1.0.0.h.toml"
 
 [cosmo]
 efs = "turin-cosmo-a.efs.json5"
