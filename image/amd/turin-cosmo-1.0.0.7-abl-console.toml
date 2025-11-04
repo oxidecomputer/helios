@@ -1,0 +1,5 @@
+base = 'turin-cosmo-1.0.0.7.toml'
+
+[patch]
+base = 'turin-cosmo-a.efs.json5'
+diff = 'turin-cosmo-a-abl-console.patch'

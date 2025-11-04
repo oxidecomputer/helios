@@ -6,10 +6,17 @@ app = "milan-gimlet-b-1.0.0.h.toml"
 efs = "turin-cosmo-a.efs.json5"
 app = "turin-cosmo-1.0.0.7.toml"
 
+[cosmo-abl-console]
+app = "turin-cosmo-1.0.0.7-abl-console.toml"
+
 [cosmo-mbist]
 app = "turin-cosmo-1.0.0.7-mbist.toml"
 feature = "mbist"
 
 [cosmo-mbist-noaggr]
 app = "turin-cosmo-1.0.0.7-mbist-noaggr.toml"
+feature = "mbist"
+
+[cosmo-mbist-full-xt-len6]
+app = "turin-cosmo-1.0.0.7-mbist-full-xt-len6.toml"
 feature = "mbist"

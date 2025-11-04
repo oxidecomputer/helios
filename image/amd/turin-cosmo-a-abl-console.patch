@@ -1,0 +1,11 @@
+--- turin-cosmo-1.0.0.7.efs.json5	Wed Oct 29 19:48:03 2025
++++ turin-cosmo-1.0.0.7.abl-console.efs.json5	Tue Nov  4 17:57:46 2025
+@@ -11389,7 +11389,7 @@
+                     },
+                     {
+                       Byte: {
+-                        FchConsoleOutMode: "Disabled"
++                        FchConsoleOutMode: "Enabled"
+                       }
+                     },
+                     {
