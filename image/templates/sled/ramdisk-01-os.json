@@ -110,6 +110,10 @@
             "/driver/network/opte@${optever}"
         ] },
 
+        { "t": "pkg_install", "with": "mbist", "pkgs": [
+            "/driver/developer/amd/zen"
+        ] },
+
         { "t": "pkg_install", "with": "mfg", "pkgs": [
             "/driver/developer/amd/zen",
             "/driver/cpu/amd/psp",

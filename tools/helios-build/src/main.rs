@@ -10,7 +10,7 @@ use helios_build_utils::metadata::{self, ArchiveType};
 use helios_build_utils::tree;
 use serde::Deserialize;
 use slog::Logger;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::{BufReader, Read, Write};
 use std::os::unix::fs::PermissionsExt;
@@ -1312,18 +1312,22 @@ impl Publishers {
 
 #[derive(Clone, Debug, Deserialize)]
 struct Board {
-    efs: String,
+    efs: Option<String>,
     app: String,
+    feature: Option<String>,
 }
 
 impl Board {
-    fn efs_path(&self) -> Result<PathBuf> {
-        if self.efs.starts_with("/") {
-            let p = PathBuf::from(self.efs.clone());
+    fn efs_path(&self) -> Option<Result<PathBuf>> {
+        let Some(efs) = &self.efs else {
+            return None;
+        };
+        if efs.starts_with("/") {
+            let p = PathBuf::from(efs.clone());
             assert!(p.is_absolute());
-            Ok(p)
+            Some(Ok(p))
         } else {
-            top_path(&["image", "amd", &self.efs])
+            Some(top_path(&["image", "amd", efs]))
         }
     }
 
@@ -1442,10 +1446,12 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
 
     for (name, board) in target_boards.iter() {
         info!(log, "Checking files for board '{name}'");
-        let efsfile = board.efs_path()?;
-        info!(log, "    {efsfile:?}");
-        if !efsfile.is_file() {
-            bail!("Missing AMD configuration file {efsfile:?} for {name}");
+        if let Some(efsfile) = board.efs_path() {
+            let efsfile = efsfile?;
+            info!(log, "    {efsfile:?}");
+            if !efsfile.is_file() {
+                bail!("Missing AMD configuration file {efsfile:?} for {name}");
+            }
         }
         let appfile = board.app_path()?;
         info!(log, "    {appfile:?}");
@@ -1594,6 +1600,7 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
     let templates = top_path(&["image", "templates"])?;
     let brand_extras = rel_path(Some(&tempdir), &["omicron1"])?;
     let projects_extras = top_path(&["projects"])?;
+    let features = res.opt_strs("F").into_iter().collect::<HashSet<_>>();
     std::fs::create_dir_all(&brand_extras)?;
     let basecmd = || -> Command {
         let mut cmd = Command::new("pfexec");
@@ -1628,7 +1635,7 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
         if recovery {
             cmd.arg("-F").arg("recovery");
         }
-        for farg in res.opt_strs("F") {
+        for farg in &features {
             cmd.arg("-F").arg(farg);
         }
         cmd
@@ -1963,30 +1970,44 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
      * Go through and create the per-board ROM images.
      */
     for (name, board) in target_boards.iter() {
+        if let Some(feat) = &board.feature {
+            if !features.contains(feat) {
+                info!(
+                    log,
+                    "skipping building ROM for {name} ('{feat}' disabled)"
+                );
+                continue;
+            }
+        }
         info!(log, "building ROM for {name}");
 
         let romname = format!("{name}.rom");
         let rom = rel_path(Some(&outdir), &[&romname])?;
 
-        ensure::run_in(
-            log,
-            &ahib_path,
-            &[
-                "cargo",
-                "xtask",
-                "gen",
-                "--amd-firmware",
-                fw_path.to_str().unwrap(),
-                "--payload",
-                reset.to_str().unwrap(),
-                "--config",
-                board.efs_path()?.to_str().unwrap(),
-                "--app",
-                board.app_path()?.to_str().unwrap(),
-                "--image",
-                rom.to_str().unwrap(),
-            ],
-        )?;
+        let efs_path;
+        let app_path = board.app_path()?;
+        let root_path = top_path(&["image", "amd"])?;
+        let mut args = vec![
+            "cargo",
+            "xtask",
+            "gen",
+            "--amd-firmware",
+            fw_path.to_str().unwrap(),
+            "--payload",
+            reset.to_str().unwrap(),
+            "--app",
+            app_path.to_str().unwrap(),
+            "--image",
+            rom.to_str().unwrap(),
+            "--root",
+            root_path.to_str().unwrap(),
+        ];
+        if let Some(efs) = board.efs_path() {
+            efs_path = efs?;
+            args.push("--config");
+            args.push(efs_path.to_str().unwrap());
+        }
+        ensure::run_in(log, &ahib_path, &args)?;
 
         tar.add_file(&rom, &romname)?;
 
@@ -2004,7 +2025,7 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
              * The configuration for amd-host-image-builder is stored in JSON5
              * format.  Read the file as a generic JSON object:
              */
-            let f = std::fs::read_to_string(board.efs_path()?)?;
+            let f = std::fs::read_to_string(board.efs_path().unwrap()?)?;
             let inputcfg: serde_json::Value = json5::from_str(&f)?;
 
             for limit in [1600, 1866, 2133, 2400, 2667, 2933, 3200] {
