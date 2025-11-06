@@ -44,16 +44,6 @@ use_ssh = false
 cargo_build = true
 auto_update = true
 
-#
-# -----------------------------------------------------------------------------
-# NOTE: Repositories below this comment are all still private.
-#
-# If you do not have access to private repositories in the "oxidecomputer"
-# GitHub organisation, set "OXIDE_STAFF=no" in your environment to skip
-# cloning them.
-# -----------------------------------------------------------------------------
-#
-
 [project.amd-host-image-builder]
 github = "oxidecomputer/amd-host-image-builder"
 use_ssh = false
@@ -68,6 +58,22 @@ auto_update = true
 #
 from_commit = "4eae23e8a86a6b5ae16e26283e9c0bee87cc2167"
 to_branch = "main"
+
+#
+# -----------------------------------------------------------------------------
+# NOTE: Repositories below this comment are all still private.
+#
+# If you do not have access to private repositories in the "oxidecomputer"
+# GitHub organisation, set "OXIDE_STAFF=no" in your environment to skip
+# cloning them.
+# -----------------------------------------------------------------------------
+# 
+# BEFORE you add a private repository here, you MUST add it to the
+# `access_repos` list of:
+# https://github.com/oxidecomputer/omicron/blob/main/.github/buildomat/jobs/tuf-repo.sh
+#
+# Don't break CI!
+#
 
 [project.amd-firmware]
 github = "oxidecomputer/amd-firmware"
@@ -94,3 +100,4 @@ github = "oxidecomputer/dmar-report"
 use_ssh = true
 cargo_build = true
 auto_update = true
+unless_env = "OXIDE_STAFF"
