@@ -117,7 +117,8 @@
         { "t": "pkg_install", "with": "mfg", "pkgs": [
             "/driver/developer/amd/zen",
             "/driver/cpu/amd/psp",
-            "/driver/developer/amd/psp/einj"
+            "/driver/developer/amd/psp/einj",
+            "/system/zones/brand/omicron1"
         ] },
 
         { "t": "pkg_install", "with": "compliance", "pkgs": [
