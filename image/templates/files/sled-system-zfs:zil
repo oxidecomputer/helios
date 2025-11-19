@@ -1,9 +1,0 @@
-*
-* By default the first four writes following an fsync() are afforded special
-* treatment and always written to the ZIL as synchronous transactions. On
-* files which are otherwise asynchronous this can cause out of order writes
-* should the ZIL ever be replayed, and if interspersed with a truncate
-* operation can result in data corruption. We disable this special treatment
-* for now. See https://www.illumos.org/issues/17734 for more details.
-*
-set zfs:zfs_fsync_sync_cnt = 0

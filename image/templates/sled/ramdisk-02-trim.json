@@ -112,11 +112,6 @@
             "src": "sled-system-zfs:dbuf",
             "owner": "root", "group": "sys", "mode": "0644" },
 
-        { "t": "ensure_file",
-            "file": "/etc/system.d/zfs:zil",
-            "src": "sled-system-zfs:zil",
-            "owner": "root", "group": "sys", "mode": "0644" },
-
         { "t": "assemble_files",
             "dir": "/etc/system.d",
             "output": "/etc/system.d/.self-assembly" },
