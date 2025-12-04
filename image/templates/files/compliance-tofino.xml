@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <!DOCTYPE service_bundle SYSTEM "/usr/share/lib/xml/dtd/service_bundle.dtd.1">
 <!--
-    Copyright 2024 Oxide Computer Company
+    Copyright 2025 Oxide Computer Company
 -->
 
 <service_bundle type='manifest' name='postboot'>
@@ -16,7 +16,7 @@
     </dependency>
 
     <exec_method type='method' name='start'
-        exec='/usr/bin/pilot dendrite create -w' timeout_seconds='3600' />
+        exec='/usr/bin/pilot dendrite create -rw' timeout_seconds='3600' />
 
     <exec_method type='method' name='stop' exec=':true' timeout_seconds='30' />
 
