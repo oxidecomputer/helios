@@ -1367,6 +1367,7 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
         "PUBLISHER=URL",
     );
     opts.optopt("P", "", "include all files from extra proto area", "DIR");
+    opts.optopt("S", "", "ramdisk target size", "GIGABYTES");
 
     let group = "sled";
 
@@ -1835,7 +1836,12 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
     /*
      * Create the image and extract the checksum:
      */
-    let target_size = 4 * 1024;
+    let target_size = if let Some(gb) = res.opt_str("S") {
+        let gb: u32 = gb.parse()?;
+        gb * 1024
+    } else {
+        4 * 1024
+    };
     info!(log, "creating Oxide boot image...");
     let mut cmd = Command::new(&mkimage);
     cmd.arg("-i").arg(&raw);
