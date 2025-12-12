@@ -472,7 +472,7 @@
                 signature: "APCB",
                 header_size: 128,
                 version: 48,
-                unique_apcb_instance: 4298,
+                unique_apcb_instance: 24652,
               },
               v3_header_ext: {
                 signature: "ECB2",
@@ -7697,6 +7697,153 @@
                 {
                   header: {
                     group_id: 5892,
+                    entry_id: 138,
+                    instance_id: 399,
+                    context_type: "Struct",
+                    context_format: "Raw",
+                    unit_size: 0,
+                    priority_mask: {
+                      normal: true,
+                    },
+                    key_size: 0,
+                    key_pos: 0,
+                    board_instance_mask: 65535
+                  },
+                  RdimmDdr5BusElement: [
+                    {
+                      header: {
+                        total_size: 12,
+                        target_memclk: 2200,
+                        dimm_slots_per_channel: 1,
+                        dimm0_rank_bitmap: 16,
+                        dimm1_rank_bitmap: 1,
+                        sdram_io_width_bitmap: 1
+                      },
+                      payload: {
+                        total_size: 124,
+                        ca_timing_mode: 1,
+                        dimm0_rttnomwr: 0,
+                        dimm0_rttnomrd: 0,
+                        dimm0_rttwr: 240,
+                        dimm0_rttpack: 48,
+                        dimm0_dqs_rttpark: 48,
+                        dimm1_rttnomwr: 0,
+                        dimm1_rttnomrd: 0,
+                        dimm1_rttwr: 0,
+                        dimm1_rttpack: 0,
+                        dimm1_dqs_rttpark: 0,
+                        dram_drv: 34,
+                        ck_odt_a: 0,
+                        cs_odt_a: 0,
+                        ca_odt_a: 0,
+                        ck_odt_b: 40,
+                        cs_odt_b: 40,
+                        ca_odt_b: 60,
+                        p_odt: 40,
+                        dq_drv: 34,
+                        alert_pullup: 80,
+                        ca_drv: 30,
+                        phy_vref: 72,
+                        dq_vref: 38,
+                        ca_vref: 33,
+                        cs_vref: 62,
+                        d_ca_vref: 45,
+                        d_cs_vref: 45,
+                        rx_dfe: 1,
+                        tx_dfe: 1
+                      }
+                    },
+                    {
+                      header: {
+                        total_size: 12,
+                        target_memclk: 3000,
+                        dimm_slots_per_channel: 1,
+                        dimm0_rank_bitmap: 16,
+                        dimm1_rank_bitmap: 1,
+                        sdram_io_width_bitmap: 1
+                      },
+                      payload: {
+                        total_size: 124,
+                        ca_timing_mode: 1,
+                        dimm0_rttnomwr: 0,
+                        dimm0_rttnomrd: 0,
+                        dimm0_rttwr: 240,
+                        dimm0_rttpack: 48,
+                        dimm0_dqs_rttpark: 48,
+                        dimm1_rttnomwr: 0,
+                        dimm1_rttnomrd: 0,
+                        dimm1_rttwr: 0,
+                        dimm1_rttpack: 0,
+                        dimm1_dqs_rttpark: 0,
+                        dram_drv: 34,
+                        ck_odt_a: 0,
+                        cs_odt_a: 0,
+                        ca_odt_a: 0,
+                        ck_odt_b: 40,
+                        cs_odt_b: 40,
+                        ca_odt_b: 40,
+                        p_odt: 48,
+                        dq_drv: 40,
+                        alert_pullup: 80,
+                        ca_drv: 40,
+                        phy_vref: 72,
+                        dq_vref: 38,
+                        ca_vref: 33,
+                        cs_vref: 62,
+                        d_ca_vref: 45,
+                        d_cs_vref: 45,
+                        rx_dfe: 1,
+                        tx_dfe: 1
+                      }
+                    },
+                    {
+                      header: {
+                        total_size: 12,
+                        target_memclk: 3200,
+                        dimm_slots_per_channel: 1,
+                        dimm0_rank_bitmap: 16,
+                        dimm1_rank_bitmap: 1,
+                        sdram_io_width_bitmap: 1
+                      },
+                      payload: {
+                        total_size: 124,
+                        ca_timing_mode: 1,
+                        dimm0_rttnomwr: 0,
+                        dimm0_rttnomrd: 0,
+                        dimm0_rttwr: 240,
+                        dimm0_rttpack: 48,
+                        dimm0_dqs_rttpark: 48,
+                        dimm1_rttnomwr: 0,
+                        dimm1_rttnomrd: 0,
+                        dimm1_rttwr: 0,
+                        dimm1_rttpack: 0,
+                        dimm1_dqs_rttpark: 0,
+                        dram_drv: 34,
+                        ck_odt_a: 0,
+                        cs_odt_a: 0,
+                        ca_odt_a: 0,
+                        ck_odt_b: 40,
+                        cs_odt_b: 40,
+                        ca_odt_b: 40,
+                        p_odt: 48,
+                        dq_drv: 40,
+                        alert_pullup: 80,
+                        ca_drv: 40,
+                        phy_vref: 72,
+                        dq_vref: 38,
+                        ca_vref: 33,
+                        cs_vref: 62,
+                        d_ca_vref: 45,
+                        d_cs_vref: 45,
+                        rx_dfe: 1,
+                        tx_dfe: 1
+                      }
+                    }
+                  ]
+                },
+                {
+                  header: {
+                    group_id: 5892,
                     entry_id: 142,
                     instance_id: 0,
                     context_type: "Struct",
@@ -10117,6 +10264,225 @@
                 },
                 {
                   header: {
+                    group_id: 5892,
+                    entry_id: 165,
+                    instance_id: 0,
+                    context_type: "Struct",
+                    context_format: "Raw",
+                    unit_size: 0,
+                    priority_mask: {
+                      normal: true,
+                    },
+                    key_size: 0,
+                    key_pos: 0,
+                    board_instance_mask: 65535
+                  },
+                  MaxFreqElement: [
+                    {
+                      dimm_slots_per_channel: {
+                        Specific: {
+                          one_dimm: true,
+                          two_dimms: false,
+                          three_dimms: false,
+                          four_dimms: false,
+                        }
+                      },
+                      conditions: [
+                        1,
+                        0,
+                        0,
+                        1
+                      ],
+                      speeds: [
+                        3200,
+                        4401,
+                        4401
+                      ]
+                    }
+                  ]
+                },
+                {
+                  header: {
+                    group_id: 5892,
+                    entry_id: 167,
+                    instance_id: 399,
+                    context_type: "Struct",
+                    context_format: "Raw",
+                    unit_size: 0,
+                    priority_mask: {
+                      normal: true,
+                    },
+                    key_size: 0,
+                    key_pos: 0,
+                    board_instance_mask: 65535
+                  },
+                  Ddr5RawCardConfigElement: [
+                    {
+                      header: {
+                        total_size: 32,
+                        mem_clk: "Ddr4400",
+                        dimm_type: 16,
+                        dev_width: 1,
+                        rcd_manufacturer_id: 65535,
+                        rcd_generation: 255,
+                        raw_card_dev: 65535,
+                        dram_die_stepping_revision: 65535,
+                        dram_density: 255,
+                      },
+                      payload: {
+                        total_size: 80,
+                        qck_dev0: "Off",
+                        qck_dev1: "Off",
+                        qck_dev2: "Off",
+                        qck_dev3: "Off",
+                        qck_dev4: "60 Ω",
+                        qck_dev5: "Off",
+                        qck_dev6: "Off",
+                        qck_dev7: "Off",
+                        qck_dev8: "Off",
+                        qck_dev9: "60 Ω",
+                        qck_drive_strength: 1,
+                        qck_slew: "Fast",
+                        qcs_dev0: "Off",
+                        qcs_dev1: "Off",
+                        qcs_dev2: "Off",
+                        qcs_dev3: "Off",
+                        qcs_dev4: "40 Ω",
+                        qcs_dev5: "Off",
+                        qcs_dev6: "Off",
+                        qcs_dev7: "Off",
+                        qcs_dev8: "Off",
+                        qcs_dev9: "40 Ω",
+                        qcs_drive_strength: 0,
+                        qcs_slew: "Fast",
+                        qcs_vref: "66.0%",
+                        qca_dev0: "240 Ω",
+                        qca_dev1: "240 Ω",
+                        qca_dev2: "240 Ω",
+                        qca_dev3: "240 Ω",
+                        qca_dev4: "60 Ω",
+                        qca_dev5: "240 Ω",
+                        qca_dev6: "240 Ω",
+                        qca_dev7: "240 Ω",
+                        qca_dev8: "240 Ω",
+                        qca_dev9: "60 Ω",
+                        qca_drive_strength: 2,
+                        qca_slew: "Fast",
+                        qca_vref: "79.0%"
+                      }
+                    },
+                    {
+                      header: {
+                        total_size: 32,
+                        mem_clk: "Ddr6000",
+                        dimm_type: 16,
+                        dev_width: 1,
+                        rcd_manufacturer_id: 65535,
+                        rcd_generation: 255,
+                        raw_card_dev: 65535,
+                        dram_die_stepping_revision: 65535,
+                        dram_density: 255,
+                      },
+                      payload: {
+                        total_size: 80,
+                        qck_dev0: "Off",
+                        qck_dev1: "Off",
+                        qck_dev2: "Off",
+                        qck_dev3: "Off",
+                        qck_dev4: "60 Ω",
+                        qck_dev5: "Off",
+                        qck_dev6: "Off",
+                        qck_dev7: "Off",
+                        qck_dev8: "Off",
+                        qck_dev9: "60 Ω",
+                        qck_drive_strength: 1,
+                        qck_slew: "Fast",
+                        qcs_dev0: "Off",
+                        qcs_dev1: "Off",
+                        qcs_dev2: "Off",
+                        qcs_dev3: "Off",
+                        qcs_dev4: "40 Ω",
+                        qcs_dev5: "Off",
+                        qcs_dev6: "Off",
+                        qcs_dev7: "Off",
+                        qcs_dev8: "Off",
+                        qcs_dev9: "40 Ω",
+                        qcs_drive_strength: 0,
+                        qcs_slew: "Fast",
+                        qcs_vref: "68.0%",
+                        qca_dev0: "240 Ω",
+                        qca_dev1: "240 Ω",
+                        qca_dev2: "240 Ω",
+                        qca_dev3: "240 Ω",
+                        qca_dev4: "60 Ω",
+                        qca_dev5: "240 Ω",
+                        qca_dev6: "240 Ω",
+                        qca_dev7: "240 Ω",
+                        qca_dev8: "240 Ω",
+                        qca_dev9: "60 Ω",
+                        qca_drive_strength: 1,
+                        qca_slew: "Fast",
+                        qca_vref: "77.0%"
+                      }
+                    },
+                    {
+                      header: {
+                        total_size: 32,
+                        mem_clk: "Ddr6400",
+                        dimm_type: 16,
+                        dev_width: 1,
+                        rcd_manufacturer_id: 65535,
+                        rcd_generation: 255,
+                        raw_card_dev: 65535,
+                        dram_die_stepping_revision: 65535,
+                        dram_density: 255,
+                      },
+                      payload: {
+                        total_size: 80,
+                        qck_dev0: "Off",
+                        qck_dev1: "Off",
+                        qck_dev2: "Off",
+                        qck_dev3: "Off",
+                        qck_dev4: "60 Ω",
+                        qck_dev5: "Off",
+                        qck_dev6: "Off",
+                        qck_dev7: "Off",
+                        qck_dev8: "Off",
+                        qck_dev9: "60 Ω",
+                        qck_drive_strength: 1,
+                        qck_slew: "Fast",
+                        qcs_dev0: "Off",
+                        qcs_dev1: "Off",
+                        qcs_dev2: "Off",
+                        qcs_dev3: "Off",
+                        qcs_dev4: "40 Ω",
+                        qcs_dev5: "Off",
+                        qcs_dev6: "Off",
+                        qcs_dev7: "Off",
+                        qcs_dev8: "Off",
+                        qcs_dev9: "40 Ω",
+                        qcs_drive_strength: 0,
+                        qcs_slew: "Fast",
+                        qcs_vref: "68.0%",
+                        qca_dev0: "240 Ω",
+                        qca_dev1: "240 Ω",
+                        qca_dev2: "240 Ω",
+                        qca_dev3: "240 Ω",
+                        qca_dev4: "60 Ω",
+                        qca_dev5: "240 Ω",
+                        qca_dev6: "240 Ω",
+                        qca_dev7: "240 Ω",
+                        qca_dev8: "240 Ω",
+                        qca_dev9: "60 Ω",
+                        qca_drive_strength: 1,
+                        qca_slew: "Fast",
+                        qca_vref: "77.0%"
+                      }
+                    }
+                  ]
+                },
+                {
+                  header: {
                     group_id: 5893,
                     entry_id: 4099,
                     instance_id: 0,
@@ -12097,6 +12463,116 @@
           target: {
             type: "PmuFirmwareData",
             instance: 12,
+            sub_program: 4
+          }
+        },
+        {
+          source: {
+            BlobFile: "Type0x64_AppbDdr5LrdimmImem5_BRH.csbin"
+          },
+          target: {
+            type: "PmuFirmwareInstructions",
+            instance: 5,
+            sub_program: 4
+          }
+        },
+        {
+          source: {
+            BlobFile: "Type0x64_AppbDdr5LrdimmImem6_BRH.csbin"
+          },
+          target: {
+            type: "PmuFirmwareInstructions",
+            instance: 6,
+            sub_program: 4
+          }
+        },
+        {
+          source: {
+            BlobFile: "Type0x64_AppbDdr5Lrdimm2Imem7_BRH.csbin"
+          },
+          target: {
+            type: "PmuFirmwareInstructions",
+            instance: 7,
+            sub_program: 4
+          }
+        },
+        {
+          source: {
+            BlobFile: "Type0x64_AppbDdr5Lrdimm2Imem8_BRH.csbin"
+          },
+          target: {
+            type: "PmuFirmwareInstructions",
+            instance: 8,
+            sub_program: 4
+          }
+        },
+        {
+          source: {
+            BlobFile: "Type0x65_AppbDdr5LrdimmDmem5_BRH.csbin"
+          },
+          target: {
+            type: "PmuFirmwareData",
+            instance: 5,
+            sub_program: 4
+          }
+        },
+        {
+          source: {
+            BlobFile: "Type0x65_AppbDdr5LrdimmDmem6_BRH.csbin"
+          },
+          target: {
+            type: "PmuFirmwareData",
+            instance: 6,
+            sub_program: 4
+          }
+        },
+        {
+          source: {
+            BlobFile: "Type0x65_AppbDdr5Lrdimm2Dmem7_BRH.csbin"
+          },
+          target: {
+            type: "PmuFirmwareData",
+            instance: 7,
+            sub_program: 4
+          }
+        },
+        {
+          source: {
+            BlobFile: "Type0x65_AppbDdr5Lrdimm2Dmem8_BRH.csbin"
+          },
+          target: {
+            type: "PmuFirmwareData",
+            instance: 8,
+            sub_program: 4
+          }
+        },
+        {
+          source: {
+            BlobFile: "Type0x64_AppbDdr5LrdimmQuickbootImem13_BRH.csbin"
+          },
+          target: {
+            type: "PmuFirmwareInstructions",
+            instance: 13,
+            sub_program: 4
+          }
+        },
+        {
+          source: {
+            BlobFile: "Type0x65_AppbDdr5LrdimmQuickbootDmem13_BRH.csbin"
+          },
+          target: {
+            type: "PmuFirmwareData",
+            instance: 13,
+            sub_program: 4
+          }
+        },
+        {
+          source: {
+            BlobFile: "Type0x65_AppbDdr5LrdimmQuickbootDmem14_BRH.csbin"
+          },
+          target: {
+            type: "PmuFirmwareData",
+            instance: 14,
             sub_program: 4
           }
         }
