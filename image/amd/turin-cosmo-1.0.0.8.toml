@@ -1,6 +1,6 @@
 cpu = 'turin'
 board = 'cosmo'
-firmware_version = '1.0.0.7'
+firmware_version = '1.0.0.8'
 size = 32
 blobs = [
     'TypeId0x00_AmdPubKey_BRH.tkn',
@@ -75,5 +75,16 @@ blobs = [
     'Type0x65_AppbDdr5RdimmPosttrainDmem10_BRH_C0.ecsbin',
     'Type0x65_AppbDdr5RdimmQuickbootDmem11_BRH_C0.ecsbin',
     'Type0x65_AppbDdr5RdimmQuickbootDmem12_BRH_C0.ecsbin',
+    'Type0x64_AppbDdr5LrdimmImem5_BRH.csbin',
+    'Type0x64_AppbDdr5LrdimmImem6_BRH.csbin',
+    'Type0x64_AppbDdr5Lrdimm2Imem7_BRH.csbin',
+    'Type0x64_AppbDdr5Lrdimm2Imem8_BRH.csbin',
+    'Type0x65_AppbDdr5LrdimmDmem5_BRH.csbin',
+    'Type0x65_AppbDdr5LrdimmDmem6_BRH.csbin',
+    'Type0x65_AppbDdr5Lrdimm2Dmem7_BRH.csbin',
+    'Type0x65_AppbDdr5Lrdimm2Dmem8_BRH.csbin',
+    'Type0x64_AppbDdr5LrdimmQuickbootImem13_BRH.csbin',
+    'Type0x65_AppbDdr5LrdimmQuickbootDmem13_BRH.csbin',
+    'Type0x65_AppbDdr5LrdimmQuickbootDmem14_BRH.csbin',
     'APOB_NV_BRH.bin',
 ]
