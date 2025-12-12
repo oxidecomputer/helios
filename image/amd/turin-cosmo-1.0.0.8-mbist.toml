@@ -1,4 +1,4 @@
-base = 'turin-cosmo-1.0.0.7.toml'
+base = 'turin-cosmo-1.0.0.8.toml'
 
 [patch]
 base = 'turin-cosmo-a.efs.json5'
