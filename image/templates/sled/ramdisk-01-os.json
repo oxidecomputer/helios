@@ -97,7 +97,8 @@
             "/developer/object-file",
             "/system/ksensor",
             "/driver/cpu/sensor",
-            "/driver/ktest"
+            "/driver/ktest",
+            "/system/i2c"
         ] },
 
         { "t": "pkg_install", "with": "omicron1", "pkgs": [
