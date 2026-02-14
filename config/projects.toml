@@ -23,16 +23,19 @@ site_sh = true
 
 [project.pinprick]
 github = "oxidecomputer/pinprick"
+rev = "beab67cab00dfe70a89eb3ab9a00ce9836c62d47"
 use_ssh = false
 cargo_build = true
 
 [project.phbl]
 github = "oxidecomputer/phbl"
+rev = "2f8c42da23edc9f100797e3c81f44fb876813061"
 use_ssh = false
 auto_update = true
 
 [project.image-builder]
 github = "illumos/image-builder"
+rev = "5b83ae76077e9290b3355ece6c3a9476545d8a9b"
 use_ssh = false
 cargo_build = true
 use_debug = true
@@ -40,12 +43,14 @@ auto_update = true
 
 [project.bootserver]
 github = "oxidecomputer/boot-image-tools"
+rev = "ee31a3f43bcb2d02de3e4b017d4d51f3beb99858"
 use_ssh = false
 cargo_build = true
 auto_update = true
 
 [project.amd-host-image-builder]
 github = "oxidecomputer/amd-host-image-builder"
+rev = "04085d52a02cf875d4cc8fc2d6f98980a7dabee8"
 use_ssh = false
 cargo_build = true
 use_debug = true
@@ -77,12 +82,14 @@ to_branch = "main"
 
 [project.amd-firmware]
 github = "oxidecomputer/amd-firmware"
+rev = "e9e525fdf16b02342f3eaef6db821580bd0a8586"
 use_ssh = true
 auto_update = true
 unless_env = "OXIDE_STAFF"
 
 [project.chelsio-t6-roms]
 github = "oxidecomputer/chelsio-t6-roms"
+rev = "fcdf32d1489412a146fa3ea3c09a176720b2cc43"
 use_ssh = true
 cargo_build = false
 auto_update = true
@@ -90,6 +97,7 @@ unless_env = "OXIDE_STAFF"
 
 [project.pilot]
 github = "oxidecomputer/pilot"
+rev = "3b5d7d8a4ddbe6f4e9d9bb60f0919cd606fa1125"
 use_ssh = true
 cargo_build = true
 auto_update = true
@@ -97,6 +105,7 @@ unless_env = "OXIDE_STAFF"
 
 [project.dmar-report]
 github = "oxidecomputer/dmar-report"
+rev = "a2fdbc6b34ca5b19d25304d1697437a148469c85"
 use_ssh = true
 cargo_build = true
 auto_update = true
