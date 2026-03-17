@@ -677,7 +677,7 @@ fn regen_illumos_sh<P: AsRef<Path>>(
     env += "export BUILDVERSION_EXEC=\"git describe --all --long --dirty\"\n";
     env += &format!("export DMAKE_MAX_JOBS={}\n", maxjobs);
     env += "export ENABLE_SMB_PRINTING='#'\n";
-    env += &format!("export PERL_VERSION={}", relver.perl_version());
+    env += &format!("export PERL_VERSION={}\n", relver.perl_version());
     env += "export PERL_PKGVERS=\n";
     env += "export PERL_VARIANT=-thread-multi\n";
     env += "export BUILDPERL32='#'\n";
@@ -688,8 +688,8 @@ fn regen_illumos_sh<P: AsRef<Path>>(
     env += "export BUILDPY3=\n";
     env += "export BUILDPY2TOOLS='#'\n";
     env += "export BUILDPY3TOOLS=\n";
-    env += &format!("export PYTHON3_VERSION={}", relver.python3_version());
-    env += &format!("export PYTHON3_PKGVERS={}", relver.python3_pkgver());
+    env += &format!("export PYTHON3_VERSION={}\n", relver.python3_version());
+    env += &format!("export PYTHON3_PKGVERS={}\n", relver.python3_pkgver());
     env += "export PYTHON3_SUFFIX=\n";
     env += "export TOOLS_PYTHON=/usr/bin/python$PYTHON3_VERSION\n";
     env += "export STAFFER=\"$LOGNAME\"\n";
