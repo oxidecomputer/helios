@@ -6,7 +6,8 @@
     },
 
     "steps": [
-        { "t": "include", "name": "recovery-elide" },
+        { "t": "include", "name": "recovery-elide-v2", "with": "heliosv2" },
+        { "t": "include", "name": "recovery-elide-v3", "with": "heliosv3" },
         { "t": "pack_tar", "name": "sled-recovery-ramdisk.tar" }
     ]
 }

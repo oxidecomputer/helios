@@ -1565,6 +1565,8 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
         }
     };
 
+    let relver = determine_release_version()?;
+
     if local_build {
         /*
          * In order to install development illumos bits, we first need to elide
@@ -1588,7 +1590,6 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
          * fallback origin as a source for other packages that aren't
          * built locally:
          */
-        let relver = determine_release_version()?;
         publishers.append_origin(
             &relver.publisher_name(),
             &relver.publisher_location(),
@@ -1642,6 +1643,8 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
         }
         cmd.arg("-E").arg(&brand_extras);
         cmd.arg("-E").arg(&projects_extras);
+
+        cmd.arg("-F").arg(format!("heliosv{relver}"));
 
         assert!(publishers.publishers.len() <= MAXPUBS);
         for (i, p) in publishers.publishers.iter().enumerate() {
