@@ -39,6 +39,7 @@ const DASHREV: u32 = 0;
 enum RelVer {
     V1,
     V2,
+    V3,
 }
 
 impl std::fmt::Display for RelVer {
@@ -52,8 +53,46 @@ impl std::fmt::Display for RelVer {
             match self {
                 RelVer::V1 => 1,
                 RelVer::V2 => 2,
+                RelVer::V3 => 3,
             }
         )
+    }
+}
+
+impl RelVer {
+    fn publisher_name(&self) -> String {
+        match self {
+            RelVer::V1 => "helios-dev",
+            RelVer::V2 => "helios-dev",
+            RelVer::V3 => "helios",
+        }
+        .to_string()
+    }
+
+    fn publisher_location(&self) -> String {
+        format!("https://pkg.oxide.computer/helios/{self}/dev/")
+    }
+
+    fn perl_version(&self) -> String {
+        match self {
+            RelVer::V1 => "5.32",
+            RelVer::V2 => "5.36",
+            RelVer::V3 => "5.40",
+        }
+        .to_string()
+    }
+
+    fn python3_version(&self) -> String {
+        match self {
+            RelVer::V1 => "3.9",
+            RelVer::V2 => "3.11",
+            RelVer::V3 => "3.13",
+        }
+        .to_string()
+    }
+
+    fn python3_pkgver(&self) -> String {
+        format!("-{}", self.python3_version().replace('.', ""))
     }
 }
 
@@ -76,7 +115,7 @@ use std::path::{Component, PathBuf};
 
 const NO_PATH: Option<PathBuf> = None;
 
-fn pc(s: &str) -> Component {
+fn pc(s: &str) -> Component<'_> {
     Component::Normal(OsStr::new(s))
 }
 
@@ -521,6 +560,7 @@ fn determine_release_version() -> Result<RelVer> {
     Ok(match *version_id {
         "1" => RelVer::V1,
         "2" => RelVer::V2,
+        "3" => RelVer::V3,
         other => bail!("unexpected VERSION_ID {other:?} in {relpath:?}"),
     })
 }
@@ -637,14 +677,7 @@ fn regen_illumos_sh<P: AsRef<Path>>(
     env += "export BUILDVERSION_EXEC=\"git describe --all --long --dirty\"\n";
     env += &format!("export DMAKE_MAX_JOBS={}\n", maxjobs);
     env += "export ENABLE_SMB_PRINTING='#'\n";
-    match relver {
-        RelVer::V1 => {
-            env += "export PERL_VERSION=5.32\n";
-        }
-        RelVer::V2 => {
-            env += "export PERL_VERSION=5.36\n";
-        }
-    }
+    env += &format!("export PERL_VERSION={}\n", relver.perl_version());
     env += "export PERL_PKGVERS=\n";
     env += "export PERL_VARIANT=-thread-multi\n";
     env += "export BUILDPERL32='#'\n";
@@ -655,16 +688,8 @@ fn regen_illumos_sh<P: AsRef<Path>>(
     env += "export BUILDPY3=\n";
     env += "export BUILDPY2TOOLS='#'\n";
     env += "export BUILDPY3TOOLS=\n";
-    match relver {
-        RelVer::V1 => {
-            env += "export PYTHON3_VERSION=3.9\n";
-            env += "export PYTHON3_PKGVERS=-39\n";
-        }
-        RelVer::V2 => {
-            env += "export PYTHON3_VERSION=3.11\n";
-            env += "export PYTHON3_PKGVERS=-311\n";
-        }
-    }
+    env += &format!("export PYTHON3_VERSION={}\n", relver.python3_version());
+    env += &format!("export PYTHON3_PKGVERS={}\n", relver.python3_pkgver());
     env += "export PYTHON3_SUFFIX=\n";
     env += "export TOOLS_PYTHON=/usr/bin/python$PYTHON3_VERSION\n";
     env += "export STAFFER=\"$LOGNAME\"\n";
@@ -1540,6 +1565,8 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
         }
     };
 
+    let relver = determine_release_version()?;
+
     if local_build {
         /*
          * In order to install development illumos bits, we first need to elide
@@ -1560,13 +1587,12 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
 
         /*
          * For images using locally built illumos packages, include a
-         * fallback origin for "helios-dev" as a source for other packages
-         * that aren't built locally:
+         * fallback origin as a source for other packages that aren't
+         * built locally:
          */
-        let relver = determine_release_version()?;
         publishers.append_origin(
-            "helios-dev",
-            &format!("https://pkg.oxide.computer/helios/{relver}/dev/"),
+            &relver.publisher_name(),
+            &relver.publisher_location(),
         );
     } else {
         /*
@@ -1596,7 +1622,7 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
 
     /*
      * Use the image builder to begin creating the image from locally built OS
-     * packages, plus other packages from the upstream helios-dev repository.
+     * packages, plus other packages from the upstream repository.
      */
     let templates = top_path(&["image", "templates"])?;
     let brand_extras = rel_path(Some(&tempdir), &["omicron1"])?;
@@ -1617,6 +1643,8 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
         }
         cmd.arg("-E").arg(&brand_extras);
         cmd.arg("-E").arg(&projects_extras);
+
+        cmd.arg("-F").arg(format!("heliosv{relver}"));
 
         assert!(publishers.publishers.len() <= MAXPUBS);
         for (i, p) in publishers.publishers.iter().enumerate() {
@@ -2499,13 +2527,13 @@ fn cmd_setup(ca: &CommandArg) -> Result<()> {
 
             let mut site_sh = String::new();
             site_sh += "PFEXEC=/usr/bin/pfexec\n";
-            site_sh += "PKGPUBLISHER=helios-dev\n";
+            site_sh += &format!("PKGPUBLISHER={}\n", relver.publisher_name());
             site_sh += "HOMEURL=https://oxide.computer/helios\n";
             site_sh += "PUBLISHER_EMAIL=jmc@oxide.computer\n";
             site_sh += &format!("RELVER={}\n", relver);
             site_sh += &format!("DASHREV={}\n", DASHREV);
             site_sh += "PVER=$RELVER.$DASHREV\n";
-            site_sh += "IPS_REPO=https://pkg.oxide.computer/helios/2/dev\n";
+            site_sh += &format!("IPS_REPO={}\n", relver.publisher_location());
             site_sh += &format!("TMPDIR={}\n", &tmp.to_str().unwrap());
             site_sh += "DTMPDIR=$TMPDIR\n";
 
@@ -2538,14 +2566,14 @@ fn cmd_setup(ca: &CommandArg) -> Result<()> {
      * Create the package repository that will contain the final output
      * packages after build and transformations are applied.
      */
-    let publisher = "helios-dev";
+    let publisher = relver.publisher_name();
     ensure_dir(&["packages"])?;
     for repo in &["os", "other", "combined"] {
         let repo_path = top_path(&["packages", repo])?;
         create_ips_repo(log, &repo_path, &publisher, false)?;
     }
 
-    regen_publisher_mog(log, NO_PATH, publisher)?;
+    regen_publisher_mog(log, NO_PATH, &publisher)?;
     for mog in &["os-conflicts", "os-deps"] {
         let mogpath = top_path(&["packages", &format!("{}.mogrify", mog)])?;
         ensure::symlink(
