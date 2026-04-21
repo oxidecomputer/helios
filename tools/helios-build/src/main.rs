@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 Oxide Computer Company
+ * Copyright 2026 Oxide Computer Company
  */
 
 mod common;
@@ -2614,8 +2614,8 @@ struct CommandArg<'a> {
 }
 
 struct CommandInfo {
-    name: String,
-    desc: String,
+    name: &'static str,
+    desc: &'static str,
     func: fn(&CommandArg) -> Result<()>,
     hide: bool,
     blank: bool,
@@ -2625,74 +2625,75 @@ fn main() -> Result<()> {
     let mut opts = baseopts();
     opts.parsing_style(getopts::ParsingStyle::StopAtFirstFree);
 
-    let mut handlers: Vec<CommandInfo> = Vec::new();
-    handlers.push(CommandInfo {
-        name: "setup".into(),
-        desc: "clone required repositories and run setup tasks".into(),
-        func: cmd_setup,
-        hide: false,
-        blank: false,
-    });
-    handlers.push(CommandInfo {
-        name: "genenv".into(),
-        desc: "generate environment file for illumos build".into(),
-        func: cmd_illumos_genenv,
-        hide: false,
-        blank: true,
-    });
-    handlers.push(CommandInfo {
-        name: "bldenv".into(),
-        desc: "enter a bldenv shell for illumos so you can run dmake".into(),
-        func: cmd_illumos_bldenv,
-        hide: false,
-        blank: true,
-    });
-    handlers.push(CommandInfo {
-        name: "onu".into(),
-        desc: "install your non-DEBUG build of illumos on this system".into(),
-        func: cmd_illumos_onu,
-        hide: false,
-        blank: false,
-    });
-    handlers.push(CommandInfo {
-        name: "build-illumos".into(),
-        desc: "run a full nightly(1) and produce packages".into(),
-        func: cmd_build_illumos,
-        hide: false,
-        blank: false,
-    });
-    handlers.push(CommandInfo {
-        name: "merge-illumos".into(),
-        desc: "merge DEBUG and non-DEBUG packages into one repository".into(),
-        func: cmd_merge_illumos,
-        hide: false,
-        blank: false,
-    });
-    handlers.push(CommandInfo {
-        name: "experiment-image".into(),
-        desc: "image construction for Compute Sleds".into(),
-        func: cmd_image,
-        hide: false,
-        blank: false,
-    });
-    handlers.push(CommandInfo {
-        name: "image".into(),
-        desc: "image construction for Compute Sleds".into(),
-        func: cmd_image,
-        hide: true,
-        blank: false,
-    });
-    handlers.push(CommandInfo {
-        name: "help".into(),
-        desc: "display usage information".into(),
-        /*
-         * No behaviour is required here.  The "help" command is a special case
-         * in the argument processing below.
-         */
-        func: |_: &CommandArg| Ok(()),
-        hide: false,
-        blank: true,
-    });
+    let handlers = [
+        CommandInfo {
+            name: "setup",
+            desc: "clone required repositories and run setup tasks",
+            func: cmd_setup,
+            hide: false,
+            blank: false,
+        },
+        CommandInfo {
+            name: "genenv",
+            desc: "generate environment file for illumos build",
+            func: cmd_illumos_genenv,
+            hide: false,
+            blank: true,
+        },
+        CommandInfo {
+            name: "bldenv",
+            desc: "enter a bldenv shell for illumos so you can run dmake",
+            func: cmd_illumos_bldenv,
+            hide: false,
+            blank: true,
+        },
+        CommandInfo {
+            name: "onu",
+            desc: "install your non-DEBUG build of illumos on this system",
+            func: cmd_illumos_onu,
+            hide: false,
+            blank: false,
+        },
+        CommandInfo {
+            name: "build-illumos",
+            desc: "run a full nightly(1) and produce packages",
+            func: cmd_build_illumos,
+            hide: false,
+            blank: false,
+        },
+        CommandInfo {
+            name: "merge-illumos",
+            desc: "merge DEBUG and non-DEBUG packages into one repository",
+            func: cmd_merge_illumos,
+            hide: false,
+            blank: false,
+        },
+        CommandInfo {
+            name: "experiment-image",
+            desc: "image construction for Compute Sleds",
+            func: cmd_image,
+            hide: false,
+            blank: false,
+        },
+        CommandInfo {
+            name: "image",
+            desc: "image construction for Compute Sleds",
+            func: cmd_image,
+            hide: true,
+            blank: false,
+        },
+        CommandInfo {
+            name: "help",
+            desc: "display usage information",
+            /*
+             * No behaviour is required here.  The "help" command is a special case
+             * in the argument processing below.
+             */
+            func: |_: &CommandArg| Ok(()),
+            hide: false,
+            blank: true,
+        },
+    ];
 
     let usage = |failure: bool| {
         let mut out = String::new();
