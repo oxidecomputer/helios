@@ -128,7 +128,7 @@ pub fn zonename() -> String {
         let mut buf: [u8; 64] = std::mem::zeroed(); /* ZONENAME_MAX */
 
         let sz = getzonenamebyid(getzoneid(), buf.as_mut_ptr(), 64);
-        if sz > 64 || sz < 0 {
+        if !(0..=64).contains(&sz) {
             eprintln!("getzonenamebyid failure");
             exit(100);
         }
@@ -425,7 +425,8 @@ pub fn zone_list() -> Result<Vec<Zone>> {
 
         let id = if line[0] == "-" { None } else { Some(line[0].parse()?) };
 
-        let uuid = if line[4] == "" { None } else { Some(line[4].to_string()) };
+        let uuid =
+            if line[4].is_empty() { None } else { Some(line[4].to_string()) };
 
         zones.push(Zone {
             id,
@@ -489,8 +490,8 @@ where
     script += "add fs; ";
     script += &format!("set dir = {}; ", ngz.to_str().unwrap());
     script += &format!("set special = {}; ", gz.to_str().unwrap());
-    script += &format!("set type = lofs; ");
-    script += &format!("set options = [rw,nodevices]; ");
+    script += "set type = lofs; ";
+    script += "set options = [rw,nodevices]; ";
     script += "end; ";
     script += "commit; ";
 
@@ -807,7 +808,7 @@ where
         .arg(n)
         .arg("tee")
         .arg("-a")
-        .arg(&p)
+        .arg(p)
         .stdin(std::process::Stdio::piped())
         .spawn()?;
 
@@ -846,7 +847,7 @@ where
         .arg(n)
         .arg("mkdir")
         .arg("-p")
-        .arg(&p)
+        .arg(p)
         .output()?;
 
     if !out.status.success() {
@@ -859,8 +860,8 @@ where
         .arg("-S")
         .arg(n)
         .arg("chown")
-        .arg(&format!("{}:{}", uid, gid))
-        .arg(&p)
+        .arg(format!("{}:{}", uid, gid))
+        .arg(p)
         .output()?;
 
     if !out.status.success() {
