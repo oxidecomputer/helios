@@ -52,7 +52,7 @@ package.  You can check if you have this installed already with:
 ```
 $ pkg list developer/illumos-tools
 NAME (PUBLISHER)                VERSION    IFO
-developer/illumos-tools         11-2.0     im-i
+developer/illumos-tools         11-3.0     im-i
 ```
 
 If missing from your system, it can be installed with `pkg install`.  It's also
@@ -186,7 +186,7 @@ messages and interact with the boot loader.
 helios console login: root
 Password:
 Last login: Mon Jan 29 09:34:20 on console
-The illumos Project     stlouis-0-g27e9202a98   January 2024
+The illumos Project     stlouis-0-g2205894696   May 2026
 root@genesis:~# reboot
 updating /platform/i86pc/amd64/boot_archive (CPIO)
 syncing file systems... done
@@ -197,11 +197,11 @@ You can see that your updated packages are now running:
 
 ```
 $ pkg list -Hv system/kernel
-pkg://on-nightly/system/kernel@0.5.11-2.0.999999:20240129T090642Z            i--
+pkg://on-nightly/system/kernel@0.5.11-3.0.999999:20260508T143046Z           i--
 ```
 
 Critically, the `system/kernel` package shown here comes from the `on-nightly`
-publisher (your local files) and has a quick build version (`2.0.999999`).
+publisher (your local files) and has a quick build version (`3.0.999999`).
 
 #### Installing: on another machine, using a package repository server
 
@@ -240,7 +240,7 @@ Now, on the target machine, confirm that you can contact the build machine:
 ```
 $ pkgrepo info -s http://genesis:7891
 PUBLISHER  PACKAGES STATUS           UPDATED
-on-nightly 549      online           2024-01-29T09:40:50.716102Z
+on-nightly 549      online           2026-05-09T09:40:50.716102Z
 ```
 
 Examine your existing package publisher configuration.  On a stock Helios
@@ -248,8 +248,8 @@ system, it should look like this:
 
 ```
 # pkg publisher
-PUBLISHER               TYPE   STATUS P LOCATION
-helios-dev              origin online F https://pkg.oxide.computer/helios/2/dev/
+PUBLISHER            TYPE   STATUS P LOCATION
+helios               origin online F https://pkg.oxide.computer/helios/3/dev/
 ```
 
 Just one publisher is configured, using the central repository.  We want to add
@@ -259,11 +259,11 @@ publisher from which they were first installed.
 
 ```
 # pkg set-publisher -r -O http://genesis:7891 --search-first on-nightly
-# pkg set-publisher -r --non-sticky helios-dev
+# pkg set-publisher -r --non-sticky helios
 # pkg publisher
 PUBLISHER               TYPE   STATUS P LOCATION
-on-nightly              origin online F http://genesis:7891/
-helios-dev (non-sticky) origin online F https://pkg.oxide.computer/helios/2/dev/
+on-nightly             origin online F http://genesis:7891/
+helios    (non-sticky) origin online F https://pkg.oxide.computer/helios/3/dev/
 ```
 
 For now, depending on what you're doing on the test system, it may be necessary
@@ -285,16 +285,16 @@ Create backup boot environment:        No
           Rebuild boot archive:       Yes
 
 Changed packages:
-helios-dev -> on-nightly
+helios -> on-nightly
   SUNWcs
-    0.5.11-2.0.22430 -> 0.5.11-2.0.999999
+    0.5.11-3.0.23976 -> 0.5.11-3.0.999999
   SUNWcsd
-    0.5.11-2.0.22430 -> 0.5.11-2.0.999999
+    0.5.11-3.0.23976 -> 0.5.11-3.0.999999
 ...
 ```
 
 Note that the version is changing from a stock Helios version (which is the
-commit number on the master branch of illumos) to `2.0.999999`, the quick build
+commit number on the stlouis branch of illumos) to `3.0.999999`, the quick build
 version.  A new boot environment will be created, and a reboot will be
 required.
 
@@ -343,20 +343,20 @@ Loading unix...
 Loading /platform/i86pc/amd64/boot_archive...
 Loading /platform/i86pc/amd64/boot_archive.hash...
 Booting...
-Oxide Helios Version stlouis-0-g27e9202a98 64-bit (onu)
+Oxide Helios Version stlouis-0-g2205894696 64-bit (onu)
 Hostname: helios
 
 helios console login: root
 Password:
 
-The illumos Project     stlouis-0-g27e9202a98   January 2024
+The illumos Project     stlouis-0-g2205894696   May 2026
 # uname -v
-stlouis-0-g27e9202a98
+stlouis-0-g2205894696
 
 # pkg publisher
 PUBLISHER               TYPE   STATUS P LOCATION
-on-nightly              origin online F http://genesis:7891/
-helios-dev (non-sticky) origin online F https://pkg.oxide.computer/helios/2/dev/
+on-nightly             origin online F http://genesis:7891/
+helios    (non-sticky) origin online F https://pkg.oxide.computer/helios/3/dev/
 ```
 
 In future, you should be able to do a new build, restart the package server,
@@ -372,7 +372,7 @@ $ ./helios-build onu -P
 Jan 29 09:45:36.040 INFO creating temporary repository...
 Jan 29 09:45:36.040 INFO repository /home/user/helios/tmp/onu/repo.redist exists, removing first
 ...
-Jan 29 09:46:14.901 INFO O| Republish: pkg:/text/locale@0.5.11,5.11-2.0.999999:20240129T090648Z ...  Done
+Jan 29 09:46:14.901 INFO O| Republish: pkg:/text/locale@0.5.11,5.11-3.0.999999:20260509T090648Z ...  Done
 Jan 29 09:46:15.602 INFO exec: ["/usr/bin/pkgrepo", "refresh", "-s", "/home/user/helios/tmp/onu/repo.redist"], pwd: None
 Jan 29 09:46:15.907 INFO O| Initiating repository refresh.
 Jan 29 09:46:24.978 INFO transformed packages available for onu at: "/home/user/helios/tmp/onu/repo.redist"
@@ -384,14 +384,14 @@ repository; e.g.,
 ```
 $ pkgrepo info -s tmp/onu/repo.redist
 PUBLISHER  PACKAGES STATUS           UPDATED
-on-nightly 549      online           2024-01-29T09:46:15.448096Z
+on-nightly 549      online           2026-05-09T09:46:15.448096Z
 
 $ pkgrepo list -s tmp/onu/repo.redist
 PUBLISHER  NAME                          O VERSION
-on-nightly SUNWcs                          0.5.11-2.0.999999:20240129T090617Z
-on-nightly SUNWcsd                         0.5.11-2.0.999999:20240129T090618Z
-on-nightly audio/audio-utilities           0.5.11-2.0.999999:20240129T090618Z
-on-nightly benchmark/filebench           o 0.5.11-2.0.999999:20240129T090618Z
+on-nightly SUNWcs                          0.5.11-3.0.999999:20260509T090617Z
+on-nightly SUNWcsd                         0.5.11-3.0.999999:20260509T090618Z
+on-nightly audio/audio-utilities           0.5.11-3.0.999999:20260509T090618Z
+on-nightly benchmark/filebench           o 0.5.11-3.0.999999:20260509T090618Z
 ...
 
 $ pkg contents -t file -s tmp/onu/repo.redist '*microcode*'
@@ -430,8 +430,8 @@ Jan 29 09:50:22.895 INFO file /home/user/helios/projects/illumos/illumos-quick.s
 Jan 29 09:50:22.895 INFO ok!
 Build type   is  non-DEBUG
 RELEASE      is
-VERSION      is stlouis-0-g27e9202a98
-RELEASE_DATE is January 2024
+VERSION      is stlouis-0-g2205894696
+RELEASE_DATE is May 2026
 
 The top-level 'setup' target is available to build headers and tools.
 
@@ -558,7 +558,7 @@ should ignore any unrecognised files.
 
 ## Licence
 
-Copyright 2024 Oxide Computer Company
+Copyright 2026 Oxide Computer Company
 
 Unless otherwise noted, all components are licenced under the [Mozilla Public
 License Version 2.0](./LICENSE).
