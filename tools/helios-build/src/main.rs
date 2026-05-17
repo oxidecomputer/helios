@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 Oxide Computer Company
+ * Copyright 2026 Oxide Computer Company
  */
 
 mod common;
@@ -96,8 +96,8 @@ impl RelVer {
     }
 }
 
-const DATE_FORMAT_STR: &'static str = "[year]-[month]-[day]";
-const TIME_FORMAT_STR: &'static str = "[hour]:[minute]:[second]";
+const DATE_FORMAT_STR: &str = "[year]-[month]-[day]";
+const TIME_FORMAT_STR: &str = "[hour]:[minute]:[second]";
 
 fn baseopts() -> getopts::Options {
     let mut opts = getopts::Options::new();
@@ -317,7 +317,7 @@ where
             return Ok(());
         }
         info!(log, "repository {} exists, removing first", paths);
-        std::fs::remove_dir_all(&path)?;
+        std::fs::remove_dir_all(path)?;
     }
 
     ensure::run(log, &[PKGREPO, "create", paths])?;
@@ -410,14 +410,14 @@ fn cmd_merge_illumos(ca: &CommandArg) -> Result<()> {
      * staging repository using the IPS variant feature.
      */
     info!(log, "recreating merging repository at {:?}", &repo_merge);
-    create_ips_repo(log, &repo_merge, &input_publisher, true)?;
+    create_ips_repo(log, &repo_merge, input_publisher, true)?;
 
     ensure::run(
         log,
         &[
             "/usr/bin/pkgmerge",
             "-d",
-            &repo_merge.to_str().unwrap(),
+            repo_merge.to_str().unwrap(),
             "-s",
             &format!("debug.illumos=false,{}/", repo_nd.to_str().unwrap()),
             "-s",
@@ -450,21 +450,21 @@ fn cmd_merge_illumos(ca: &CommandArg) -> Result<()> {
         &[
             PKGRECV,
             "-s",
-            &repo_merge.to_str().unwrap(),
+            repo_merge.to_str().unwrap(),
             "-d",
-            &repo.to_str().unwrap(),
+            repo.to_str().unwrap(),
             "--mog-file",
-            &mog_publisher.to_str().unwrap(),
+            mog_publisher.to_str().unwrap(),
             "--mog-file",
-            &mog_conflicts.to_str().unwrap(),
+            mog_conflicts.to_str().unwrap(),
             "--mog-file",
-            &mog_deps.to_str().unwrap(),
+            mog_deps.to_str().unwrap(),
             "-m",
             "latest",
             "*",
         ],
     )?;
-    ensure::run(log, &[PKGREPO, "refresh", "-s", &repo.to_str().unwrap()])?;
+    ensure::run(log, &[PKGREPO, "refresh", "-s", repo.to_str().unwrap()])?;
 
     /*
      * Clean up the temporary merged repo files:
@@ -489,7 +489,7 @@ fn ncpus() -> Result<u32> {
     }
 
     let stdout = String::from_utf8(out.stdout)?;
-    Ok(stdout.trim().parse().context("psrinfo parse failure")?)
+    stdout.trim().parse().context("psrinfo parse failure")
 }
 
 #[derive(Clone, Copy)]
@@ -591,8 +591,8 @@ fn regen_illumos_sh<P: AsRef<Path>>(
                  * version number.  First, determine where we branched from the
                  * parent, and determine the commit count at that point:
                  */
-                let bp = git_branch_point(&gate, br, "HEAD")?;
-                let rnum = git_commit_count(&gate, &bp)?;
+                let bp = git_branch_point(gate, br, "HEAD")?;
+                let rnum = git_commit_count(gate, &bp)?;
                 info!(log, "base commit: {bp:?}, branch {br:?}, count {rnum}");
 
                 /*
@@ -600,7 +600,7 @@ fn regen_illumos_sh<P: AsRef<Path>>(
                  * from our common branch point up to the current commit on the
                  * respin branch:
                  */
-                let extra = git_commit_count(&gate, &format!("{bp}..HEAD"))?;
+                let extra = git_commit_count(gate, &format!("{bp}..HEAD"))?;
 
                 format!("{relver}.{DASHREV}.{rnum}.{extra}")
             } else {
@@ -608,7 +608,7 @@ fn regen_illumos_sh<P: AsRef<Path>>(
                  * For regular release builds, just count the number of commits
                  * in the current branch:
                  */
-                let rnum = git_commit_count(&gate, "HEAD")?;
+                let rnum = git_commit_count(gate, "HEAD")?;
 
                 format!("{relver}.{DASHREV}.{rnum}")
             };
@@ -822,20 +822,20 @@ fn create_transformed_repo(
         &[
             PKGRECV,
             "-s",
-            &repo_nd.to_str().unwrap(),
+            repo_nd.to_str().unwrap(),
             "-d",
-            &repo.to_str().unwrap(),
+            repo.to_str().unwrap(),
             "--mog-file",
-            &mog_conflicts.to_str().unwrap(),
+            mog_conflicts.to_str().unwrap(),
             "--mog-file",
-            &mog_deps.to_str().unwrap(),
+            mog_deps.to_str().unwrap(),
             "-m",
             "latest",
             "*",
         ],
     )?;
     if refresh {
-        ensure::run(log, &[PKGREPO, "refresh", "-s", &repo.to_str().unwrap()])?;
+        ensure::run(log, &[PKGREPO, "refresh", "-s", repo.to_str().unwrap()])?;
     }
 
     Ok(repo)
@@ -1023,10 +1023,10 @@ fn cmd_illumos_onu(ca: &CommandArg) -> Result<()> {
         log,
         &[
             "pfexec",
-            &onu.to_str().unwrap(),
+            onu.to_str().unwrap(),
             "-v",
             "-d",
-            &onu_dir.to_str().unwrap(),
+            onu_dir.to_str().unwrap(),
             "-t",
             &bename,
         ],
@@ -1193,7 +1193,7 @@ fn genproto(proto: &Path, output_template: &Path) -> Result<()> {
         let ent = ent?;
 
         let relpath = tree::unprefix(proto, ent.path())?;
-        if relpath == PathBuf::from("bin") {
+        if *relpath == *"bin" {
             /*
              * On illumos, /bin is always a symbolic link to /usr/bin.
              */
@@ -1231,11 +1231,11 @@ fn genproto(proto: &Path, output_template: &Path) -> Result<()> {
                 || relpath.starts_with("lib/svc/manifest")
                 || relpath.starts_with("platform")
                 || relpath.starts_with("kernel")
-                || relpath == PathBuf::from("usr")
-                || relpath == PathBuf::from("usr/share")
+                || *relpath == *"usr"
+                || *relpath == *"usr/share"
                 || relpath.starts_with("usr/platform")
                 || relpath.starts_with("usr/kernel")
-                || relpath == PathBuf::from("opt")
+                || *relpath == *"opt"
             {
                 "sys"
             } else if relpath.starts_with("lib") || relpath.starts_with("usr") {
@@ -1639,7 +1639,7 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
         if let Some(genproto) = &genproto {
             cmd.arg("-E").arg(extra_proto.as_deref().unwrap());
             cmd.arg("-F")
-                .arg(&format!("genproto={}", genproto.to_str().unwrap()));
+                .arg(format!("genproto={}", genproto.to_str().unwrap()));
         }
         cmd.arg("-E").arg(&brand_extras);
         cmd.arg("-E").arg(&projects_extras);
@@ -1689,7 +1689,7 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
 
             ensure::run(
                 log,
-                &[baseline, "-R", &root, &brand_extras.to_str().unwrap()],
+                &[baseline, "-R", &root, brand_extras.to_str().unwrap()],
             )?;
         }
 
@@ -1876,7 +1876,7 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
     cmd.arg("-N").arg(&image_name);
     cmd.arg("-o").arg(zfsimg.to_str().unwrap());
     cmd.arg("-O").arg(csumfile.to_str().unwrap());
-    cmd.arg("-s").arg(&target_size.to_string());
+    cmd.arg("-s").arg(target_size.to_string());
     if recovery {
         cmd.arg("-z");
     }
@@ -1888,10 +1888,10 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
      * hash rather than ASCII hexadecimal, so we must reformat it for inclusion
      * in the archive metadata as a string.
      */
-    let csum = std::fs::File::open(&csumfile)?
-        .bytes()
-        .map(|b| Ok(format!("{:02x}", b?)))
-        .collect::<Result<String>>()?;
+    let csum = std::fs::read(&csumfile)?
+        .iter()
+        .map(|b| format!("{:02x}", b))
+        .collect::<String>();
 
     /*
      * Begin creating the archive now so that the archiver worker thread can
@@ -2362,9 +2362,9 @@ fn cmd_setup(ca: &CommandArg) -> Result<()> {
     ensure_dir(&["tmp"])?;
 
     for (name, project) in p.project.iter() {
-        let path = top_path(&["projects", &name])?;
+        let path = top_path(&["projects", name])?;
         let url = project.url(false)?;
-        let tmp = ensure_dir(&["tmp", &name])?;
+        let tmp = ensure_dir(&["tmp", name])?;
 
         if let Some(reason) = project.skip_reason() {
             info!(log, "skipping project {name:?} because {reason}");
@@ -2579,7 +2579,7 @@ fn cmd_setup(ca: &CommandArg) -> Result<()> {
         ensure::symlink(
             log,
             &mogpath,
-            &format!("../tools/packages/{}.mogrify", mog),
+            format!("../tools/packages/{}.mogrify", mog),
         )?;
     }
 
@@ -2591,7 +2591,7 @@ fn cmd_setup(ca: &CommandArg) -> Result<()> {
             continue;
         }
 
-        let path = top_path(&["projects", &name])?;
+        let path = top_path(&["projects", name])?;
         rustup_install_toolchain(log, &path)?;
 
         info!(log, "building project {:?} at {}", name, path.display());
@@ -2614,8 +2614,8 @@ struct CommandArg<'a> {
 }
 
 struct CommandInfo {
-    name: String,
-    desc: String,
+    name: &'static str,
+    desc: &'static str,
     func: fn(&CommandArg) -> Result<()>,
     hide: bool,
     blank: bool,
@@ -2625,74 +2625,75 @@ fn main() -> Result<()> {
     let mut opts = baseopts();
     opts.parsing_style(getopts::ParsingStyle::StopAtFirstFree);
 
-    let mut handlers: Vec<CommandInfo> = Vec::new();
-    handlers.push(CommandInfo {
-        name: "setup".into(),
-        desc: "clone required repositories and run setup tasks".into(),
-        func: cmd_setup,
-        hide: false,
-        blank: false,
-    });
-    handlers.push(CommandInfo {
-        name: "genenv".into(),
-        desc: "generate environment file for illumos build".into(),
-        func: cmd_illumos_genenv,
-        hide: false,
-        blank: true,
-    });
-    handlers.push(CommandInfo {
-        name: "bldenv".into(),
-        desc: "enter a bldenv shell for illumos so you can run dmake".into(),
-        func: cmd_illumos_bldenv,
-        hide: false,
-        blank: true,
-    });
-    handlers.push(CommandInfo {
-        name: "onu".into(),
-        desc: "install your non-DEBUG build of illumos on this system".into(),
-        func: cmd_illumos_onu,
-        hide: false,
-        blank: false,
-    });
-    handlers.push(CommandInfo {
-        name: "build-illumos".into(),
-        desc: "run a full nightly(1) and produce packages".into(),
-        func: cmd_build_illumos,
-        hide: false,
-        blank: false,
-    });
-    handlers.push(CommandInfo {
-        name: "merge-illumos".into(),
-        desc: "merge DEBUG and non-DEBUG packages into one repository".into(),
-        func: cmd_merge_illumos,
-        hide: false,
-        blank: false,
-    });
-    handlers.push(CommandInfo {
-        name: "experiment-image".into(),
-        desc: "image construction for Compute Sleds".into(),
-        func: cmd_image,
-        hide: false,
-        blank: false,
-    });
-    handlers.push(CommandInfo {
-        name: "image".into(),
-        desc: "image construction for Compute Sleds".into(),
-        func: cmd_image,
-        hide: true,
-        blank: false,
-    });
-    handlers.push(CommandInfo {
-        name: "help".into(),
-        desc: "display usage information".into(),
-        /*
-         * No behaviour is required here.  The "help" command is a special case
-         * in the argument processing below.
-         */
-        func: |_: &CommandArg| Ok(()),
-        hide: false,
-        blank: true,
-    });
+    let handlers = [
+        CommandInfo {
+            name: "setup",
+            desc: "clone required repositories and run setup tasks",
+            func: cmd_setup,
+            hide: false,
+            blank: false,
+        },
+        CommandInfo {
+            name: "genenv",
+            desc: "generate environment file for illumos build",
+            func: cmd_illumos_genenv,
+            hide: false,
+            blank: true,
+        },
+        CommandInfo {
+            name: "bldenv",
+            desc: "enter a bldenv shell for illumos so you can run dmake",
+            func: cmd_illumos_bldenv,
+            hide: false,
+            blank: true,
+        },
+        CommandInfo {
+            name: "onu",
+            desc: "install your non-DEBUG build of illumos on this system",
+            func: cmd_illumos_onu,
+            hide: false,
+            blank: false,
+        },
+        CommandInfo {
+            name: "build-illumos",
+            desc: "run a full nightly(1) and produce packages",
+            func: cmd_build_illumos,
+            hide: false,
+            blank: false,
+        },
+        CommandInfo {
+            name: "merge-illumos",
+            desc: "merge DEBUG and non-DEBUG packages into one repository",
+            func: cmd_merge_illumos,
+            hide: false,
+            blank: false,
+        },
+        CommandInfo {
+            name: "experiment-image",
+            desc: "image construction for Compute Sleds",
+            func: cmd_image,
+            hide: false,
+            blank: false,
+        },
+        CommandInfo {
+            name: "image",
+            desc: "image construction for Compute Sleds",
+            func: cmd_image,
+            hide: true,
+            blank: false,
+        },
+        CommandInfo {
+            name: "help",
+            desc: "display usage information",
+            /*
+             * No behaviour is required here.  The "help" command is a special case
+             * in the argument processing below.
+             */
+            func: |_: &CommandArg| Ok(()),
+            hide: false,
+            blank: true,
+        },
+    ];
 
     let usage = |failure: bool| {
         let mut out = String::new();
