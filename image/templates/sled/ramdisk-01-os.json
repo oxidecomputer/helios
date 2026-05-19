@@ -90,6 +90,8 @@
 
             "oxide/platform-identity-cacerts",
 
+            "/driver/oxide/os-rot",
+
             "${@extra_packages}"
         ] },
 
