@@ -239,6 +239,12 @@ struct Project {
     cargo_build: bool,
     #[serde(default)]
     use_debug: bool,
+    /*
+     * If `cargo_build` is false, still install the Rust toolchain required by
+     * this project:
+     */
+    #[serde(default)]
+    cargo_toolchain: bool,
 
     /*
      * If this environment variable is set to "no", we will skip cloning and
@@ -1976,7 +1982,6 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
     info!(log, "creating reset image...");
     let phbl_path = top_path(&["projects", "phbl"])?;
     let phbl_target = rel_path(Some(&outdir), &["phbl"])?;
-    rustup_install_toolchain(log, &phbl_path)?;
     ensure::run_in(
         log,
         &phbl_path,
@@ -1998,7 +2003,6 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
     )?;
 
     let ahib_path = top_path(&["projects", "amd-host-image-builder"])?;
-    rustup_install_toolchain(log, &ahib_path)?;
 
     /*
      * Go through and create the per-board ROM images.
@@ -2586,13 +2590,18 @@ fn cmd_setup(ca: &CommandArg) -> Result<()> {
     /*
      * Perform setup in project repositories that require it.
      */
-    for (name, project) in p.project.iter().filter(|p| p.1.cargo_build) {
+    for (name, project) in &p.project {
         if project.skip() {
             continue;
         }
 
         let path = top_path(&["projects", &name])?;
-        rustup_install_toolchain(log, &path)?;
+        if project.cargo_toolchain || project.cargo_build {
+            rustup_install_toolchain(log, &path)?;
+        }
+        if !project.cargo_build {
+            continue;
+        }
 
         info!(log, "building project {:?} at {}", name, path.display());
         let start = Instant::now();
