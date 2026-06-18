@@ -5,9 +5,9 @@ edition = "2021"
 license = "MPL-2.0"
 #
 # Report a specific error in the case that the toolchain is too old for
-# let-else:
+# newer standard library conveniences.
 #
-rust-version = "1.65.0"
+rust-version = "1.70.0"
 
 [dependencies]
 anyhow = "1"
