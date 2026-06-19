@@ -340,7 +340,7 @@ pub fn file_str<P: AsRef<Path>>(
         let mut f = std::fs::OpenOptions::new()
             .create_new(true)
             .write(true)
-            .open(&dst)?;
+            .open(dst)?;
         f.write_all(contents.as_bytes())?;
         f.flush()?;
     }
@@ -518,10 +518,7 @@ where
     T: Read + Send + 'static,
 {
     let name = name.to_string();
-    let stream = match stream {
-        Some(stream) => stream,
-        None => return None,
-    };
+    let stream = stream?;
 
     let log = log.clone();
 
@@ -648,7 +645,7 @@ pub fn run_in<S: AsRef<OsStr>, P: AsRef<Path>>(
 ) -> Result<()> {
     let args: Vec<&OsStr> = args.iter().map(|s| s.as_ref()).collect();
 
-    let mut cmd = Command::new(&args[0]);
+    let mut cmd = Command::new(args[0]);
     cmd.current_dir(pwd.as_ref());
 
     scrub_env(&mut cmd, false);
@@ -663,7 +660,7 @@ pub fn run_in<S: AsRef<OsStr>, P: AsRef<Path>>(
 pub fn run<S: AsRef<OsStr>>(log: &Logger, args: &[S]) -> Result<()> {
     let args: Vec<&OsStr> = args.iter().map(|s| s.as_ref()).collect();
 
-    let mut cmd = Command::new(&args[0]);
+    let mut cmd = Command::new(args[0]);
 
     scrub_env(&mut cmd, false);
 
@@ -677,7 +674,7 @@ pub fn run<S: AsRef<OsStr>>(log: &Logger, args: &[S]) -> Result<()> {
 pub fn run_utf8<S: AsRef<OsStr>>(log: &Logger, args: &[S]) -> Result<()> {
     let args: Vec<&OsStr> = args.iter().map(|s| s.as_ref()).collect();
 
-    let mut cmd = Command::new(&args[0]);
+    let mut cmd = Command::new(args[0]);
 
     scrub_env(&mut cmd, true);
 
@@ -697,7 +694,7 @@ where
 {
     let args: Vec<&OsStr> = args.iter().map(|s| s.as_ref()).collect();
 
-    let mut cmd = Command::new(&args[0]);
+    let mut cmd = Command::new(args[0]);
 
     cmd.env_clear();
     cmd.envs(env);
