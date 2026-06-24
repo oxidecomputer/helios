@@ -1,5 +1,8 @@
 {
     "steps": [
+        { "t": "remove_files", "file": "/platform/oxide/kernel/drv/amd64/vmm" },
+        { "t": "remove_files", "file": "/platform/oxide/kernel/drv/vmm.conf" },
+
         { "t": "remove_files", "dir": "/usr/gcc/7" },
         { "t": "remove_files", "dir": "/usr/gnu/share" },
         { "t": "remove_files", "dir": "/usr/lib/dns" },
@@ -487,7 +490,6 @@
         { "t": "remove_files", "file": "/usr/kernel/drv/amd64/ppt" },
         { "t": "remove_files", "file": "/usr/kernel/drv/amd64/ptm" },
         { "t": "remove_files", "file": "/usr/kernel/drv/amd64/pts" },
-        { "t": "remove_files", "file": "/usr/kernel/drv/amd64/vmm" },
         { "t": "remove_files", "file": "/usr/kernel/drv/amd64/zcons" },
         { "t": "remove_files", "file": "/usr/kernel/drv/fssnap.conf" },
         { "t": "remove_files", "file": "/usr/kernel/drv/logindmux.conf" },
@@ -496,7 +498,6 @@
         { "t": "remove_files", "file": "/usr/kernel/drv/ppt.conf" },
         { "t": "remove_files", "file": "/usr/kernel/drv/smbsrv.conf" },
         { "t": "remove_files", "file": "/usr/kernel/drv/viona.conf" },
-        { "t": "remove_files", "file": "/usr/kernel/drv/vmm.conf" },
         { "t": "remove_files", "file": "/usr/kernel/exec/amd64/javaexec" },
         { "t": "remove_files", "file": "/usr/kernel/exec/amd64/shbinexec" },
         { "t": "remove_files", "file": "/usr/kernel/fs/amd64/pcfs" },
