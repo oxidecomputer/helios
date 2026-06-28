@@ -5209,7 +5209,7 @@
                     },
                     {
                       Byte: {
-                        DfSaveRestoreMemEncrypt: "Auto"
+                        DfSaveRestoreMemEncrypt: "Enabled"
                       }
                     },
                     {
