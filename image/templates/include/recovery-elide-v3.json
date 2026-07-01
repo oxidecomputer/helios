@@ -818,6 +818,7 @@
         { "t": "remove_files", "file": "/usr/lib/link_audit/who.so.1" },
         { "t": "remove_files", "file": "/usr/lib/pci/pcidb" },
         { "t": "remove_files", "file": "/usr/lib/pci/pcidr_plugin.so" },
+        { "t": "remove_files", "file": "/usr/lib/pci/pcieb" },
         { "t": "remove_files", "file": "/usr/lib/raidcfg/amd64/mpt.so.1" },
         { "t": "remove_files", "file": "/usr/lib/raidcfg/mpt.so.1" },
         { "t": "remove_files", "file": "/usr/lib/reparse/libreparse_smb.so.1" },
