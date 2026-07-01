@@ -81,6 +81,7 @@ github = "oxidecomputer/amd-firmware"
 use_ssh = true
 auto_update = true
 unless_env = "OXIDE_STAFF"
+rev = "milan-1.0.0.f_pmfw-45.104.100"
 
 [project.chelsio-t6-roms]
 github = "oxidecomputer/chelsio-t6-roms"
