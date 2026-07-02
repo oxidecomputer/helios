@@ -1,20 +1,20 @@
 cpu = 'milan'
 board = 'gimlet-b'
-firmware_version = '1.0.0.h'
+firmware_version = '1.0.0.f'
 size = 32
 blobs = [
     'AmdPubKey_gn.tkn',
     'PspBootLoader_gn.sbin',
     'PspRecoveryBootLoader_gn.sbin',
-    'SmuFirmwareGn.csbin',
+    'SmuFirmwareGn-45-104-100.csbin',
     'SecureDebugToken_gn.stkn',
     'PspABLFw_gn.stkn',
-    'SmuFirmware2Gn.csbin',
+    'SmuFirmware2Gn-45-104-100.csbin',
     'SecureDebugUnlock_gn.sbin',
     'PspIkek_gn.bin',
     'SecureEmptyToken.bin',
     'RsmuSecPolicy_gn.sbin',
-    'Mp5Gn.csbin',
+    'Mp5Gn-45-104-100.csbin',
     'AgesaBootloader_U_prod_GN.csbin',
     'GnPhyFw.sbin',
     'PSP-Key-DB_gn.sbin',
