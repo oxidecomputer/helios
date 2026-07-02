@@ -82,7 +82,7 @@ to_branch = "main"
 
 [project.amd-firmware]
 github = "oxidecomputer/amd-firmware"
-rev = "1f2738390af304eec593c1aa12abc4c0e14ec618"
+rev = "509e931944e9373f09c91250678dcb8c5a1d84fb"
 use_ssh = true
 auto_update = true
 unless_env = "OXIDE_STAFF"
