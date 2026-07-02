@@ -34,7 +34,7 @@
         },
         {
           source: {
-            BlobFile: "SmuFirmwareGn.csbin"
+            BlobFile: "SmuFirmwareGn-45-104-100.csbin"
           },
           target: {
             type: "SmuOffChipFirmware8"
@@ -70,7 +70,7 @@
         },
         {
           source: {
-            BlobFile: "SmuFirmware2Gn.csbin"
+            BlobFile: "SmuFirmware2Gn-45-104-100.csbin"
           },
           target: {
             type: "SmuOffChipFirmware12"
@@ -110,7 +110,7 @@
         },
         {
           source: {
-            BlobFile: "Mp5Gn.csbin"
+            BlobFile: "Mp5Gn-45-104-100.csbin"
           },
           target: {
             type: "Mp5Firmware"
