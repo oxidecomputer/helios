@@ -481,10 +481,6 @@
         { "t": "remove_files", "file": "/usr/has/bin/vi" },
         { "t": "remove_files", "file": "/usr/has/bin/view" },
 
-        { "t": "remove_files", "file": "/kernel/drv/amd64/uhsmp" },
-        { "t": "remove_files", "file": "/kernel/drv/amd64/usmn" },
-        { "t": "remove_files", "file": "/kernel/drv/amd64/zen_udf" },
-
         { "t": "remove_files", "file": "/usr/kernel/drv/amd64/logindmux" },
         { "t": "remove_files", "file": "/usr/kernel/drv/amd64/pool" },
         { "t": "remove_files", "file": "/usr/kernel/drv/amd64/ppt" },
@@ -518,10 +514,6 @@
 
         { "t": "remove_files", "file": "/usr/kvm/README" },
 
-        { "t": "remove_files", "file": "/usr/lib/apobdump" },
-        { "t": "remove_files", "file": "/usr/lib/udf" },
-        { "t": "remove_files", "file": "/usr/lib/uhsmp" },
-        { "t": "remove_files", "file": "/usr/lib/usmn" },
         { "t": "remove_files", "file": "/usr/lib/abi/spec2map" },
         { "t": "remove_files", "file": "/usr/lib/abi/spec2trace" },
         { "t": "remove_files", "file": "/usr/lib/adb/adbgen" },

@@ -36,7 +36,6 @@
 
         { "t": "pkg_install", "pkgs": [
             "/developer/debug/mdb",
-            "/driver/developer/amd/zen",
             "/system/kernel/dtrace/providers",
             "/system/network",
             "/system/microcode/oxide",
@@ -112,12 +111,18 @@
             "/driver/network/opte@${optever}"
         ] },
 
+        { "t": "pkg_install", "with": "mbist", "pkgs": [
+            "/driver/developer/amd/zen"
+        ] },
+
         { "t": "pkg_install", "with": "mfg", "pkgs": [
+            "/driver/developer/amd/zen",
             "/driver/cpu/amd/psp",
             "/driver/developer/amd/psp/einj"
         ] },
 
         { "t": "pkg_install", "with": "compliance", "pkgs": [
+            "/driver/developer/amd/zen",
             "/driver/cpu/amd/psp",
             "/driver/developer/amd/psp/einj",
             "/developer/debug/humility"
