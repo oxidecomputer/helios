@@ -108,6 +108,10 @@
             "file": "/etc/motd",
             "src": "motd",
             "owner": "root", "group": "sys", "mode": "0644" },
+        { "t": "ensure_file",
+            "file": "/etc/profile",
+            "src": "profile",
+            "owner": "root", "group": "sys", "mode": "0644" },
 
         { "t": "ensure_file",
             "file": "/etc/system.d/zfs:dbuf",

@@ -1,0 +1,29 @@
+# The profile that all logins get before using their own .profile.
+
+trap ""  2 3
+export LOGNAME PATH
+
+if [ -z "$TERM" ]; then
+	export TERM=xterm
+fi
+
+case "$0" in
+-bash)
+	# set prompt for bash
+	PS1="\u@\h:\w\\$ "
+	export PS1
+	;;
+esac
+
+case "$0" in
+-sh | -ksh | -ksh93 | -jsh | -bash | -zsh)
+	if [ ! -f .hushlogin ]; then
+		#	Allow the user to break the Message-Of-The-Day only.
+		trap "trap '' 2"  2
+		/bin/cat -s /etc/motd
+		trap "" 2
+	fi
+esac
+
+umask 022
+trap  2 3
