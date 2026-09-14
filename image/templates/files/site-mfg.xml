@@ -11,12 +11,21 @@
         <instance name='default' enabled='true' />
     </service>
 
+    <!-- Enable ASLR for all processes -->
+    <service name='system/process-security' version='1' type='service'>
+        <property_group name='default' type='application'>
+            <propval name='aslr' type='boolean' value='true'/>
+            <propval name='noexecstack' type='boolean' value='true'/>
+        </property_group>
+        <instance name='default' enabled='true'/>
+    </service>
+
     <!-- We will enable the T6 service manually during programming. -->
     <service name='system/t6init' version='1' type='service'>
         <instance name='default' enabled='false' />
     </service>
 
-    <!-- Setup networking: -->
+    <!-- Set up networking: -->
     <service name='oxide/net-setup' version='1' type='service'>
         <instance name='igb' enabled='true' />
         <instance name='e1000g' enabled='true' />
