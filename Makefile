@@ -4,7 +4,7 @@
 
 TOP =			$(PWD)
 
-HELIOS_BUILD =		$(TOP)/tools/helios-build/target/debug/helios-build
+HELIOS_BUILD =		$(TOP)/tools/helios-build/target/release/helios-build
 
 .PHONY: welcome
 welcome: gmakecheck
@@ -51,7 +51,7 @@ bldenv: gmakecheck $(HELIOS_BUILD)
 setup: gmakecheck $(HELIOS_BUILD)
 	@$(HELIOS_BUILD) setup
 	rm -f helios-build
-	ln -s tools/helios-build/target/debug/helios-build
+	ln -s tools/helios-build/target/release/helios-build
 	@printf '\n'
 	@printf 'Setup complete!  ./helios-build is now available.\n'
 	@printf '\n'
@@ -62,7 +62,7 @@ $(HELIOS_BUILD): cargocheck
 		printf 'ERROR: must be built on illumos\n' >&2; \
 		exit 1; \
 	fi
-	cd tools/helios-build && cargo build --quiet
+	cd tools/helios-build && cargo build --quiet --release
 
 .PHONY: clean
 clean:
