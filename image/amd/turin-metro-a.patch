@@ -1,0 +1,17 @@
+--- turin-cosmo-a.efs.json5
++++ turin-metro-a.efs.json5
+@@ -8,6 +8,14 @@
+     respond_port_0x80: false,
+     io_mode: "Auto"
+   },
++  espi1_configuration: {
++    enable_port_0x80: false,
++    alert_pin: 0,
++    data_bus: 1,
++    clock: 0,
++    respond_port_0x80: false,
++    io_mode: "Auto"
++  },
+   psp: {
+     PspDirectory: {
+       entries: [
