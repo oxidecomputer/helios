@@ -100,7 +100,8 @@
             "/system/ksensor",
             "/driver/cpu/sensor",
             "/driver/ktest",
-            "/system/i2c"
+            "/system/i2c",
+	    "/system/flash/fwflash"
         ] },
 
         { "t": "pkg_install", "with": "omicron1", "pkgs": [
