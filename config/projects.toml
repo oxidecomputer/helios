@@ -60,6 +60,12 @@ auto_update = true
 from_commit = "4eae23e8a86a6b5ae16e26283e9c0bee87cc2167"
 to_branch = "main"
 
+[project.dmar-report]
+github = "oxidecomputer/dmar-report"
+use_ssh = false
+cargo_build = true
+auto_update = true
+
 #
 # -----------------------------------------------------------------------------
 # NOTE: Repositories below this comment are all still private.
@@ -91,13 +97,6 @@ unless_env = "OXIDE_STAFF"
 
 [project.pilot]
 github = "oxidecomputer/pilot"
-use_ssh = true
-cargo_build = true
-auto_update = true
-unless_env = "OXIDE_STAFF"
-
-[project.dmar-report]
-github = "oxidecomputer/dmar-report"
 use_ssh = true
 cargo_build = true
 auto_update = true
