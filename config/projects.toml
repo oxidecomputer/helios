@@ -88,13 +88,6 @@ use_ssh = true
 auto_update = true
 unless_env = "OXIDE_STAFF"
 
-[project.chelsio-t6-roms]
-github = "oxidecomputer/chelsio-t6-roms"
-use_ssh = true
-cargo_build = false
-auto_update = true
-unless_env = "OXIDE_STAFF"
-
 [project.pilot]
 github = "oxidecomputer/pilot"
 use_ssh = true
