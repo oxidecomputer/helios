@@ -1,0 +1,62 @@
+<?xml version="1.0"?>
+<!DOCTYPE service_bundle SYSTEM "/usr/share/lib/xml/dtd/service_bundle.dtd.1">
+<!--
+    Copyright 2026 Oxide Computer Company
+-->
+
+<service_bundle type='manifest' name='oxide-bobsled-falco'>
+
+<service name='oxide/bobsled-falco' type='service' version='1'>
+    <create_default_instance enabled='true' />
+
+    <dependency name='fs-local' grouping='require_all' restart_on='none'
+        type='service'>
+        <service_fmri value='svc:/system/filesystem/local' />
+    </dependency>
+
+    <!-- Time synchronisation needs the network, including DNS from the
+         DHCP lease: -->
+    <dependency name='bobsled-dhcp' grouping='require_all' restart_on='none'
+        type='service'>
+        <service_fmri value='svc:/oxide/bobsled-dhcp' />
+    </dependency>
+    <dependency name='network' grouping='require_all' restart_on='none'
+        type='service'>
+        <service_fmri value='svc:/milestone/network' />
+    </dependency>
+
+    <!-- Make sure the clock is correct and the pool exists before users and
+         other services get going: -->
+    <dependent name='bobsled-falco-multi-user' grouping='optional_all'
+        restart_on='none'>
+        <service_fmri value='svc:/milestone/multi-user' />
+    </dependent>
+
+    <exec_method type='method' name='start'
+        exec='/usr/lib/oxide/bobsled-falco' timeout_seconds='600' />
+
+    <exec_method type='method' name='stop' exec=':true' timeout_seconds='30' />
+
+    <property_group name='startd' type='framework'>
+        <propval name='duration' type='astring' value='transient' />
+    </property_group>
+
+    <property_group name='config' type='application'>
+        <propval name='pool' type='astring' value='fpool' />
+        <propval name='pool_size' type='astring' value='5T' />
+    </property_group>
+
+    <stability value='Unstable' />
+
+    <template>
+        <common_name>
+            <loctext xml:lang='C'>bobsled falco setup</loctext>
+        </common_name>
+        <description>
+            <loctext xml:lang='C'>synchronises time and creates the falco
+                zpool</loctext>
+        </description>
+    </template>
+</service>
+
+</service_bundle>

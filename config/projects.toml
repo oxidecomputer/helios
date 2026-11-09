@@ -67,6 +67,19 @@ cargo_build = true
 auto_update = true
 
 #
+# falco is included in bobsled images (-F bobsled).  Note that "setup" will
+# check out the branch named by "rev" but will not fast-forward an existing
+# clone, so to pick up new commits run "git pull" in projects/falcon and then
+# re-run setup to rebuild.
+#
+[project.falcon]
+github = "oxidecomputer/falcon"
+rev = "falcon-img"
+use_ssh = false
+cargo_build = true
+auto_update = false
+
+#
 # -----------------------------------------------------------------------------
 # NOTE: Repositories below this comment are all still private.
 #
