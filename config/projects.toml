@@ -88,16 +88,18 @@ use_ssh = true
 auto_update = true
 unless_env = "OXIDE_STAFF"
 
-[project.chelsio-t6-roms]
-github = "oxidecomputer/chelsio-t6-roms"
-use_ssh = true
-cargo_build = false
-auto_update = true
-unless_env = "OXIDE_STAFF"
-
 [project.pilot]
 github = "oxidecomputer/pilot"
 use_ssh = true
 cargo_build = true
 auto_update = true
 unless_env = "OXIDE_STAFF"
+
+# chelsio-t6-roms is not required unless you are modifying one of the image
+# templates to test firmware present in that repository.
+[project.chelsio-t6-roms]
+github = "oxidecomputer/chelsio-t6-roms"
+use_ssh = true
+cargo_build = false
+auto_update = true
+if_env = "T6_ROMS"
