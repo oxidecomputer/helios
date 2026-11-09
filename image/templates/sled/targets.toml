@@ -13,3 +13,7 @@ feature = "mbist"
 [cosmo-mbist-noaggr]
 app = "turin-cosmo-1.0.0.a-mbist-noaggr.toml"
 feature = "mbist"
+
+[metro]
+app = "turin-metro-1.0.0.a.toml"
+

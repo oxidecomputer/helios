@@ -18,7 +18,7 @@ tools and documentation in this top-level repository.
 | [amd-firmware](https://github.com/oxidecomputer/amd-firmware)                                   | ❌ No   | AMD CPU firmware binary blobs (will be available in future)                     |
 | [amd-host-image-builder](https://github.com/oxidecomputer/amd-host-image-builder)               | ✅ Yes  | ROM image construction tools for AMD CPUs                                       |
 | [pilot](https://github.com/oxidecomputer/pilot)                                                 | ❌ No   | A utility for low-level control of Oxide systems (will be available in future)  |
-| [dmar-report](https://github.com/oxidecomputer/dmar-report)                                     | ❌ No   | DRAM margining report generator (will be available in future)                  |
+| [dmar-report](https://github.com/oxidecomputer/dmar-report)                                     | ✅ Yes  | DRAM margining report generator                                                 |
 
 **NOTE:** Not all consolidations are presently available to the public.  We're
 working on this, but for now you can set `OXIDE_STAFF=no` in your environment

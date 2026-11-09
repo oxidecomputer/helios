@@ -1,0 +1,6 @@
+base = 'turin-cosmo-1.0.0.a.toml'
+board = 'metro'
+
+[patch]
+base = 'turin-cosmo-a.efs.json5'
+diff = 'turin-metro-a.patch'
