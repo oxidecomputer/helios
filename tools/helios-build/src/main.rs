@@ -247,6 +247,12 @@ struct Project {
     cargo_toolchain: bool,
 
     /*
+     * If this environment variable is not set to "yes", we will skip cloning
+     * and building this project.
+     */
+    if_env: Option<String>,
+
+    /*
      * If this environment variable is set to "no", we will skip cloning and
      * building this project.
      */
@@ -282,6 +288,17 @@ impl Project {
     }
 
     fn skip_reason(&self) -> Option<String> {
+        if let Some(key) = self.if_env.as_deref() {
+            if let Ok(value) = std::env::var(key) {
+                let value = value.to_ascii_lowercase();
+                if !(value == "yes" || value == "1" || value == "true") {
+                    return Some(format!("{key:?} is set to {value:?}"));
+                }
+            } else {
+                return Some(format!("{key:?} is unset"));
+            }
+        }
+
         if let Some(key) = self.unless_env.as_deref() {
             if let Ok(value) = std::env::var(key) {
                 let value = value.to_ascii_lowercase();
