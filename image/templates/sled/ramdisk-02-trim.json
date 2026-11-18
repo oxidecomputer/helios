@@ -74,6 +74,22 @@
         { "t": "remove_files", "file": "/kernel/drv/intel_nhmex.conf" },
         { "t": "remove_files", "file": "/kernel/drv/amd64/mpt" },
         { "t": "remove_files", "file": "/kernel/drv/mpt.conf" },
+        { "t": "remove_files", "file": "/kernel/kmdb/amd64/mpt" },
+        { "t": "remove_files", "file": "/usr/lib/mdb/kvm/amd64/mpt.so" },
+        { "t": "remove_files", "file": "/usr/lib/raidcfg/mpt.so.1" },
+        { "t": "remove_files", "file": "/usr/lib/raidcfg/amd64/mpt.so.1" },
+
+        { "t": "remove_files", "file": "/usr/lib/inet/in.iked" },
+        { "t": "remove_files", "file": "/usr/lib/inet/amd64/in.iked" },
+        { "t": "remove_files", "file": "/usr/lib/inet/certdb" },
+        { "t": "remove_files", "file": "/usr/lib/inet/certlocal" },
+        { "t": "remove_files", "file": "/usr/lib/inet/certrldb" },
+        { "t": "remove_files", "file": "/usr/lib/libike.so.1" },
+        { "t": "remove_files", "file": "/usr/lib/amd64/libike.so.1" },
+        { "t": "remove_files", "file": "/usr/sbin/ikeadm" },
+        { "t": "remove_files", "file": "/usr/sbin/ikecert" },
+
+        { "t": "remove_files", "file": "/usr/bin/pax" },
 
         { "t": "remove_files",
             "file": "/usr/lib/fm/fmd/plugins/ses-log-transport.so" },
