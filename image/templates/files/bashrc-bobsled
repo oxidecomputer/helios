@@ -1,0 +1,79 @@
+#
+# Accept a preference value for the editing mode of the shell.  The name of
+# this variable is effectively a contract between several things, including:
+#
+#   - the end user who must specify it in their environment somehow
+#   - the SSH server configuration that must allow it to be passed through the
+#     connection (see AcceptEnv in sshd_config)
+#   - the SSH client configuration that provides the value (see SetEnv and
+#     SendEnv in ssh_config)
+#   - pilot, which will attempt to inject and propagate the variable through
+#     the various shell sessions it can establish
+#   - the omicron1 zone brand, which needs to arrange for propagation of
+#     the value through interactive zlogin, and which needs to include a
+#     similar usage in bashrc as we have here
+#
+if [[ -n "$OXIDE_PREF_SHELL_MODE" ]]; then
+	case "$OXIDE_PREF_SHELL_MODE" in
+	vi|emacs)
+		set -o "$OXIDE_PREF_SHELL_MODE"
+		;;
+	*)
+		printf 'WARNING: OXIDE_PREF_SHELL_MODE="%s" not understood' \
+		    "$OXIDE_PREF_SHELL_MODE" >&2
+		;;
+	esac
+fi
+
+C_RED='\[\033[01;31m\]'
+C_BLD='\[\033[1m\]'
+C_NUL='\[\033[00m\]'
+
+if [[ -n $SSH_CLIENT ]]; then
+        export PROMPT_COMMAND='echo -ne "\033]0;${HOSTNAME} \007" && history -a'
+fi
+
+#
+# bobsled hosts are worked on interactively, so show who and where in the
+# prompt: user@host:dir#
+#
+C_USR='\[\033[38;5;209m\]'
+C_SEP='\[\033[38;5;244m\]'
+C_HST='\[\033[38;5;72m\]'
+C_DIR='\[\033[38;5;110m\]'
+
+case "$TERM" in
+xterm*|rxvt*|screen*|tmux*)
+        PS1="$C_USR\\u$C_SEP@$C_HST\\h$C_SEP:$C_DIR\\w$C_SEP\\\$ $C_NUL"
+        ;;
+sun-color)
+        PS1="$C_RED\\u@\\h$C_NUL:$C_BLD\\w$C_NUL\\\$ "
+        ;;
+*)
+        PS1="\\u@\\h:\\w\\\$ "
+        ;;
+esac
+
+alias ls='ls --color=auto'
+
+pathdirs=(
+	"$HOME/bin"
+	'/opt/ooce/sbin'
+	'/opt/ooce/bin'
+	'/opt/oxide/opte/bin'
+	'/opt/oxide/oxlog'
+	'/opt/oxide/mg-ddm'
+	'/usr/sbin'
+	'/usr/bin'
+	'/bin'
+	'/sbin'
+)
+export PATH=$(IFS=':'; printf '%s' "${pathdirs[*]}")
+
+#
+# Bracketed paste in bash is a deeply questionable facility, and on a serial
+# console where one may reset the system at any time it leaves the terminal in
+# a state where one cannot then paste correctly into one of the development
+# loaders, such as bldb or nanobl-rs.
+#
+bind 'set enable-bracketed-paste off'

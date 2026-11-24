@@ -102,7 +102,7 @@
             "owner": "root", "group": "root", "mode": "0644" },
         { "t": "ensure_file",
             "file": "/root/.bashrc",
-            "src": "bashrc",
+            "src": "bashrc${bobsled?-bobsled}",
             "owner": "root", "group": "root", "mode": "0644" },
         { "t": "ensure_file",
             "file": "/etc/motd",

@@ -1386,7 +1386,7 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
     opts.optopt("s", "", "tempdir name suffix", "SUFFIX");
     opts.optopt("o", "", "output directory for image", "DIR");
     opts.optmulti("F", "", "pass extra image builder features", "KEY[=VAL]");
-    opts.optflag("B", "", "include omicron1 brand");
+    opts.optflag("B", "", "include omicron1 brand (implied by -F bobsled)");
     opts.optopt("N", "name", "image name", "NAME");
     opts.optflag("R", "", "recovery image");
     opts.optmulti("X", "", "skip this phase", "PHASE");
@@ -1408,7 +1408,13 @@ fn cmd_image(ca: &CommandArg) -> Result<()> {
 
     let log = ca.log;
     let res = opts.parse(ca.args.iter())?;
-    let brand = res.opt_present("B");
+    /*
+     * bobsled images host falcon topologies, which run per-topology omicron1
+     * zones, so the "bobsled" feature always brings in the brand and its
+     * baseline.
+     */
+    let brand = res.opt_present("B")
+        || res.opt_strs("F").iter().any(|f| f == "bobsled");
 
     let mut publishers = Publishers::default();
     let local_build = if res.opt_present("p") {
