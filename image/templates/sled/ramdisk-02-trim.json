@@ -117,6 +117,10 @@
             "file": "/etc/system.d/zfs:dbuf",
             "src": "sled-system-zfs:dbuf",
             "owner": "root", "group": "sys", "mode": "0644" },
+        { "t": "ensure_file", "with": "bobsled",
+            "file": "/etc/system.d/vmm:zone",
+            "src": "bobsled-system-vmm",
+            "owner": "root", "group": "sys", "mode": "0644" },
 
         { "t": "assemble_files",
             "dir": "/etc/system.d",

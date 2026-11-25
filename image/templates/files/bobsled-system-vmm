@@ -1,0 +1,6 @@
+*
+* bobsled hosts run each falcon topology, with all of its VMs, inside its own
+* non-global zone. The vmm driver normally allows only one VM per non-global
+* zone, so lift that limit here.
+*
+set vmm:vmm_zone_single_vm = 0

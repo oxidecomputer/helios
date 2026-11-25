@@ -109,6 +109,10 @@
             "/system/zones/brand/omicron1"
         ] },
 
+        { "t": "pkg_install", "with": "bobsled", "pkgs": [
+            "/network/ipfilter"
+        ] },
+
         { "t": "pkg_install", "with": "optever", "pkgs": [
             "/driver/network/opte@${optever}"
         ] },
