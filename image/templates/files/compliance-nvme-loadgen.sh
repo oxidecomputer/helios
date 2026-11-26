@@ -63,7 +63,16 @@ for nvme do
 		fatal "Unknown device \"$nvme\""
 	fi
 	dev="${nvme_dev_map[$nvme]}p0"
-	out_files+=("$devdir/$dev")
+	devfile="$devdir/$dev"
+	if [[ ! -b "$devfile" ]]; then
+		rm -f "$devfile"
+		diskdev="$devdir/${nvme_dev_map[$nvme]}"
+		fdisk -E "$diskdev"
+	fi
+	if [[ ! -e "$devfile" ]]; then
+		fatal "Device file \"$devfile\" does not exist"
+	fi
+	out_files+=("$devfile")
 done
 
 env \
